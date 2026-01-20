@@ -3,19 +3,19 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/SpringArmComponent.h"
-// #include "Combat/Stats/HealthComponent.h"
-// #include "Combat/Stats/APComponent.h"
-// #include "Combat/Skill/SkillComponent.h"
-// #include "Combat/AI/CombatAIComponent.h"
+#include "JRPG/Combat/Stats/HealthComponent.h"
+#include "JRPG/Combat/Stats/APComponent.h"
+#include "JRPG/Combat/Skill/SkillComponent.h"
+#include "JRPG/Combat/AI/CombatAIComponent.h"
 
 ACombatCharacter::ACombatCharacter()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	// Health = CreateDefaultSubobject<UHealthComponent>("Health");
-	// AP     = CreateDefaultSubobject<UAPComponent>("AP");
-	// Skills = CreateDefaultSubobject<USkillComponent>("Skills");
-	// CombatAI = CreateDefaultSubobject<UCombatAIComponent>("CombatAI");
+	Health = CreateDefaultSubobject<UHealthComponent>("Health");
+	AP     = CreateDefaultSubobject<UAPComponent>("AP");
+	Skills = CreateDefaultSubobject<USkillComponent>("Skills");
+	CombatAI = CreateDefaultSubobject<UCombatAIComponent>("CombatAI");
 	
 	// ====== 카메라 ======
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("CameraBoom"));

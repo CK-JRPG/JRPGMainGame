@@ -1,14 +1,15 @@
 ﻿#include "CombatPlayerController.h"
 #include "Kismet/GameplayStatics.h"
 
-//#include "Combat/Battle/BattleSessionSubsystem.h"
-//#include "Combat/Tactical/TacticalModeSubsystem.h"
-//#include "Combat/Chain/TrinityChainSubsystem.h"
-//#include "Combat/Skill/SkillComponent.h"
+#include "JRPG/Combat/Battle/BattleSessionSubsystem.h"
+#include "JRPG/Combat/Tactical/TacticalModeSubsystem.h"
+#include "JRPG/Combat/Chain/TrinityChainSubsystem.h"
+#include "JRPG/Combat/Skill/CombatSkill.h"
+#include "JRPG/Combat/Skill/SkillComponent.h"
 
-//#include "UI/CombatUIManagerSubsystem.h"
-//#include "UI/TacticalHUDWidget.h"
-//#include "UI/ChainHUDWidget.h"
+// #include "UI/CombatUIManagerSubsystem.h"
+// #include "UI/TacticalHUDWidget.h"
+// #include "UI/ChainHUDWidget.h"
 
 void ACombatPlayerController::BeginPlay()
 {
@@ -56,8 +57,8 @@ void ACombatPlayerController::SetupInputComponent()
 TArray<AActor*> ACombatPlayerController::GetParty() const
 {
     if (!GetWorld()) return {};
-    // if (UBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
-    //     return Battle->GetPartyRaw();
+    if (UBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+         return Battle->GetPartyRaw();
     return {};
 }
 
@@ -71,14 +72,14 @@ AActor* ACombatPlayerController::GetCurrentChainTarget() const
 {
     if (!GetWorld()) return nullptr;
 
-    /*if (UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>())
+    if (UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>())
     {
         if (Chain->GetState() != EChainState::None)
             return Chain->GetChainTarget();
     }
 
     if (UBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
-        return Battle->GetMainEnemy();*/
+        return Battle->GetMainEnemy();
 
     return nullptr;
 }
@@ -106,11 +107,11 @@ void ACombatPlayerController::ToggleTactical()
     EnsureUI();
 
     if (!GetWorld()) return;
-    /*if (UTacticalModeSubsystem* Tac = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
+    if (UTacticalModeSubsystem* Tac = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
     {
         if (Tac->IsTacticalActive()) Tac->ExitTactical();
         else Tac->EnterTactical(5.0f, 0.15f);
-    }*/
+    }
 }
 
 void ACombatPlayerController::ReserveSlot1(){ ReserveSlot(1); }
@@ -123,7 +124,7 @@ void ACombatPlayerController::ReserveSlot(int32 Slot)
     if (!GetWorld()) return;
 
     // 체인 선택 중이면 체인 슬롯 선택
-    /*if (UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>())
+    if (UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>())
     {
         if (Chain->GetState() == EChainState::Selecting)
         {
@@ -145,14 +146,14 @@ void ACombatPlayerController::ReserveSlot(int32 Slot)
             if (UCombatSkill* Skill = Skills->GetSkillBySlot(Slot))
                 Tac->ReserveSkillById(Member, Skill->SkillId);
         }
-    }*/
+    }
 }
 
 void ACombatPlayerController::PickChainSlot(int32 Slot)
 {
     if (!GetWorld()) return;
 
-    /*UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>();
+    UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>();
     if (!Chain || Chain->GetState() != EChainState::Selecting) return;
 
     AActor* Member = GetPartyMember(SelectedPartyIndex);
@@ -162,7 +163,7 @@ void ACombatPlayerController::PickChainSlot(int32 Slot)
     {
         if (UCombatSkill* Skill = Skills->GetSkillBySlot(Slot))
             Chain->SelectSkillFor(Member, Skill->SkillId);
-    }*/
+    }
 }
 
 void ACombatPlayerController::MoveForward(float Value)
@@ -192,11 +193,11 @@ void ACombatPlayerController::MoveRight(float Value)
 void ACombatPlayerController::ClearReservation()
 {
     if (!GetWorld()) return;
-    /*if (UTacticalModeSubsystem* Tac = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
+    if (UTacticalModeSubsystem* Tac = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
     {
         AActor* Member = GetPartyMember(SelectedPartyIndex);
         if (Member) Tac->ClearReservation(Member);
-    }*/
+    }
 }
 
 void ACombatPlayerController::StartChain()
@@ -204,7 +205,7 @@ void ACombatPlayerController::StartChain()
     EnsureUI();
     if (!GetWorld()) return;
 
-    /*if (UBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+    if (UBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
         if (!Battle->IsInBattle()) return;
 
     if (UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>())
@@ -214,19 +215,19 @@ void ACombatPlayerController::StartChain()
 
         Chain->StartChain(Target, false);
         ApplySelectedIndexToWidgets();
-    }*/
+    }
 }
 
 void ACombatPlayerController::ConfirmChain()
 {
     if (!GetWorld()) return;
-    /*if (UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>())
-        if (Chain->GetState() == EChainState::Selecting) Chain->ConfirmAndExecute();*/
+    if (UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>())
+        if (Chain->GetState() == EChainState::Selecting) Chain->ConfirmAndExecute();
 }
 
 void ACombatPlayerController::CancelChain()
 {
     if (!GetWorld()) return;
-    /*if (UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>())
-        if (Chain->GetState() != EChainState::None) Chain->CancelChain();*/
+    if (UTrinityChainSubsystem* Chain = GetWorld()->GetSubsystem<UTrinityChainSubsystem>())
+        if (Chain->GetState() != EChainState::None) Chain->CancelChain();
 }
