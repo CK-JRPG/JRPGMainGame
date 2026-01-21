@@ -31,6 +31,10 @@ void UBattleSessionSubsystem::StartBattle(
     AActor* InitialAggroTarget
 )
 {
+    //Log
+    UE_LOG(LogTemp, Warning, TEXT(">>> [StartBattle]"));
+    if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT(">>> Battle STARTED!"));
+
     if (bInBattle || !GetWorld()) return;
 
     bInBattle = true;
@@ -186,6 +190,11 @@ void UBattleSessionSubsystem::CheckEndCondition()
 void UBattleSessionSubsystem::EndBattle(EBattleResult Result)
 {
     if (!bInBattle || !GetWorld()) return;
+
+    //Log
+    FString ResultStr = (Result == EBattleResult::Victory) ? TEXT("VICTORY") : TEXT("DEFEAT");
+    UE_LOG(LogTemp, Warning, TEXT(">>> [EndBattle] Result: %s"), *ResultStr);
+    if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Red, FString::Printf(TEXT(">>> Battle ENDED: %s"), *ResultStr));
 
     bInBattle = false;
 

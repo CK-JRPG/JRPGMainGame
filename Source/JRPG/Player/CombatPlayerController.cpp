@@ -6,6 +6,7 @@
 #include "JRPG/Combat/Chain/TrinityChainSubsystem.h"
 #include "JRPG/Combat/Skill/CombatSkill.h"
 #include "JRPG/Combat/Skill/SkillComponent.h"
+#include "JRPG/Combat/Encounter/EncounterSubsystem.h"
 
 // #include "UI/CombatUIManagerSubsystem.h"
 // #include "UI/TacticalHUDWidget.h"
@@ -52,6 +53,9 @@ void ACombatPlayerController::SetupInputComponent()
     
     InputComponent->BindAxis("Turn", this, &APlayerController::AddYawInput);
     InputComponent->BindAxis("LookUp", this, &APlayerController::AddPitchInput);
+
+    // Test 함수 키 바인딩
+    InputComponent->BindKey(EKeys::T, IE_Pressed, this, &ACombatPlayerController::TestStartBattle);
 }
 
 TArray<AActor*> ACombatPlayerController::GetParty() const
@@ -82,6 +86,24 @@ AActor* ACombatPlayerController::GetCurrentChainTarget() const
         return Battle->GetMainEnemy();
 
     return nullptr;
+}
+
+void ACombatPlayerController::TestStartBattle()
+{
+        if (!GetWorld()) return;
+
+        UEncounterSubsystem* Encounter = GetWorld()->GetSubsystem<UEncounterSubsystem>();
+        if (!Encounter) return;
+
+        AActor* MyPawn = GetPawn();
+        if (!MyPawn) return;
+
+        if (GEngine) GEngine->AddOnScreenDebugMessage(-1, 3.f, FColor::Cyan, TEXT(">>> [Test] Request Encounter (Sight)..."));
+
+        // - TriggerEnemy: nullptr (지금은 특정 적을 때린 게 아니라, 주변 적을 탐색하는 상황)
+        // - TriggerActor: MyPawn (탐색의 중심점은 플레이어)
+        // - TriggerType: Sight (시야 조우)
+        Encounter->RequestEncounter(nullptr, MyPawn, EEncounterTrigger::Sight);
 }
 
 void ACombatPlayerController::ApplySelectedIndexToWidgets() const

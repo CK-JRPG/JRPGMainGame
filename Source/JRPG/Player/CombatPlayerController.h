@@ -45,4 +45,7 @@ private:
 	TArray<AActor*> GetParty() const;
 	AActor* GetPartyMember(int32 Index) const;
 	AActor* GetCurrentChainTarget() const;
+
+	// Battle Session Test용 함수
+	void TestStartBattle();
 };

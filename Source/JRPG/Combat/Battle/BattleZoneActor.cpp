@@ -90,6 +90,9 @@ void ABattleZoneActor::ClampActor(AActor* Actor)
 
     if (Dist > MaxDist && Dist > KINDA_SMALL_NUMBER)
     {
+        //log
+        if (GEngine) GEngine->AddOnScreenDebugMessage(123, 0.1f, FColor::Magenta, FString::Printf(TEXT("!!! WALL BLOCKING: %s !!!"), *Actor->GetName()));
+
         const FVector Dir = Offset / Dist;
         FVector NewPos = Center + Dir * MaxDist;
         NewPos.Z = Pos.Z;
