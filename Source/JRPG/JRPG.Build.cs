@@ -8,16 +8,39 @@ public class JRPG : ModuleRules
 	{
 		PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
 	
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "GameplayTags", "AIModule", "UMG", "Slate", "SlateCore" });
+		// 엔진 모듈
+		PublicDependencyModuleNames.AddRange(new string[] { 
+			"Core", 
+			"CoreUObject", 
+			"Engine", 
+			"InputCore", 
+			"GameplayTags", 
+			"AIModule", 
+			"UMG", 
+			"Slate", 
+			"SlateCore" 
+		});
 
-		PrivateDependencyModuleNames.AddRange(new string[] {  });
+		// JRPG Framework 플러그인 : Public
+		PublicDependencyModuleNames.AddRange(new string[] {
+			"JRPGCore",
+			"JRPGGameFlow"
+		});
 
-		// Uncomment if you are using Slate UI
-		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
-		
-		// Uncomment if you are using online features
-		// PrivateDependencyModuleNames.Add("OnlineSubsystem");
+		// JRPG Framework 플러그인 : Private
+		PrivateDependencyModuleNames.AddRange(new string[] {
+			"JRPGCombat",
+			"JRPGAI",
+			"JRPGEconomy",
+			"JRPGExploration",
+			"JRPGProgression",
+			"JRPGUI"
+		});
 
-		// To include OnlineSubsystemSteam, add it to the plugins section in your uproject file with the Enabled attribute set to true
+		// Devtools 전용모듈 -> Shipping 빌드에서는 제외
+		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+		{
+			PrivateDependencyModuleNames.Add("JRPGDevtools");
+		}
 	}
 }
