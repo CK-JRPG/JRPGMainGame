@@ -14,7 +14,7 @@ public class JRPGCombat : ModuleRules
             "JRPGCore" 
         });
 
-        //´Ù¸¥ JRPG ¸ğµâÀº Àı´ë ¿©±â¿¡ ³ÖÁö ¸»°Í.
+        // ë‹¤ë¥¸ JRPG ëª¨ë“ˆì€ ì ˆëŒ€ ì—¬ê¸°ì— ë„£ì§€ë§ê²ƒ.(ë…¸ì…˜ ëª¨ë“ˆ ì˜ì¡´ì„± ì°¸ê³ )
         PrivateDependencyModuleNames.AddRange(new string[] { });
     }
 }

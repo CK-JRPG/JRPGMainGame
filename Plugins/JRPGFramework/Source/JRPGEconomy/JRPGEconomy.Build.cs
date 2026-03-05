@@ -16,7 +16,7 @@ public class JRPGEconomy : ModuleRules
 
         PrivateDependencyModuleNames.AddRange(new string[]
         {
-            // 다른 모듈 의존 금지임.
+            // 다른 모듈 넣지 말것(노션 모듈 의존성 참고)
         });
     }
 }

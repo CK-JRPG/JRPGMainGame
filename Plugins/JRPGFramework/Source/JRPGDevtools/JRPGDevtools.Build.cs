@@ -17,10 +17,10 @@ public class JRPGDevtools : ModuleRules
         PrivateDependencyModuleNames.AddRange(new string[]
         {
             "JRPGCombat",
-            // °Ë»çÇÒ°Å¸é ÇÊ¿äÇÑ ´Ù¸¥ ¸ğµâµé Ãß°¡
+            // í•„ìš” ëª¨ë“ˆ ë„£ì„ ê²ƒ.
         });
 
-        // Shipping ºôµåÀÏ½Ã ÃÖÀûÈ­ °ü·Ã
+        // Shipping ì¼ë•ŒëŠ” í•´ë‹¹ ëª¨ë“ˆ ì»´íŒŒì¼ ì œì™¸.
         if (Target.Configuration == UnrealTargetConfiguration.Shipping)
         {
             bUsePrecompiled = true;
