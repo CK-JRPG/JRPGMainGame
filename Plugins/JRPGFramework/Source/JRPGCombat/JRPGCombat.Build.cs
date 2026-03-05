@@ -11,7 +11,8 @@ public class JRPGCombat : ModuleRules
             "Core",
             "CoreUObject",
             "Engine",
-            "JRPGCore" 
+            "GameplayTags",
+            "JRPGCore",
         });
 
         // 다른 JRPG 모듈은 절대 여기에 넣지말것.(노션 모듈 의존성 참고)

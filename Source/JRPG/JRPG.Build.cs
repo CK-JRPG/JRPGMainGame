@@ -18,7 +18,8 @@ public class JRPG : ModuleRules
 			"AIModule", 
 			"UMG", 
 			"Slate", 
-			"SlateCore" 
+			"SlateCore",
+			"EnhancedInput" 
 		});
 
 		// JRPG Framework 플러그인 : Public
@@ -34,7 +35,7 @@ public class JRPG : ModuleRules
 			"JRPGEconomy",
 			"JRPGExploration",
 			"JRPGProgression",
-			"JRPGUI"
+			"JRPGUI", "EnhancedInput"
 		});
 
 		// Devtools 전용모듈 -> Shipping 빌드에서는 제외
