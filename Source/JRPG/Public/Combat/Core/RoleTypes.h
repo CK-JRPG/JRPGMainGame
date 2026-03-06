@@ -1,0 +1,10 @@
+﻿#pragma once
+
+#include "CoreMinimal.h"
+#include "RoleTypes.generated.h"
+
+UENUM()
+enum class EPartyRole : uint8
+{
+	Attacker, Defender, Support, Healer
+};

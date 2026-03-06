@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+
 #include "Combat/Core/CombatDamageTypes.h"
 #include "Combat/SP/SynergyPointTypes.h"
 #include "SPEventRouterSubsystem.generated.h"
@@ -14,6 +15,7 @@ UCLASS()
 class JRPGCOMBAT_API USPEventRouterSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
+  
 public:
 	// 기본전투 HPComponent가 호출
 	void RouteDamageOrHeal(const FCombatDamageSpec& Spec, const FCombatDamageResult& Result, AActor* Victim);

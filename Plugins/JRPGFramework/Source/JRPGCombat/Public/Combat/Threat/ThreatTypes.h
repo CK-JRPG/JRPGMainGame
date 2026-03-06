@@ -1,8 +1,9 @@
-﻿#pragma once
+#pragma once
 
 #include "CoreMinimal.h"
 #include "JRPGCoreApiTypes.h"
 #include "ThreatTypes.generated.h"
+
 
 /**
  * 위협도 이벤트 종류(확장용)

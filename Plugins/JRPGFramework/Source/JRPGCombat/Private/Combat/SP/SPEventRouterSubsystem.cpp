@@ -1,4 +1,4 @@
-﻿#include "Combat/SP/SPEventRouterSubsystem.h"
+#include "Combat/SP/SPEventRouterSubsystem.h"
 
 #include "Combat/Infrastructure/SynergyPointSubsystem.h"
 #include "Combat/Stats/HPComponent.h"

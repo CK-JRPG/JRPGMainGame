@@ -1,4 +1,4 @@
-﻿#include "Combat/Threat/ThreatComponent.h"
+#include "Combat/Threat/ThreatComponent.h"
 
 #include "Combat/Threat/ThreatConfigDataAsset.h"
 #include "Combat/Stats/HPComponent.h"
@@ -16,6 +16,7 @@ UThreatComponent::UThreatComponent()
 void UThreatComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
 	LastRealTime = FPlatformTime::Seconds();
 	RefreshEffectiveTarget("Threat.BeginPlay");
 }
@@ -149,6 +150,7 @@ void UThreatComponent::ClearLock(FName /*ReasonTag*/)
 	{
 		W->GetTimerManager().ClearTimer(LockTimer);
 	}
+
 	bTargetLocked = false;
 	RecomputeTargetIfNeeded((float)FPlatformTime::Seconds());
 }

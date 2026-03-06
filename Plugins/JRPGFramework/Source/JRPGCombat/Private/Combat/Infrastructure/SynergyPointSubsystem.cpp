@@ -1,4 +1,4 @@
-﻿#include "Combat/Infrastructure/SynergyPointSubsystem.h"
+#include "Combat/Infrastructure/SynergyPointSubsystem.h"
 
 #include "Combat/SP/SynergyPointSettingsDataAsset.h"
 #include "Combat/Core/CombatRoleComponent.h"
