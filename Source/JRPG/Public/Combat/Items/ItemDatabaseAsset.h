@@ -6,20 +6,16 @@
 #include "Combat/Items/ItemDataAsset.h"
 #include "ItemDatabaseAsset.generated.h"
 
-// 정적 정의 SSOT: ItemDatabase(DataAsset/DT)
 UCLASS()
-class JRPGCOMBAT_API UItemDatabaseAsset : public UDataAsset
+class JRPG_API UItemDatabaseAsset : public UDataAsset
 {
 	GENERATED_BODY()
-
 public:
 	UPROPERTY(EditAnywhere) TArray<TObjectPtr<UItemDataAsset>> Items;
-
-	// 런타임 lookup 캐시
 	UPROPERTY(Transient) TMap<FName, TObjectPtr<UItemDataAsset>> Map;
 
-	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
+	virtual void PostLoad() override;
 
 	const UItemDataAsset* FindItem(FName ItemId) const;
 };

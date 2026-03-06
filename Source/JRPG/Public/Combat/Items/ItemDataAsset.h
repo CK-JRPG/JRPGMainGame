@@ -3,69 +3,97 @@
 
 #include "CoreMinimal.h"
 #include "Engine/PrimaryDataAsset.h"
+#include "Combat/Core/RoleTypes.h"
 #include "Combat/Items/ItemTypes.h"
 #include "Combat/Items/ItemModifierTypes.h"
+#include "Combat/Items/ItemUseTypes.h"
 #include "ItemDataAsset.generated.h"
 
 UCLASS()
-class JRPGCOMBAT_API UItemDataAsset : public UPrimaryDataAsset
+class JRPG_API UItemDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
 public:
-	// 필수
-	UPROPERTY(EditAnywhere) FName ItemId = NAME_None;
-	UPROPERTY(EditAnywhere) EItemType ItemType = EItemType::Augment;
+	UPROPERTY(EditAnywhere)
+	FName ItemId = NAME_None;
+	UPROPERTY(EditAnywhere)
+	EItemType ItemType = EItemType::Augment;
 
-	UPROPERTY(EditAnywhere) FText DisplayName;
-	UPROPERTY(EditAnywhere, Multiline) FText Description;
+	UPROPERTY(EditAnywhere)
+	FText DisplayName;
+	UPROPERTY(EditAnywhere, Multiline)
+	FText Description;
 
-	UPROPERTY(EditAnywhere) EItemRarity Rarity = EItemRarity::Common;
-	UPROPERTY(EditAnywhere) EItemSourcePolicy SourcePolicy = EItemSourcePolicy::Universal;
+	UPROPERTY(EditAnywhere)
+	EItemRarity Rarity = EItemRarity::Common;
+	UPROPERTY(EditAnywhere)
+	EItemSourcePolicy SourcePolicy = EItemSourcePolicy::Universal;
 
-	// 레벨 요구(장착 조건)
-	UPROPERTY(EditAnywhere) int32 RequiredLevel = 0;
+	UPROPERTY(EditAnywhere)
+	int32 RequiredLevel = 0;
 
-	// 인벤/거래 플래그
-	UPROPERTY(EditAnywhere) bool bSellable = true;
-	UPROPERTY(EditAnywhere) bool bDiscardable = true;
-	UPROPERTY(EditAnywhere) bool bLockable = true;
+	UPROPERTY(EditAnywhere)
+	bool bSellable = true;
+	UPROPERTY(EditAnywhere)
+	bool bDiscardable = true;
+	UPROPERTY(EditAnywhere)
+	bool bLockable = true;
 
-	// 가격 기준값(상점에서 ReferenceValue로 사용)
-	UPROPERTY(EditAnywhere) int32 BaseValue = 0;
+	UPROPERTY(EditAnywhere)
+	int32 BaseValue = 0;
+	UPROPERTY(EditAnywhere)
+	int32 MaxStack = 1;
 
-	// 스택
-	UPROPERTY(EditAnywhere) int32 MaxStack = 1;
-
-	// --- Augment 전용 ---
-	// 어떤 슬롯에 장착 가능한지 (기본 All)
+	// ---- Augment ----
 	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/JRPGCombat.EAugmentSlotMask"))
 	int32 EquipSlotMask = (int32)EAugmentSlotMask::All;
 
-	// RoleRestriction(옵션). None이면 제한 없음.
-	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/JRPGCombat.ECombatRoleMask"))
-	int32 RoleRestrictionMask = (int32)ECombatRoleMask::None;
+	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/JRPGCombat.EPartyRoleMask"))
+	int32 RoleRestrictionMask = (int32)EPartyRoleMask::None;
 
-	// RoleEfficiency(기본). 제한이 없을 때 역할별 효율 배율을 적용.
-	UPROPERTY(EditAnywhere) FRoleEfficiency RoleEfficiency;
+	UPROPERTY(EditAnywhere)
+	FRoleEfficiency RoleEfficiency;
+	UPROPERTY(EditAnywhere)
+	FName UniqueEquipGroup = NAME_None;
+	UPROPERTY(EditAnywhere)
+	TArray<FAugmentEffect> EffectList;
 
-	// UniqueEquipGroup(옵션): 같은 그룹은 한 캐릭터에 중복 장착 불가
-	UPROPERTY(EditAnywhere) FName UniqueEquipGroup = NAME_None;
+	// ---- Consumable ----
+	UPROPERTY(EditAnywhere, Category = "Consumable")
+	EItemUseTargeting Targeting = EItemUseTargeting::Self;
 
-	// 효과 리스트
-	UPROPERTY(EditAnywhere) TArray<FAugmentEffect> EffectList;
+	UPROPERTY(EditAnywhere, Category = "Consumable")
+	bool bUsableInCombat = true;
+
+	UPROPERTY(EditAnywhere, Category = "Consumable")
+	bool bUsableOutOfCombat = true;
+
+	UPROPERTY(EditAnywhere, Category = "Consumable")
+	bool bUsableDuringChainSequence = false;
+
+	UPROPERTY(EditAnywhere, Category = "Consumable")
+	TArray<FConsumableEffect> UseEffects;
+
+	// ---- Enhance 확장 “예약” ----
+	UPROPERTY(EditAnywhere, Category = "Enhance")
+	FName EnhancementGroup = NAME_None;
+
+	UPROPERTY(EditAnywhere, Category = "Enhance")
+	int32 MaxEnhanceLevel = 0;
 
 public:
 	bool IsAugment() const { return ItemType == EItemType::Augment; }
+	bool IsConsumable() const { return ItemType == EItemType::Consumable; }
 	bool IsKeyItem() const { return ItemType == EItemType::KeyItem; }
 
-	bool IsRoleAllowed(ECombatRole Role) const
+	bool IsRoleAllowed(EPartyRole Role) const
 	{
-		const ECombatRoleMask Mask = (ECombatRoleMask)RoleRestrictionMask;
-		if (Mask == ECombatRoleMask::None) return true;
+		const EPartyRoleMask Mask = (EPartyRoleMask)RoleRestrictionMask;
+		if (Mask == EPartyRoleMask::None) return true;
 		return EnumHasAnyFlags(Mask, RoleToMask(Role));
 	}
-
+	
 	bool IsSlotAllowed(EAugmentEquipSlot Slot) const
 	{
 		const EAugmentSlotMask Mask = (EAugmentSlotMask)EquipSlotMask;

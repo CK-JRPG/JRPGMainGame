@@ -21,7 +21,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnShopTransactionRejected, FName/*Vendor
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnShopStockChanged, FName/*VendorId*/, FName/*ItemId*/, int32/*Remaining*/);
 
 UCLASS()
-class JRPGCOMBAT_API UShopSubsystem : public UGameInstanceSubsystem
+class JRPG_API UShopSubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 

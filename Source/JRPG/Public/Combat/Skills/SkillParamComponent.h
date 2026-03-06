@@ -10,7 +10,7 @@
 // FinalRadius = BaseRadius * (1 + ΣAoERadiusPct) 같은 형태.
 
 UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
-class JRPGCOMBAT_API USkillParamComponent : public UActorComponent
+class JRPG_API USkillParamComponent : public UActorComponent
 {
 	GENERATED_BODY()
 

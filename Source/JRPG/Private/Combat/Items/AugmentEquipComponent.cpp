@@ -1,6 +1,5 @@
 // Source/JRPGCombat/Private/Combat/Items/AugmentEquipComponent.cpp
 #include "Combat/Items/AugmentEquipComponent.h"
-#include "Combat/Items/InventorySubsystem.h"
 #include "Combat/Items/ItemDatabaseAsset.h"
 #include "Combat/Items/ItemDataAsset.h"
 #include "Combat/Items/ItemCapSettingsDataAsset.h"
@@ -16,15 +15,13 @@ UAugmentEquipComponent::UAugmentEquipComponent()
 
 bool UAugmentEquipComponent::IsSlotOccupied(EAugmentEquipSlot Slot) const
 {
-	if (const FAugmentSlotState* S = Slots.Find(Slot))
-		return S->bOccupied;
+	if (const FAugmentSlotState* S = Slots.Find(Slot)) return S->bOccupied;
 	return false;
 }
 
 FAugmentSlotState UAugmentEquipComponent::GetSlotState(EAugmentEquipSlot Slot) const
 {
-	if (const FAugmentSlotState* S = Slots.Find(Slot))
-		return *S;
+	if (const FAugmentSlotState* S = Slots.Find(Slot)) return *S;
 	return FAugmentSlotState();
 }
 
@@ -41,9 +38,9 @@ bool UAugmentEquipComponent::HasUniqueGroupEquipped(FName UniqueGroup) const
 	{
 		const FAugmentSlotState& S = KV.Value;
 		if (!S.bOccupied) continue;
-		const UItemDataAsset* Def = FindDef(S.ItemId);
-		if (!Def) continue;
-		if (Def->UniqueEquipGroup == UniqueGroup)
+
+		const UItemDataAsset* Def = FindDef(S.StoredInstance.ItemId);
+		if (Def && Def->UniqueEquipGroup == UniqueGroup)
 			return true;
 	}
 	return false;
@@ -55,27 +52,24 @@ FItemOp UAugmentEquipComponent::ValidateEquip(const UItemDataAsset* Def, EAugmen
 	if (!Def->IsAugment()) return FItemOp::Fail("Reject.ItemTypeNotAugment");
 	if (!Def->IsSlotAllowed(Slot)) return FItemOp::Fail("Reject.SlotInvalid");
 
-	// RequiredLevel: CharacterLevel < RequiredLevel이면 실패
-	const int32 Required = Def->RequiredLevel;
-	if (Required > 0 && LevelProvider)
+	if (Def->RequiredLevel > 0)
 	{
-		const int32 CurLevel = LevelProvider->GetCharacterLevel(GetOwner());
-		if (CurLevel < Required)
-			return FItemOp::Fail("Reject.LevelTooLow");
+		if (!LevelProvider) return FItemOp::Fail("Reject.LevelProviderMissing");
+		const int32 CurLv = LevelProvider->GetCharacterLevel(GetOwner());
+		if (CurLv < Def->RequiredLevel) return FItemOp::Fail("Reject.LevelTooLow");
 	}
 
-	// RoleRestriction(옵션)
 	if (!Def->IsRoleAllowed(Role))
 		return FItemOp::Fail("Reject.RoleNotAllowed");
 
-	// Unique group conflict
 	if (!Def->UniqueEquipGroup.IsNone() && HasUniqueGroupEquipped(Def->UniqueEquipGroup))
 		return FItemOp::Fail("Reject.UniqueConflict");
 
 	return FItemOp::Ok();
 }
 
-FItemOp UAugmentEquipComponent::TryEquipFromInventory(UInventorySubsystem* Inventory, FGuid InstanceId, EAugmentEquipSlot Slot)
+FItemOp UAugmentEquipComponent::TryEquipFromInventory(UInventorySubsystem* Inventory, FGuid InstanceId,
+                                                      EAugmentEquipSlot Slot)
 {
 	if (!Inventory) return FItemOp::Fail("Reject.NoInventory");
 
@@ -94,19 +88,12 @@ FItemOp UAugmentEquipComponent::TryEquipFromInventory(UInventorySubsystem* Inven
 		return V;
 	}
 
-	// 기존 아이템이 있으면 먼저 해제(인벤 공간 필요)
 	if (IsSlotOccupied(Slot))
 	{
-		FItemOp Un = TryUnequipToInventory(Inventory, Slot);
-		if (!Un.bOk)
-		{
-			OnAugmentEquipRejected.Broadcast(CharacterId, Inst.ItemId, Un.ReasonTag);
-			return Un;
-		}
+		const FItemOp Un = TryUnequipToInventory(Inventory, Slot);
+		if (!Un.bOk) return Un;
 	}
 
-	// 장착: 인벤에서 인스턴스를 제거(Quantity는 Augment=1이 기본)
-	// Augment MaxStack=1 SSOT
 	const FItemOp Rem = Inventory->RemoveItemByInstance(InstanceId, 1, "Equip.ToSlot");
 	if (!Rem.bOk)
 	{
@@ -114,59 +101,40 @@ FItemOp UAugmentEquipComponent::TryEquipFromInventory(UInventorySubsystem* Inven
 		return Rem;
 	}
 
-	// 슬롯 갱신
 	FAugmentSlotState& S = Slots.FindChecked(Slot);
-	const FName OldItemId = S.ItemId;
+	const FName OldItemId = S.bOccupied ? S.StoredInstance.ItemId : NAME_None;
 
 	S.bOccupied = true;
-	S.InstanceId = InstanceId;
-	S.ItemId = Inst.ItemId;
+	S.StoredInstance = Inst;
 
-	// Equipped tracking(상점 판매 제한)
-	Inventory->NotifyEquipped(InstanceId);
+	Inventory->NotifyEquipped(Inst.InstanceId);
 
-	// Mods rebuild & notify
 	RebuildModifierSet();
 	OnModifierSetChanged.Broadcast(CharacterId);
-
-	OnAugmentEquipped.Broadcast(CharacterId, Slot, OldItemId, S.ItemId, "Equip.Success");
+	OnAugmentEquipped.Broadcast(CharacterId, Slot, OldItemId, Inst.ItemId, "Equip.Success");
 	return FItemOp::Ok();
 }
 
 FItemOp UAugmentEquipComponent::TryUnequipToInventory(UInventorySubsystem* Inventory, EAugmentEquipSlot Slot)
 {
-	if (!Inventory)return FItemOp::Fail("Reject.NoInventory");
+	if (!Inventory) return FItemOp::Fail("Reject.NoInventory");
 
 	FAugmentSlotState* S = Slots.Find(Slot);
-	if (!S || !S->bOccupied)
-		return FItemOp::Fail("Reject.SlotEmpty");
+	if (!S || !S->bOccupied) return FItemOp::Fail("Reject.SlotEmpty");
 
-	// 인벤 공간 규칙: 인벤 부족이면 해제 불가
-	int32 NeedSlots = 0;
-	if (!Inventory->CanAcceptItem(S->ItemId, 1, &NeedSlots))
-		return FItemOp::Fail("Reject.InventoryFull");
+	const FItemOp Restore = Inventory->RestoreInstance(S->StoredInstance, "Unequip.RestoreInstance");
+	if (!Restore.bOk) return Restore;
 
-	// 인벤에 다시 추가(새 인스턴스로 만들면 GUID 유지가 깨짐)
-	// -> SSOT: InstanceId 유지가 유리(강화/옵션 확장 대비). 그래서 "복구"를 지원.
-	// InventorySubsystem은 현재 AddItem이 새 인스턴스를 생성하므로, 여기선 “복구용 내부 삽입” 대신
-	// 안전하게 새 인스턴스 생성 정책을 택한다(강화/옵션을 쓰기 시작하면 Restore API 추가 권장).
-	// 지금은 EnhanceLevel/Seed가 의미 없으니 괜찮음.
-	const FItemOp Add = Inventory->AddItem(S->ItemId, 1, "Unequip.ToInventory", nullptr);
-	if (!Add.bOk)
-		return Add;
+	Inventory->NotifyUnequipped(S->StoredInstance.InstanceId);
 
-	// Equipped tracking 해제(기존 InstanceId는 “장착 슬롯에서만” 의미가 있었음)
-	Inventory->NotifyUnequipped(S->InstanceId);
+	const FName OldItemId = S->StoredInstance.ItemId;
 
-	const FName OldItemId = S->ItemId;
 	S->bOccupied = false;
-	S->InstanceId.Invalidate();
-	S->ItemId = NAME_None;
+	S->StoredInstance = FItemInstance();
 
 	RebuildModifierSet();
 	OnModifierSetChanged.Broadcast(CharacterId);
 	OnAugmentEquipped.Broadcast(CharacterId, Slot, OldItemId, NAME_None, "Unequip.Success");
-
 	return FItemOp::Ok();
 }
 
@@ -182,39 +150,53 @@ void UAugmentEquipComponent::ApplyEffectWithCaps(const UItemDataAsset* Def, cons
 	const float V = E.Value * RoleEff;
 
 	auto AddPct = [&](float& PctSum)
-		{
-			PctSum += V;
-			PctSum = ApplyCapPct(E.CapGroup, PctSum);
-		};
+	{
+		PctSum += V;
+		PctSum = ApplyCapPct(E.CapGroup, PctSum);
+	};
 
 	auto AddSkillPct = [&](TMap<FName, float>& Map)
-		{
-			if (E.TargetSkillTag.IsNone())return;
-			float& P = Map.FindOrAdd(E.TargetSkillTag);
-			P += V;
-			P = ApplyCapPct(E.CapGroup, P);
-		};
+	{
+		if (E.TargetSkillTag.IsNone()) return;
+		float& P = Map.FindOrAdd(E.TargetSkillTag);
+		P += V;
+		P = ApplyCapPct(E.CapGroup, P);
+	};
 
 	switch (E.EffectType)
 	{
-		case EAugmentEffectType::AttackFlat:CachedMods.Attack.Flat += V; break;
-		case EAugmentEffectType::AttackPct:AddPct(CachedMods.Attack.Pct); break;
-		case EAugmentEffectType::DefenseFlat:CachedMods.Defense.Flat += V; break;
-		case EAugmentEffectType::DefensePct:AddPct(CachedMods.Defense.Pct); break;
-		case EAugmentEffectType::HPFlat:CachedMods.HP.Flat += V; break;
-		case EAugmentEffectType::HPPct:AddPct(CachedMods.HP.Pct); break;
-		case EAugmentEffectType::BreakPowerFlat:CachedMods.BreakPower.Flat += V; break;
-		case EAugmentEffectType::BreakPowerPct:AddPct(CachedMods.BreakPower.Pct); break;
-		case EAugmentEffectType::HealingPowerFlat:CachedMods.HealingPower.Flat += V; break;
-		case EAugmentEffectType::HealingPowerPct:AddPct(CachedMods.HealingPower.Pct); break;
-		case EAugmentEffectType::ThreatModPct:AddPct(CachedMods.ThreatModPct); break;
+	case EAugmentEffectType::AttackFlat: CachedMods.Attack.Flat += V;
+		break;
+	case EAugmentEffectType::AttackPct: AddPct(CachedMods.Attack.Pct);
+		break;
+	case EAugmentEffectType::DefenseFlat: CachedMods.Defense.Flat += V;
+		break;
+	case EAugmentEffectType::DefensePct: AddPct(CachedMods.Defense.Pct);
+		break;
+	case EAugmentEffectType::HPFlat: CachedMods.HP.Flat += V;
+		break;
+	case EAugmentEffectType::HPPct: AddPct(CachedMods.HP.Pct);
+		break;
+	case EAugmentEffectType::BreakPowerFlat: CachedMods.BreakPower.Flat += V;
+		break;
+	case EAugmentEffectType::BreakPowerPct: AddPct(CachedMods.BreakPower.Pct);
+		break;
+	case EAugmentEffectType::HealingPowerFlat: CachedMods.HealingPower.Flat += V;
+		break;
+	case EAugmentEffectType::HealingPowerPct: AddPct(CachedMods.HealingPower.Pct);
+		break;
+	case EAugmentEffectType::ThreatModPct: AddPct(CachedMods.ThreatModPct);
+		break;
 
-		case EAugmentEffectType::AoERadiusPct:AddSkillPct(CachedMods.AoERadius.PctBySkillTag); break;
-		case EAugmentEffectType::BuffDurationPct:AddSkillPct(CachedMods.BuffDuration.PctBySkillTag); break;
-		case EAugmentEffectType::DebuffPotencyPct:AddSkillPct(CachedMods.DebuffPotency.PctBySkillTag); break;
-		case EAugmentEffectType::BreakBuildUpPct:AddSkillPct(CachedMods.BreakBuildUp.PctBySkillTag); break;
-
-		default: break;
+	case EAugmentEffectType::AoERadiusPct: AddSkillPct(CachedMods.AoERadius.PctBySkillTag);
+		break;
+	case EAugmentEffectType::BuffDurationPct: AddSkillPct(CachedMods.BuffDuration.PctBySkillTag);
+		break;
+	case EAugmentEffectType::DebuffPotencyPct: AddSkillPct(CachedMods.DebuffPotency.PctBySkillTag);
+		break;
+	case EAugmentEffectType::BreakBuildUpPct: AddSkillPct(CachedMods.BreakBuildUp.PctBySkillTag);
+		break;
+	default: break;
 	}
 }
 
@@ -225,17 +207,70 @@ void UAugmentEquipComponent::RebuildModifierSet()
 	for (const auto& KV : Slots)
 	{
 		const FAugmentSlotState& S = KV.Value;
-		if (!S.bOccupied)continue;
+		if (!S.bOccupied) continue;
 
-		const UItemDataAsset* Def = FindDef(S.ItemId);
-		if (!Def)continue;
+		const UItemDataAsset* Def = FindDef(S.StoredInstance.ItemId);
+		if (!Def) continue;
 
-		// RoleEfficiency 기본 적용 (RoleRestriction이 있어도 효율은 적용 가능)
 		const float RoleEff = Def->RoleEfficiency.Get(Role);
-
 		for (const FAugmentEffect& E : Def->EffectList)
-		{
 			ApplyEffectWithCaps(Def, E, RoleEff);
+	}
+}
+
+void UAugmentEquipComponent::ExportSaveData(FAugmentEquipSaveData& Out) const
+{
+	Out = FAugmentEquipSaveData();
+	Out.CharacterId = CharacterId;
+
+	const auto Get = [&](EAugmentEquipSlot Slot, bool& bOcc, FItemInstance& Inst)
+	{
+		if (const FAugmentSlotState* S = Slots.Find(Slot))
+		{
+			bOcc = S->bOccupied;
+			Inst = S->StoredInstance;
+		}
+	};
+
+	Get(EAugmentEquipSlot::AugmentSlot1, Out.bS1, Out.Slot1);
+	Get(EAugmentEquipSlot::AugmentSlot2, Out.bS2, Out.Slot2);
+	Get(EAugmentEquipSlot::AugmentSlot3, Out.bS3, Out.Slot3);
+}
+
+FItemOp UAugmentEquipComponent::ImportSaveData(UInventorySubsystem* Inventory, const FAugmentEquipSaveData& In)
+{
+	if (!Inventory) return FItemOp::Fail("Reject.NoInventory");
+	if (In.CharacterId != CharacterId) return FItemOp::Fail("Reject.CharacterIdMismatch");
+
+	// 먼저 전부 비우기(인벤 복원 포함)
+	for (auto& KV : Slots)
+	{
+		if (KV.Value.bOccupied)
+		{
+			const FItemOp Un = TryUnequipToInventory(Inventory, KV.Key);
+			if (!Un.bOk) return Un;
 		}
 	}
+
+	// 인벤에 존재해야 장착 가능. (세이브 로드 순서는 보통 인벤 로드 -> 장착 로드)
+	auto EquipFromSave = [&](bool bOcc, const FItemInstance& Inst, EAugmentEquipSlot Slot) -> FItemOp
+	{
+		if (!bOcc) return FItemOp::Ok();
+		// 인벤에서 해당 InstanceId를 찾는다
+		FItemInstance Found;
+		if (!Inventory->TryGetInstance(Inst.InstanceId, Found))
+			return FItemOp::Fail("Reject.MissingInstanceInInventory");
+
+		return TryEquipFromInventory(Inventory, Inst.InstanceId, Slot);
+	};
+
+	FItemOp R;
+	R = EquipFromSave(In.bS1, In.Slot1, EAugmentEquipSlot::AugmentSlot1);
+	if (!R.bOk) return R;
+	R = EquipFromSave(In.bS2, In.Slot2, EAugmentEquipSlot::AugmentSlot2);
+	if (!R.bOk) return R;
+	R = EquipFromSave(In.bS3, In.Slot3, EAugmentEquipSlot::AugmentSlot3);
+	if (!R.bOk) return R;
+
+	return FItemOp::Ok();
 }

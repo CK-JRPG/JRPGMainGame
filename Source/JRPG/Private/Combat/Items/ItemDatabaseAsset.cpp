@@ -26,8 +26,6 @@ void UItemDatabaseAsset::PostLoad()
 const UItemDataAsset* UItemDatabaseAsset::FindItem(FName ItemId) const
 {
 	if (const TObjectPtr<UItemDataAsset>* Found = Map.Find(ItemId))
-	{
 		return Found->Get();
-	}
 	return nullptr;
 }

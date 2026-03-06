@@ -2,13 +2,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GameplayTagContainer.h"
-#include "Combat/Items/ItemTypes.h"
+#include "Combat/Core/RoleTypes.h"
 #include "ItemModifierTypes.generated.h"
-
-// Augment EffectType SSOT (´ëÇ¥)
-// (A) Stat modifiers: Attack/Defense/HP/BreakPower/HealingPower/ThreatMod
-// (B) Skill param modifiers: AoERadiusPct, BuffDurationPct, DebuffPotencyPct, BreakBuildUpPct
 
 UENUM()
 enum class EAugmentEffectType : uint8
@@ -25,7 +20,7 @@ enum class EAugmentEffectType : uint8
 	HealingPowerFlat,
 	HealingPowerPct,
 	ThreatModPct,
-
+	
 	// --- Skill params (Pct)
 	AoERadiusPct,
 	BuffDurationPct,
@@ -39,15 +34,9 @@ struct FAugmentEffect
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere) EAugmentEffectType EffectType = EAugmentEffectType::AttackFlat;
-
-	// Pct´Â 0.10 = +10% (UI Ç¥±â´Â 10%)
-	UPROPERTY(EditAnywhere) float Value = 0.f;
-
-	// Skill Param ModifierÀÏ ¶§¸¸ »ç¿ë: "Heal.Zone", "AoE.All" °°Àº Å¸°Ù ÅÂ±×/Å°
-	UPROPERTY(EditAnywhere) FName TargetSkillTag = NAME_None;
-
-	// °°Àº °è¿­ »óÇÑ °ü¸®
-	UPROPERTY(EditAnywhere) FName CapGroup = NAME_None;
+	UPROPERTY(EditAnywhere) float Value = 0.f; // PctëŠ” 0.10 = +10%
+	UPROPERTY(EditAnywhere) FName TargetSkillTag = NAME_None; // Skill tag key (e.g., "AoE.All")
+	UPROPERTY(EditAnywhere) FName CapGroup = NAME_None; // ìƒí•œ ê·¸ë£¹
 };
 
 USTRUCT()
@@ -55,25 +44,22 @@ struct FRoleEfficiency
 {
 	GENERATED_BODY()
 
-// 1.0 = 100%
 	UPROPERTY(EditAnywhere) float Defender = 1.0f;
 	UPROPERTY(EditAnywhere) float Attacker = 1.0f;
 	UPROPERTY(EditAnywhere) float Supporter = 1.0f;
 
-	float Get(ECombatRole Role) const
+float Get(EPartyRole Role) const
 	{
 		switch (Role)
 		{
-			case ECombatRole::Defender: return Defender;
-			case ECombatRole::Attacker: return Attacker;
-			case ECombatRole::Supporter: return Supporter;
+			case EPartyRole::Defender: return Defender;
+			case EPartyRole::Attacker: return Attacker;
+			case EPartyRole::Supporter: return Supporter;
 			default: return 1.0f;
 		}
 	}
 };
 
-// ÃÖÁ¾ ½ºÅÈ °è»ê ±ÔÄ¢ SSOT:
-// Final = (Base + ¥ÒFlat) * (1 + ¥ÒPct)
 USTRUCT()
 struct FStatModifierAccumulator
 {
@@ -88,7 +74,6 @@ struct FSkillParamModifierAccumulator
 {
 	GENERATED_BODY()
 
-	// TagKey -> PctSum (0.2 = +20%)
 	UPROPERTY() TMap<FName, float> PctBySkillTag;
 };
 
@@ -104,7 +89,6 @@ struct FAugmentModifierSet
 	UPROPERTY() FStatModifierAccumulator HealingPower;
 	UPROPERTY() float ThreatModPct = 0.f;
 
-	// Skill params
 	UPROPERTY() FSkillParamModifierAccumulator AoERadius;
 	UPROPERTY() FSkillParamModifierAccumulator BuffDuration;
 	UPROPERTY() FSkillParamModifierAccumulator DebuffPotency;

@@ -7,7 +7,7 @@
 #include "ShopVendorDataAsset.generated.h"
 
 UCLASS()
-class JRPGCOMBAT_API UShopVendorDataAsset : public UDataAsset
+class JRPG_API UShopVendorDataAsset : public UDataAsset
 {
 	GENERATED_BODY()
 

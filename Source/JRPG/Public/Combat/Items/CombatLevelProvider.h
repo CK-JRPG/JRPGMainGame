@@ -14,7 +14,7 @@ class UCombatLevelProvider : public UInterface
 class ICombatLevelProvider
 {
 	GENERATED_BODY()
-public:
-	// 파티 공유 레벨(레벨업 문서에서 SSOT) 또는 캐릭터 레벨을 반환
-	virtual int32 GetCharacterLevel(const AActor * Character) const = 0;
+	public:
+	virtual int32 GetCharacterLevel(const AActor* Character) const = 0;
+	virtual int32 GetPartyLevel() const = 0; // 상점/해금에 쓰기 좋음
 };

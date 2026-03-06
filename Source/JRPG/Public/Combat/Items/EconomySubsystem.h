@@ -6,10 +6,10 @@
 #include "Combat/Items/ItemTypes.h"
 #include "EconomySubsystem.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGoldChanged, int32/*Before*/, int32/*After*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGoldChanged, int32 /*Before*/, int32 /*After*/);
 
 UCLASS()
-class JRPGCOMBAT_API UEconomySubsystem : public UGameInstanceSubsystem
+class JRPG_APIUEconomySubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 

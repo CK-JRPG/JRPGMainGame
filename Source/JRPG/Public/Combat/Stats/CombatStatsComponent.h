@@ -11,14 +11,19 @@ struct FCombatBaseStats
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere) float Attack = 10.f;
-	UPROPERTY(EditAnywhere) float Defense = 5.f;
-	UPROPERTY(EditAnywhere) float MaxHP = 100.f;
+	UPROPERTY(EditAnywhere)
+	float Attack = 10.f;
+	UPROPERTY(EditAnywhere)
+	float Defense = 5.f;
+	UPROPERTY(EditAnywhere)
+	float MaxHP = 100.f;
 
-	// Break/Heal/Threat 계수(기본 1.0)
-	UPROPERTY(EditAnywhere) float BreakPower = 1.0f;
-	UPROPERTY(EditAnywhere) float HealingPower = 1.0f;
-	UPROPERTY(EditAnywhere) float ThreatMod = 1.0f;
+	UPROPERTY(EditAnywhere)
+	float BreakPower = 1.0f;
+	UPROPERTY(EditAnywhere)
+	float HealingPower = 1.0f;
+	UPROPERTY(EditAnywhere)
+	float ThreatMod = 1.0f;
 };
 
 USTRUCT()
@@ -26,31 +31,37 @@ struct FCombatFinalStats
 {
 	GENERATED_BODY()
 
-	UPROPERTY(VisibleAnywhere) float Attack = 10.f;
-	UPROPERTY(VisibleAnywhere) float Defense = 5.f;
-	UPROPERTY(VisibleAnywhere) float MaxHP = 100.f;
+	UPROPERTY(VisibleAnywhere)
+	float Attack = 10.f;
+	UPROPERTY(VisibleAnywhere)
+	float Defense = 5.f;
+	UPROPERTY(VisibleAnywhere)
+	float MaxHP = 100.f;
 
-	UPROPERTY(VisibleAnywhere) float BreakPower = 1.0f;
-	UPROPERTY(VisibleAnywhere) float HealingPower = 1.0f;
-	UPROPERTY(VisibleAnywhere) float ThreatMod = 1.0f;
+	UPROPERTY(VisibleAnywhere)
+	float BreakPower = 1.0f;
+	UPROPERTY(VisibleAnywhere)
+	float HealingPower = 1.0f;
+	UPROPERTY(VisibleAnywhere)
+	float ThreatMod = 1.0f;
 };
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnFinalStatsChanged, const FCombatFinalStats&);
 
 UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
-class JRPGCOMBAT_API UCombatStatsComponent : public UActorComponent
+class JRPG_API UCombatStatsComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere) FCombatBaseStats Base;
-	UPROPERTY(VisibleAnywhere) FCombatFinalStats Final;
+	UPROPERTY(EditAnywhere)
+	FCombatBaseStats Base;
+	UPROPERTY(VisibleAnywhere)
+	FCombatFinalStats Final;
 
 	FOnFinalStatsChanged OnFinalStatsChanged;
 
-	// Augment modifier set 적용(StatSystem이 최종 계산)
 	void ApplyAugmentModifierSet(const FAugmentModifierSet& Mods);
-
 	const FCombatFinalStats& GetFinal() const { return Final; }
 
 private:
