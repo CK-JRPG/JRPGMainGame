@@ -1,17 +1,16 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "HPComponent.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnHPChanged, float /*Old*/, float /*New*/, FName /*Reason*/);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDeath, AActor* /*Killer*/, FName /*Reason*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnHPChanged, float, float, FName);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDeath, AActor*, FName);
 
-UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
-class JRPG_API UHPComponent : public UActorComponent
+UCLASS(ClassGroup=(Combat), meta = (BlueprintSpawnableComponent))
+class JRPG_API UHPComponent :public UActorComponent
 {
 	GENERATED_BODY()
-
+	
 public:
 	UHPComponent();
 
@@ -22,12 +21,12 @@ public:
 	FOnDeath OnDeath;
 
 	void InitializeHP(float InMaxHP, bool bFillToMax = true);
-	void SetMaxHP(float InMaxHP, bool bKeepRatio);
+	void SetMaxHP(float InMaxHP,bool bKeepRatio);
 
-	float GetMaxHP() const { return MaxHP; }
-	float GetHP() const { return CurrentHP; }
-	bool IsDead() const { return CurrentHP <= 0.f; }
+	float GetMaxHP() const {return MaxHP;}
+	float GetHP() const {return CurrentHP;}
+	bool IsDead() const {return CurrentHP <= 0.f;}
 
-	void ApplyDamage(float Amount, AActor* Instigator, FName ReasonTag);
-	void Heal(float Amount, AActor* Instigator, FName ReasonTag);
+	void ApplyDamage(float Amount,AActor *Instigator,FName ReasonTag);
+	void Heal(float Amount, AActor *Instigator, FName ReasonTag);
 };

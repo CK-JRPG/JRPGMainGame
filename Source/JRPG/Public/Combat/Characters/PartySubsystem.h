@@ -1,5 +1,4 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Combat/Core/PartyProvider.h"
@@ -12,27 +11,29 @@ UCLASS()
 class JRPG_API UPartySubsystem : public UGameInstanceSubsystem, public IPartyProvider, public ICombatLevelProvider
 {
 	GENERATED_BODY()
-
+	
 public:
-	// 파티 3인 SSOT
-	bool SetPartyIds(const TArray<FName>& Party3, FName ReasonTag);
-	const TArray<FName>& GetPartyIds() const { return PartyIds; }
+	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 
-	// IPartyProvider
-	virtual void GetPartyMembers(TArray<AActor*>& OutMembers) const override;
+	bool SetPartyIds(const TArray<FName>&Party3,FName ReasonTag);
+	const TArray<FName> &GetPartyIds() const { return PartyIds; }
 
-	// ICombatLevelProvider (파티 공유 레벨)
-	virtual int32 GetCharacterLevel(const AActor* Character) const override;
+	virtual void GetPartyMembers(TArray<AActor*>&OutMembers) const override;
+
+	virtual int32 GetCharacterLevel(const AActor *Character) const override;
 	virtual int32 GetPartyLevel() const override;
 
-	// 상점/리스톡 키(챕터) 주입을 한 곳에서 관리하고 싶으면 여기서 처리
 	void SetRestockKey(FName RestockKey);
+	FName GetRestockKey() const {return CurrentRestockKey; }
 
 private:
-	UPROPERTY() TArray<FName> PartyIds; // size=3
+	UPROPERTY() TArray<FName> PartyIds;
 	UPROPERTY() FName CurrentRestockKey = NAME_None;
 
 	UCombatCharacterRegistrySubsystem* GetRegistry() const;
+
+	void LoadFromSave();
+	void FlushToSave();
 
 	void PushPartyToBond();
 	void PushPartyLevelToShop();
