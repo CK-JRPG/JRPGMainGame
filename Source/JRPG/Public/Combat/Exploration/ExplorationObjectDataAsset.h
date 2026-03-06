@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Public/Combat/Exploration/ExplorationObjectDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,41 +6,53 @@
 #include "Combat/Exploration/ExplorationRewardTypes.h"
 #include "ExplorationObjectDataAsset.generated.h"
 
-// 문서: UExplorationObjectDataAsset 필드 고정 :contentReference[oaicite:22]{index=22}
 UCLASS()
 class JRPG_API UExplorationObjectDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 
 public:
-	// 문서: ObjectId (GUID 또는 해시) :contentReference[oaicite:23]{index=23}
-	UPROPERTY(EditAnywhere) FGuid ObjectId;
+	// 고유 ID(저장 키)
+	UPROPERTY(EditAnywhere)
+	FGuid ObjectId;
 
-	UPROPERTY(EditAnywhere) EExplorationObjectType Type = EExplorationObjectType::Chest;
-	UPROPERTY(EditAnywhere) EExplorationTriggerType TriggerType = EExplorationTriggerType::Interact;
+	UPROPERTY(EditAnywhere)
+	EExplorationObjectType Type = EExplorationObjectType::Chest;
+	UPROPERTY(EditAnywhere)
+	EExplorationTriggerType TriggerType = EExplorationTriggerType::Interact;
 
-	UPROPERTY(EditAnywhere) float InteractRange = 250.f;
-	UPROPERTY(EditAnywhere) bool bRequiresLOS = false;
+	UPROPERTY(EditAnywhere)
+	float InteractRange = 250.f;
+	UPROPERTY(EditAnywhere)
+	bool bRequiresLOS = false;
 
-	UPROPERTY(EditAnywhere) FExplorationLockCondition LockCondition;
+	UPROPERTY(EditAnywhere)
+	FExplorationLockCondition LockCondition;
 
-	// RewardTableId 또는 Entries 둘 중 하나(또는 둘 다) :contentReference[oaicite:24]{index=24}
-	UPROPERTY(EditAnywhere) TObjectPtr<class UExplorationRewardTableAsset> RewardTable = nullptr;
-	UPROPERTY(EditAnywhere) TArray<FRewardEntry> RewardEntries;
+	// RewardTable + DirectEntries(혼용 가능)
+	UPROPERTY(EditAnywhere)
+	TObjectPtr<UExplorationRewardTableAsset> RewardTable = nullptr;
+	UPROPERTY(EditAnywhere)
+	TArray<FRewardEntry> RewardEntries;
 
-	UPROPERTY(EditAnywhere) EExplorationAcquisitionPolicy AcquisitionPolicy = EExplorationAcquisitionPolicy::OneTime;
-	UPROPERTY(EditAnywhere) float RespawnTimeSec = 0.f;// Respawn일 때만 :contentReference[oaicite:25]{index=25}
+	UPROPERTY(EditAnywhere)
+	EExplorationAcquisitionPolicy AcquisitionPolicy = EExplorationAcquisitionPolicy::OneTime;
+	UPROPERTY(EditAnywhere)
+	float RespawnTimeSec = 0.f;
 
-	// UI
-	UPROPERTY(EditAnywhere) FText UIName;
-	UPROPERTY(EditAnywhere,Multiline) FText UIDescription;
-	UPROPERTY(EditAnywhere) TObjectPtr<UTexture2D> Icon = nullptr;
+	// UI/Map 확장
+	UPROPERTY(EditAnywhere)
+	FText UIName;
+	UPROPERTY(EditAnywhere, Multiline)
+	FText UIDescription;
+	UPROPERTY(EditAnywhere)
+	TObjectPtr<UTexture2D> Icon = nullptr;
+	UPROPERTY(EditAnywhere)
+	FName MapMarkerType = NAME_None;
 
-	// 맵 표식 타입(맵 시스템 붙일 때 사용)
-	UPROPERTY(EditAnywhere) FName MapMarkerType = NAME_None;
-
-	// 확장 슬롯: 상점/특수 연동은 Flag로 처리해두면 안전
-	UPROPERTY(EditAnywhere) FName ExtensionFlag = NAME_None;
+	// 상점/지역 해금 등은 Flag로 연결(상점 시스템에서 HasFlag로 소비)
+	UPROPERTY(EditAnywhere)
+	FName ExtensionFlag = NAME_None;
 
 	bool IsValidObject() const { return ObjectId.IsValid(); }
 };

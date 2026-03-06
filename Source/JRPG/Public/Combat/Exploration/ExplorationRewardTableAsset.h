@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Public/Combat/Exploration/ExplorationRewardTableAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -12,6 +11,8 @@ class JRPG_API UExplorationRewardTableAsset : public UDataAsset
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere) FName RewardTableId = NAME_None;
-	UPROPERTY(EditAnywhere) TArray<FRewardEntry> Entries;
+	UPROPERTY(EditAnywhere)
+	FName RewardTableId = NAME_None;
+	UPROPERTY(EditAnywhere)
+	TArray<FRewardEntry> Entries;
 };

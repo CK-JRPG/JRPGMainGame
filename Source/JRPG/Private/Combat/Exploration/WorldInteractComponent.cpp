@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Private/Combat/Exploration/WorldInteractComponent.cpp
 #include "Combat/Exploration/WorldInteractComponent.h"
 
 #include "Combat/Exploration/ExplorationSubsystem.h"
@@ -18,18 +17,15 @@ void UWorldInteractComponent::BeginPlay()
 	Super::BeginPlay();
 
 	if (GetWorld())
-	{
 		GetWorld()->GetTimerManager().SetTimer(ScanTimer, this, &UWorldInteractComponent::ScanOnce, ScanIntervalSec,
 		                                       true);
-	}
 }
 
 void UWorldInteractComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (GetWorld())
-	{
 		GetWorld()->GetTimerManager().ClearTimer(ScanTimer);
-	}
+
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -40,7 +36,7 @@ UExplorationSubsystem* UWorldInteractComponent::GetExplore() const
 
 bool UWorldInteractComponent::HasLOSToActor(const AActor* Target) const
 {
-	if (!GetOwner() || !Target) return false;
+	if (!GetOwner() || !Target || !GetWorld()) return false;
 
 	FHitResult Hit;
 	const FVector Start = GetOwner()->GetActorLocation();
@@ -49,7 +45,6 @@ bool UWorldInteractComponent::HasLOSToActor(const AActor* Target) const
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(WorldInteractLOS), false, GetOwner());
 	const bool bHit = GetWorld()->LineTraceSingleByChannel(Hit, Start, End, LOSTraceChannel, Params);
 
-	// 막힌 게 없거나, 첫 히트가 타겟이면 LOS OK
 	if (!bHit) return true;
 	return Hit.GetActor() == Target;
 }
@@ -75,11 +70,10 @@ void UWorldInteractComponent::ScanOnce()
 		const UExplorationObjectDataAsset* Data = Obj->GetObjectData();
 		if (!Data || !Data->IsValidObject()) continue;
 
-		// Interact 트리거만 프롬프트 대상(Discovery는 볼륨/자동)
+		// 프롬프트는 Interact 트리거만
 		if (Data->TriggerType != EExplorationTriggerType::Interact)
 			continue;
 
-		// 활성 상태
 		if (Explore->GetObjectState(Data->ObjectId) != EExplorationObjectState::Active)
 			continue;
 
@@ -97,22 +91,15 @@ void UWorldInteractComponent::ScanOnce()
 		}
 	}
 
-	// 프롬프트 변화 이벤트: OnInteractPromptChanged(ObjectId, bVisible) :contentReference[oaicite:37]{index=37}
 	if (BestId != CurrentObjectId)
 	{
-		// 이전 프롬프트 끄기
 		if (CurrentObjectId.IsValid())
-		{
 			Explore->NotifyPromptChanged(CurrentObjectId, false);
-		}
 
 		CurrentObjectId = BestId;
 
-		// 새 프롬프트 켜기
 		if (CurrentObjectId.IsValid())
-		{
 			Explore->NotifyPromptChanged(CurrentObjectId, true);
-		}
 	}
 }
 

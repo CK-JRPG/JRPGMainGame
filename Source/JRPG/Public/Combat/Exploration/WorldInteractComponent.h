@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Public/Combat/Exploration/WorldInteractComponent.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -9,7 +8,7 @@
 class UExplorationSubsystem;
 class AExplorationObjectActor;
 
-UCLASS(ClassGroup = (Exploration), meta = (BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Exploration), meta=(BlueprintSpawnableComponent))
 class JRPG_API UWorldInteractComponent : public UActorComponent
 {
 	GENERATED_BODY()
@@ -17,19 +16,15 @@ class JRPG_API UWorldInteractComponent : public UActorComponent
 public:
 	UWorldInteractComponent();
 
-	// 스캔 주기(틱 부담 줄이기)
 	UPROPERTY(EditAnywhere)
 	float ScanIntervalSec = 0.10f;
-
-	// LOS trace channel
 	UPROPERTY(EditAnywhere)
 	TEnumAsByte<ECollisionChannel> LOSTraceChannel = ECC_Visibility;
 
-	// 현재 프롬프트 대상
 	UPROPERTY(VisibleAnywhere)
 	FGuid CurrentObjectId;
 
-	// 외부 입력 바인딩에서 호출
+	// 입력 바인딩에서 호출
 	UFUNCTION()
 	void TryInteractInput();
 
@@ -41,7 +36,6 @@ private:
 	FTimerHandle ScanTimer;
 
 	void ScanOnce();
-
 	bool HasLOSToActor(const AActor* Target) const;
 
 	UExplorationSubsystem* GetExplore() const;

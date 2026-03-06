@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Private/Combat/Exploration/ExplorationDiscoveryVolume.cpp
 #include "Combat/Exploration/ExplorationDiscoveryVolume.h"
 
 #include "Combat/Exploration/ExplorationSubsystem.h"
@@ -11,6 +10,7 @@ AExplorationDiscoveryVolume::AExplorationDiscoveryVolume()
 
 	Box = CreateDefaultSubobject<UBoxComponent>(TEXT("DiscoveryBox"));
 	RootComponent = Box;
+
 	Box->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	Box->SetCollisionResponseToAllChannels(ECR_Ignore);
 	Box->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
@@ -19,18 +19,27 @@ AExplorationDiscoveryVolume::AExplorationDiscoveryVolume()
 void AExplorationDiscoveryVolume::BeginPlay()
 {
 	Super::BeginPlay();
-
 	Box->OnComponentBeginOverlap.AddDynamic(this, &AExplorationDiscoveryVolume::OnOverlapBegin);
 }
 
-void AExplorationDiscoveryVolume::OnOverlapBegin(UPrimitiveComponent* /*Overlapped*/, AActor* OtherActor,
-                                                 UPrimitiveComponent* /*OtherComp*/, int32 /*OtherBodyIndex*/,
-                                                 bool /*bFromSweep*/, const FHitResult& /*SweepResult*/)
+void AExplorationDiscoveryVolume::OnOverlapBegin(UPrimitiveComponent*/*Overlapped*/, AActor* OtherActor,
+                                                 UPrimitiveComponent*/*OtherComp*/, int32/*OtherBodyIndex*/,
+                                                 bool/*bFromSweep*/, const FHitResult&/*SweepResult*/)
 {
 	if (!OtherActor) return;
 
-	if (UExplorationSubsystem* Explore = GetWorld()->GetSubsystem<UExplorationSubsystem>())
+	if (UWorld* W = GetWorld())
 	{
-		Explore->TryDiscover(DiscoveryId, OtherActor, OptionalDiscoveryReward);
+		if (UExplorationSubsystem* Explore = W->GetSubsystem<UExplorationSubsystem>())
+		{
+			const FExplorationOp R = Explore->TryDiscover(DiscoveryId, OtherActor, OptionalDiscoveryReward);
+
+			// 한번 발견되면 볼륨은 비활성화(중복 호출 방지)
+			if (R.bOk || R.ReasonTag == "Reject.DuplicateDiscovery")
+			{
+				SetActorEnableCollision(false);
+				SetActorHiddenInGame(true);
+			}
+		}
 	}
 }

@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Private/Combat/Exploration/ExplorationObjectActor.cpp
 #include "Combat/Exploration/ExplorationObjectActor.h"
 
 #include "Combat/Exploration/ExplorationSubsystem.h"
@@ -15,9 +14,10 @@ void AExplorationObjectActor::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (UExplorationSubsystem* Explore = GetWorld()->GetSubsystem<UExplorationSubsystem>())
+	if (UWorld* W = GetWorld())
 	{
-		Explore->RegisterObject(this);
+		if (UExplorationSubsystem* Explore = W->GetSubsystem<UExplorationSubsystem>())
+			Explore->RegisterObject(this);
 	}
 }
 
@@ -26,9 +26,7 @@ void AExplorationObjectActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	if (UWorld* W = GetWorld())
 	{
 		if (UExplorationSubsystem* Explore = W->GetSubsystem<UExplorationSubsystem>())
-		{
 			Explore->UnregisterObject(this);
-		}
 	}
 	Super::EndPlay(EndPlayReason);
 }
@@ -36,8 +34,6 @@ void AExplorationObjectActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void AExplorationObjectActor::SetExplorationActive(bool bActive)
 {
 	bIsActive = bActive;
-
 	SetActorHiddenInGame(!bIsActive);
 	SetActorEnableCollision(bIsActive);
-	SetActorTickEnabled(false);
 }

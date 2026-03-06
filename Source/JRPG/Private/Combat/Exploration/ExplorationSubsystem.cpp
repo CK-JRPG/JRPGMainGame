@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Private/Combat/Exploration/ExplorationSubsystem.cpp
 #include "Combat/Exploration/ExplorationSubsystem.h"
 
 #include "Combat/Exploration/RewardServiceSubsystem.h"
@@ -6,6 +5,9 @@
 #include "Combat/Exploration/ExplorationObjectDataAsset.h"
 #include "Combat/Exploration/ExplorationSaveGameSubsystem.h"
 #include "Combat/Exploration/ExplorationProgressSubsystem.h"
+#include "Combat/Exploration/ExplorationRewardTableAsset.h"
+
+#include "Combat/Items/InventorySubsystem.h"
 
 #include "Engine/World.h"
 #include "TimerManager.h"
@@ -14,21 +16,20 @@ void UExplorationSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
 
-	// Save/Progress 초기화
+	// Save/Progress 준비
 	if (UExplorationSaveGameSubsystem* SaveSys = GetSaveSys())
 	{
-		SaveSys->LoadOrCreate();
+		if (!SaveSys->GetSave())
+			SaveSys->LoadOrCreate();
 	}
 
 	if (UExplorationProgressSubsystem* Prog = GetProgressSys())
 	{
 		if (UExplorationSaveGameSubsystem* SaveSys = GetSaveSys())
-		{
 			Prog->InitializeFromSave(SaveSys);
-		}
 	}
 
-	// Respawn tick (간단: 1초마다)
+	// Respawn tick (1초)
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().SetTimer(RespawnTickHandle, this, &UExplorationSubsystem::TickRespawns, 1.0f,
@@ -63,17 +64,18 @@ UExplorationProgressSubsystem* UExplorationSubsystem::GetProgressSys() const
 void UExplorationSubsystem::RegisterObject(AExplorationObjectActor* Obj)
 {
 	if (!Obj) return;
+
 	const UExplorationObjectDataAsset* Data = Obj->GetObjectData();
 	if (!Data || !Data->IsValidObject()) return;
 
 	ObjectMap.Add(Data->ObjectId, Obj);
-
 	ApplyInitialStateToActor(Obj, *Data);
 }
 
 void UExplorationSubsystem::UnregisterObject(AExplorationObjectActor* Obj)
 {
 	if (!Obj) return;
+
 	const UExplorationObjectDataAsset* Data = Obj->GetObjectData();
 	if (!Data) return;
 
@@ -94,10 +96,7 @@ void UExplorationSubsystem::GetAllRegisteredObjects(TArray<TWeakObjectPtr<AExplo
 {
 	Out.Reset();
 	Out.Reserve(ObjectMap.Num());
-	for (const auto& KV : ObjectMap)
-	{
-		Out.Add(KV.Value);
-	}
+	for (const auto& KV : ObjectMap)Out.Add(KV.Value);
 }
 
 EExplorationObjectState UExplorationSubsystem::GetObjectState(const FGuid& ObjectId) const
@@ -116,6 +115,7 @@ EExplorationObjectState UExplorationSubsystem::GetObjectState(const FGuid& Objec
 				return EExplorationObjectState::WaitingRespawn;
 		}
 	}
+
 	return EExplorationObjectState::Active;
 }
 
@@ -125,20 +125,7 @@ void UExplorationSubsystem::ApplyInitialStateToActor(AExplorationObjectActor* Ob
 	if (!Obj) return;
 
 	const EExplorationObjectState S = GetObjectState(Data.ObjectId);
-
-	if (S == EExplorationObjectState::CompletedOneTime)
-	{
-		Obj->SetExplorationActive(false);
-		return;
-	}
-
-	if (S == EExplorationObjectState::WaitingRespawn)
-	{
-		Obj->SetExplorationActive(false);
-		return;
-	}
-
-	Obj->SetExplorationActive(true);
+	Obj->SetExplorationActive(S == EExplorationObjectState::Active);
 }
 
 void UExplorationSubsystem::TickRespawns()
@@ -149,16 +136,11 @@ void UExplorationSubsystem::TickRespawns()
 
 	const double Now = NowReal();
 
-	// Respawn 가능한 오브젝트를 다시 활성화
 	TArray<FGuid> ToActivate;
 	for (const auto& KV : Save->RespawnAvailableAtReal)
 	{
-		const FGuid& ObjectId = KV.Key;
-		const double AvailableAt = KV.Value;
-		if (Now >= AvailableAt)
-		{
-			ToActivate.Add(ObjectId);
-		}
+		if (Now >= KV.Value)
+			ToActivate.Add(KV.Key);
 	}
 
 	for (const FGuid& ObjectId : ToActivate)
@@ -167,12 +149,9 @@ void UExplorationSubsystem::TickRespawns()
 		SaveSys->MarkDirty();
 
 		TWeakObjectPtr<AExplorationObjectActor> Obj;
-		if (TryGetObjectActor(ObjectId, Obj))
+		if (TryGetObjectActor(ObjectId, Obj) && Obj.IsValid())
 		{
-			if (Obj.IsValid())
-			{
-				Obj->SetExplorationActive(true);
-			}
+			Obj->SetExplorationActive(true);
 		}
 	}
 }
@@ -183,13 +162,11 @@ FExplorationOp UExplorationSubsystem::CheckLock(const UExplorationObjectDataAsse
 	if (L.LockType == EExplorationLockType::None)
 		return FExplorationOp::Ok();
 
-	// KeyItem / Flag만 최소 구현. QuestState는 추후 퀘스트 시스템 연동.
 	if (L.LockType == EExplorationLockType::KeyItem)
 	{
 		if (L.RequiredItemId.IsNone())
 			return FExplorationOp::Fail("Reject.Lock.InvalidKeyItem");
 
-		// Inventory에 KeyItem이 있는지 체크
 		if (GetWorld() && GetWorld()->GetGameInstance())
 		{
 			if (UInventorySubsystem* Inv = GetWorld()->GetGameInstance()->GetSubsystem<UInventorySubsystem>())
@@ -228,14 +205,12 @@ FExplorationOp UExplorationSubsystem::CheckLock(const UExplorationObjectDataAsse
 FExplorationOp UExplorationSubsystem::CompleteObject(AActor* Instigator, const UExplorationObjectDataAsset& Data,
                                                      EExplorationTriggerType TriggerType)
 {
-	// RewardService 단일 관문 :contentReference[oaicite:29]{index=29}
 	URewardServiceSubsystem* RewardService = GetRewardService();
 	if (!RewardService) return FExplorationOp::Fail("Reject.NoRewardService");
 
-	// reward request
 	FRewardGrantRequest Req;
 	Req.SourceObjectId = Data.ObjectId;
-	Req.SourceTag = "Explore.Reward"; // 문서 텔레메트리 기준 :contentReference[oaicite:30]{index=30}
+	Req.SourceTag = "Explore.RewardGranted";
 	Req.TriggerType = TriggerType;
 	Req.bOneTimeContext = (Data.AcquisitionPolicy == EExplorationAcquisitionPolicy::OneTime);
 	Req.Table = Data.RewardTable;
@@ -245,10 +220,20 @@ FExplorationOp UExplorationSubsystem::CompleteObject(AActor* Instigator, const U
 	TArray<FGrantedReward> Granted;
 	const FExplorationOp GrantOp = RewardService->GrantRewards(Req, Granted);
 
-	// 이벤트 발행: OnRewardsGranted(SourceId, RewardList) :contentReference[oaicite:31]{index=31}
 	OnRewardsGranted.Broadcast(Data.ObjectId, Granted);
 
-	// 저장 반영
+	// ExtensionFlag: “상점 오픈/문 열림” 같은 확장 플래그
+	if (!Data.ExtensionFlag.IsNone())
+	{
+		if (UExplorationProgressSubsystem* P = GetProgressSys())
+		{
+			P->SetFlag(Data.ExtensionFlag, true);
+			if (UExplorationSaveGameSubsystem* SaveSys = GetSaveSys())
+				P->FlushToSave(SaveSys);
+		}
+	}
+
+	// Save: OneTime/Respawn
 	if (UExplorationSaveGameSubsystem* SaveSys = GetSaveSys())
 	{
 		if (UExplorationSaveGame* Save = SaveSys->GetSave())
@@ -286,15 +271,12 @@ FExplorationOp UExplorationSubsystem::TryInteract(AActor* Interactor, const FGui
 		return FExplorationOp::Fail("Reject.NoData");
 	}
 
-	// 상태 체크(1회성/리스폰)
-	const EExplorationObjectState S = GetObjectState(ObjectId);
-	if (S != EExplorationObjectState::Active)
+	if (GetObjectState(ObjectId) != EExplorationObjectState::Active)
 	{
 		OnExplorationObjectCompleted.Broadcast(ObjectId, EExplorationOpResult::Rejected, "Reject.NotActive");
 		return FExplorationOp::Fail("Reject.NotActive");
 	}
 
-	// LockCondition 체크 :contentReference[oaicite:32]{index=32}
 	const FExplorationOp Lock = CheckLock(*Data);
 	if (!Lock.bOk)
 	{
@@ -302,36 +284,30 @@ FExplorationOp UExplorationSubsystem::TryInteract(AActor* Interactor, const FGui
 		return Lock;
 	}
 
-	// 성공 처리: Reward + Save + 완료 이벤트 :contentReference[oaicite:33]{index=33}
 	const FExplorationOp Done = CompleteObject(Interactor, *Data, EExplorationTriggerType::Interact);
 
-	// Actor 비활성화
-	if (Data->AcquisitionPolicy == EExplorationAcquisitionPolicy::OneTime ||
-		Data->AcquisitionPolicy == EExplorationAcquisitionPolicy::Respawn)
-	{
-		Obj->SetExplorationActive(false);
-	}
+	// OneTime/Respawn 둘 다 완료 후 비활성
+	Obj->SetExplorationActive(false);
 
 	OnExplorationObjectCompleted.Broadcast(
-		ObjectId, Done.bOk ? EExplorationOpResult::Success : EExplorationOpResult::Rejected,
-		Done.bOk ? "Success" : Done.ReasonTag);
+		ObjectId,
+		Done.bOk ? EExplorationOpResult::Success : EExplorationOpResult::Rejected,
+		Done.bOk ? "Success" : Done.ReasonTag
+	);
+
 	return Done;
 }
 
 FExplorationOp UExplorationSubsystem::NotifySolved(AActor* Instigator, const FGuid& ObjectId)
 {
-	// Solve는 퍼즐 시스템에서 호출(성공 시 Reward 지급)
 	TWeakObjectPtr<AExplorationObjectActor> Obj;
 	if (!TryGetObjectActor(ObjectId, Obj)) return FExplorationOp::Fail("Reject.ObjectNotFound");
 	const UExplorationObjectDataAsset* Data = Obj->GetObjectData();
 	if (!Data) return FExplorationOp::Fail("Reject.NoData");
-
-	const EExplorationObjectState S = GetObjectState(ObjectId);
-	if (S != EExplorationObjectState::Active) return FExplorationOp::Fail("Reject.NotActive");
+	if (GetObjectState(ObjectId) != EExplorationObjectState::Active) return FExplorationOp::Fail("Reject.NotActive");
 
 	const FExplorationOp Done = CompleteObject(Instigator, *Data, EExplorationTriggerType::Solve);
-	if (Data->AcquisitionPolicy != EExplorationAcquisitionPolicy::Respawn)
-		Obj->SetExplorationActive(false);
+	Obj->SetExplorationActive(false);
 
 	OnExplorationObjectCompleted.Broadcast(
 		ObjectId, Done.bOk ? EExplorationOpResult::Success : EExplorationOpResult::Rejected,
@@ -341,18 +317,31 @@ FExplorationOp UExplorationSubsystem::NotifySolved(AActor* Instigator, const FGu
 
 FExplorationOp UExplorationSubsystem::NotifyDefeated(AActor* Instigator, const FGuid& ObjectId)
 {
-	// Defeat는 전투 시스템이 호출(드랍/고정보상) :contentReference[oaicite:34]{index=34}
 	TWeakObjectPtr<AExplorationObjectActor> Obj;
 	if (!TryGetObjectActor(ObjectId, Obj)) return FExplorationOp::Fail("Reject.ObjectNotFound");
 	const UExplorationObjectDataAsset* Data = Obj->GetObjectData();
 	if (!Data) return FExplorationOp::Fail("Reject.NoData");
-
-	const EExplorationObjectState S = GetObjectState(ObjectId);
-	if (S != EExplorationObjectState::Active) return FExplorationOp::Fail("Reject.NotActive");
+	if (GetObjectState(ObjectId) != EExplorationObjectState::Active) return FExplorationOp::Fail("Reject.NotActive");
 
 	const FExplorationOp Done = CompleteObject(Instigator, *Data, EExplorationTriggerType::Defeat);
-	if (Data->AcquisitionPolicy != EExplorationAcquisitionPolicy::Respawn)
-		Obj->SetExplorationActive(false);
+	Obj->SetExplorationActive(false);
+
+	OnExplorationObjectCompleted.Broadcast(
+		ObjectId, Done.bOk ? EExplorationOpResult::Success : EExplorationOpResult::Rejected,
+		Done.bOk ? "Success" : Done.ReasonTag);
+	return Done;
+}
+
+FExplorationOp UExplorationSubsystem::NotifyChallengeCompleted(AActor* Instigator, const FGuid& ObjectId)
+{
+	TWeakObjectPtr<AExplorationObjectActor> Obj;
+	if (!TryGetObjectActor(ObjectId, Obj)) return FExplorationOp::Fail("Reject.ObjectNotFound");
+	const UExplorationObjectDataAsset* Data = Obj->GetObjectData();
+	if (!Data) return FExplorationOp::Fail("Reject.NoData");
+	if (GetObjectState(ObjectId) != EExplorationObjectState::Active) return FExplorationOp::Fail("Reject.NotActive");
+
+	const FExplorationOp Done = CompleteObject(Instigator, *Data, EExplorationTriggerType::Challenge);
+	Obj->SetExplorationActive(false);
 
 	OnExplorationObjectCompleted.Broadcast(
 		ObjectId, Done.bOk ? EExplorationOpResult::Success : EExplorationOpResult::Rejected,
@@ -371,12 +360,8 @@ FExplorationOp UExplorationSubsystem::TryDiscover(FName DiscoveryId, AActor* Dis
 	if (!Save) return FExplorationOp::Fail("Reject.NoSave");
 
 	FDiscoveryRecord& R = Save->DiscoveryMap.FindOrAdd(DiscoveryId);
-
 	if (R.bDiscovered)
-	{
-		// 중복 방지(SSOT) :contentReference[oaicite:35]{index=35}
 		return FExplorationOp::Fail("Reject.DuplicateDiscovery");
-	}
 
 	R.bDiscovered = true;
 	R.DiscoveredAtRealTime = NowReal();
@@ -384,7 +369,7 @@ FExplorationOp UExplorationSubsystem::TryDiscover(FName DiscoveryId, AActor* Dis
 
 	OnDiscoveryChanged.Broadcast(DiscoveryId, true);
 
-	// 발견 보상(선택): “필요 시 소량의 발견 보상” :contentReference[oaicite:36]{index=36}
+	// 선택적 발견 보상(있을 때만)
 	if (OptionalRewardTable)
 	{
 		if (URewardServiceSubsystem* RewardService = GetRewardService())
@@ -400,7 +385,7 @@ FExplorationOp UExplorationSubsystem::TryDiscover(FName DiscoveryId, AActor* Dis
 			TArray<FGrantedReward> Granted;
 			const FExplorationOp GrantOp = RewardService->GrantRewards(Req, Granted);
 
-			// SourceObjectId가 없으므로 “가짜 GUID” 대신 0 GUID로 발행(레벨업 시스템은 DiscoveryId로도 판정 가능)
+			// Discovery는 ObjectId가 없으므로 Invalid GUID로 브로드캐스트
 			OnRewardsGranted.Broadcast(FGuid(), Granted);
 
 			if (GrantOp.bOk)

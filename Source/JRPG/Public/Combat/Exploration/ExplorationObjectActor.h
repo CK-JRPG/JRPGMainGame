@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Public/Combat/Exploration/ExplorationObjectActor.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -20,7 +19,6 @@ public:
 
 	const UExplorationObjectDataAsset* GetObjectData() const { return ObjectData; }
 
-	// Subsystem이 활성/비활성(완료/리스폰 대기) 반영할 때 호출
 	void SetExplorationActive(bool bActive);
 
 protected:

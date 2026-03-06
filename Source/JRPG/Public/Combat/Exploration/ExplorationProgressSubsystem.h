@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Public/Combat/Exploration/ExplorationProgressSubsystem.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -14,7 +13,6 @@ class JRPG_API UExplorationProgressSubsystem : public UGameInstanceSubsystem
 public:
 	void InitializeFromSave(UExplorationSaveGameSubsystem* SaveSys);
 
-	// --- Unlocks/Flags ---
 	bool HasFlag(FName FlagId) const { return Flags.Contains(FlagId); }
 	void SetFlag(FName FlagId, bool bValue);
 
@@ -25,7 +23,6 @@ public:
 	void AddLore(FName LoreId);
 	void AddBestiary(FName MonsterId);
 
-	// Save sync
 	void FlushToSave(UExplorationSaveGameSubsystem* SaveSys) const;
 
 private:
@@ -43,6 +40,4 @@ private:
 	TSet<FName> LoreEntries;
 	UPROPERTY()
 	TSet<FName> BestiaryEntries;
-	UPROPERTY()
-	TSet<FName> PuzzleFlags;
 };

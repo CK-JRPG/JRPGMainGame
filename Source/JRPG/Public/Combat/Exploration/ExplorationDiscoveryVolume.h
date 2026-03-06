@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Public/Combat/Exploration/ExplorationDiscoveryVolume.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -19,7 +18,7 @@ public:
 	UPROPERTY(EditAnywhere)
 	FName DiscoveryId = NAME_None;
 
-	// 발견 보상(선택): 문서 “필요 시 소량의 보상” :contentReference[oaicite:38]{index=38}
+	// 발견 보상(선택)
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<UExplorationRewardTableAsset> OptionalDiscoveryReward = nullptr;
 

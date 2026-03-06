@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Private/Combat/Exploration/RewardServiceSubsystem.cpp
 #include "Combat/Exploration/RewardServiceSubsystem.h"
 
 #include "Combat/Items/InventorySubsystem.h"
@@ -8,6 +7,7 @@
 #include "Combat/Exploration/ExplorationProgressSubsystem.h"
 
 #include "Engine/World.h"
+#include "UObject/UObjectIterator.h"
 
 UInventorySubsystem* URewardServiceSubsystem::GetInventory() const
 {
@@ -37,23 +37,50 @@ UExplorationProgressSubsystem* URewardServiceSubsystem::GetExploreProgress() con
 		       : nullptr;
 }
 
-double URewardServiceSubsystem::NowReal() const
-{
-	return GetWorld() ? (double)GetWorld()->GetRealTimeSeconds() : 0.0;
-}
-
 bool URewardServiceSubsystem::RollChance(float Chance01) const
 {
-	const float C = FMath::Clamp(Chance01, 0.f, 1.f);
-	return FMath::FRand() <= C;
+	return FMath::FRand() <= FMath::Clamp(Chance01, 0.f, 1.f);
 }
 
 uint64 URewardServiceSubsystem::MakeUniqueKey(const FRewardGrantRequest& Req, const FRewardEntry& E) const
 {
-	// UniqueKey = hash(Source + RewardType + Id)
 	const uint64 H1 = HashCombineFast(GetTypeHash(Req.SourceObjectId), GetTypeHash(Req.SourceDiscoveryId));
 	const uint64 H2 = HashCombineFast(GetTypeHash((uint8)E.RewardType), GetTypeHash(E.Id));
 	return HashCombineFast(H1, H2);
+}
+
+FGuid URewardServiceSubsystem::MakeExpContext(const FRewardGrantRequest& Req, const FRewardEntry& E) const
+{
+	const uint32 A = (uint32)HashCombineFast(GetTypeHash(Req.SourceObjectId), GetTypeHash(Req.SourceDiscoveryId));
+	const uint32 B = (uint32)HashCombineFast(GetTypeHash((uint8)E.RewardType), GetTypeHash(E.Id));
+	const uint32 C = (uint32)HashCombineFast(GetTypeHash(E.Amount), GetTypeHash(Req.TriggerType));
+	const uint32 D = 0xE0E0E0E0u;
+	return FGuid(A, B, C, D);
+}
+
+ICombatExpMutator* URewardServiceSubsystem::FindExpMutator(FName& OutReason) const
+{
+	OutReason = NAME_None;
+	if (!GetWorld())
+	{
+		OutReason = "Reject.NoWorld";
+		return nullptr;
+	}
+
+	for (TObjectIterator<UObject> It; It; ++It)
+	{
+		UObject* Obj = *It;
+		if (!Obj || Obj->GetWorld() != GetWorld()) continue;
+
+		if (Obj->GetClass()->ImplementsInterface(UCombatExpMutator::StaticClass()))
+		{
+			if (ICombatExpMutator* M = Cast<ICombatExpMutator>(Obj))
+				return M;
+		}
+	}
+
+	OutReason = "Reject.ExpMutatorMissing";
+	return nullptr;
 }
 
 FGrantedReward URewardServiceSubsystem::ApplyOne(const FRewardGrantRequest& Req, const FRewardEntry& E)
@@ -63,7 +90,6 @@ FGrantedReward URewardServiceSubsystem::ApplyOne(const FRewardGrantRequest& Req,
 	G.Id = E.Id;
 	G.Amount = E.Amount;
 
-	// chance
 	if (!RollChance(E.Chance))
 	{
 		G.bGranted = false;
@@ -71,7 +97,7 @@ FGrantedReward URewardServiceSubsystem::ApplyOne(const FRewardGrantRequest& Req,
 		return G;
 	}
 
-	// unique
+	// Unique 처리
 	if (E.bUnique)
 	{
 		if (UExplorationSaveGameSubsystem* SaveSys = GetExploreSave())
@@ -91,7 +117,6 @@ FGrantedReward URewardServiceSubsystem::ApplyOne(const FRewardGrantRequest& Req,
 		}
 	}
 
-	// apply
 	switch (E.RewardType)
 	{
 	case EExplorationRewardType::Gold:
@@ -110,11 +135,10 @@ FGrantedReward URewardServiceSubsystem::ApplyOne(const FRewardGrantRequest& Req,
 			return G;
 		}
 
-	// Item 계열 -> InventorySubsystem로 통일
-	case EExplorationRewardType::CraftMaterial:
+	// Item 계열 -> InventorySubsystem
+	case EExplorationRewardType::Material:
 	case EExplorationRewardType::Consumable:
 	case EExplorationRewardType::Equipment:
-	case EExplorationRewardType::SkillResource:
 	case EExplorationRewardType::KeyItem:
 		{
 			if (UInventorySubsystem* Inv = GetInventory())
@@ -131,7 +155,7 @@ FGrantedReward URewardServiceSubsystem::ApplyOne(const FRewardGrantRequest& Req,
 			return G;
 		}
 
-	// Unlock/Collect/Lore -> ProgressSubsystem
+	// Unlock/Collect/Flag -> ProgressSubsystem
 	case EExplorationRewardType::MapReveal:
 	case EExplorationRewardType::FastTravelNode:
 	case EExplorationRewardType::TraversalUnlock:
@@ -164,11 +188,8 @@ FGrantedReward URewardServiceSubsystem::ApplyOne(const FRewardGrantRequest& Req,
 				default: break;
 				}
 
-				// save sync
 				if (UExplorationSaveGameSubsystem* SaveSys = GetExploreSave())
-				{
 					P->FlushToSave(SaveSys);
-				}
 
 				G.bGranted = true;
 				G.ReasonTag = "Granted";
@@ -181,11 +202,24 @@ FGrantedReward URewardServiceSubsystem::ApplyOne(const FRewardGrantRequest& Req,
 			return G;
 		}
 
-	// EXP는 레벨업 시스템이 OnRewardsGranted를 받아 처리하는 게 SSOT에 더 맞음(여긴 “전달”만)
+	// EXP: 레벨업 시스템이 있으면 소비, 없으면 "전달만" 성공 처리
 	case EExplorationRewardType::ExploreExp:
-		G.bGranted = true;
-		G.ReasonTag = "Forward.ToExpSystem";
-		return G;
+		{
+			FName Reason;
+			if (ICombatExpMutator* Exp = FindExpMutator(Reason))
+			{
+				FName OutReason;
+				const bool bOk = Exp->GrantExploreExp(E.Amount, MakeExpContext(Req, E), Req.SourceTag, OutReason);
+				G.bGranted = bOk;
+				G.ReasonTag = bOk ? "Granted" : OutReason;
+			}
+			else
+			{
+				G.bGranted = true;
+				G.ReasonTag = "Forward.ToLevelSystem";
+			}
+			return G;
+		}
 
 	default:
 		G.bGranted = false;
@@ -198,19 +232,15 @@ FExplorationOp URewardServiceSubsystem::GrantRewards(const FRewardGrantRequest& 
 {
 	OutGranted.Reset();
 
-	// 테이블 + 직접 엔트리 합치기
 	TArray<FRewardEntry> All;
-	if (Req.Table)
-		All.Append(Req.Table->Entries);
+	if (Req.Table) All.Append(Req.Table->Entries);
 	All.Append(Req.DirectEntries);
 
 	if (All.Num() == 0)
 		return FExplorationOp::Fail("Reject.EmptyReward");
 
 	for (const FRewardEntry& E : All)
-	{
 		OutGranted.Add(ApplyOne(Req, E));
-	}
 
 	return FExplorationOp::Ok();
 }

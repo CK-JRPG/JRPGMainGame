@@ -1,4 +1,3 @@
-// Source/JRPGCombat/Private/Combat/Exploration/ExplorationProgressSubsystem.cpp
 #include "Combat/Exploration/ExplorationProgressSubsystem.h"
 
 void UExplorationProgressSubsystem::InitializeFromSave(UExplorationSaveGameSubsystem* SaveSys)
@@ -12,7 +11,6 @@ void UExplorationProgressSubsystem::InitializeFromSave(UExplorationSaveGameSubsy
 	Collectibles = S->Collectibles;
 	LoreEntries = S->LoreEntries;
 	BestiaryEntries = S->BestiaryEntries;
-	PuzzleFlags = S->PuzzleFlags;
 	Flags = S->WorldFlags;
 }
 
@@ -27,7 +25,6 @@ void UExplorationProgressSubsystem::FlushToSave(UExplorationSaveGameSubsystem* S
 	S->Collectibles = Collectibles;
 	S->LoreEntries = LoreEntries;
 	S->BestiaryEntries = BestiaryEntries;
-	S->PuzzleFlags = PuzzleFlags;
 	S->WorldFlags = Flags;
 
 	SaveSys->MarkDirty();
