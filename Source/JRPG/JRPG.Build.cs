@@ -15,6 +15,8 @@ public class JRPG : ModuleRules
 			"Engine", 
 			"InputCore", 
 			"GameplayTags", 
+			"GameplayTasks",
+			"NavigationSystem",
 			"AIModule", 
 			"UMG", 
 			"Slate", 
