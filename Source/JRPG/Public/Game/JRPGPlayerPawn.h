@@ -8,7 +8,7 @@ class ULocomotionComponent;
 class UCombatZoneTrackerComponent;
 
 UCLASS()
-class PROJECTGAME_API AJRPGPlayerPawn : public ACharacter
+class JRPG_API AJRPGPlayerPawn : public ACharacter
 {
 	GENERATED_BODY()
 

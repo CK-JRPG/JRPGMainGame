@@ -9,7 +9,7 @@ class UInputAction;
 struct FInputActionValue;
 
 UCLASS()
-class PROJECTGAME_API AJRPGPlayerController : public APlayerController
+class JRPG_API AJRPGPlayerController : public APlayerController
 {
 	GENERATED_BODY()
 
