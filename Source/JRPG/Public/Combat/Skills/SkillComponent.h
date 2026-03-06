@@ -5,6 +5,8 @@
 #include "Combat/Skills/SkillTypes.h"
 #include "SkillComponent.generated.h"
 
+
+
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnSkillCast,FName/*SkillId*/,AActor*/*Caster*/,int32/*TargetCount*/);
 
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))

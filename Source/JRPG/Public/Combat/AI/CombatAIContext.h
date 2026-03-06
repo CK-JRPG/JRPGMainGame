@@ -1,88 +1,77 @@
 ﻿// Source/JRPGCombat/Public/Combat/AI/CombatAIContext.h
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
-#include "GameplayTagContainer.h"
-#include "Combat/AI/CombatAITypes.h"
+#include "Combat/AI/CombatAIPresetAsset.h"
+#include "Combat/AI/CombatAIInterfaces.h"
 #include "CombatAIContext.generated.h"
 
-// Forward decl (우리 구조의 다른 시스템)
-class UBattleSessionSubsystem;
-class UTacticalModeSubsystem;
-class UTrinityChainSubsystem;
-
-class UHPComponent;
-class UAPComponent;
+class UCombatAIPresetAsset;
 class USkillComponent;
+class UHPComponent;
 class UThreatComponent;
-class UStatusComponent;
-class UGroggyComponent;
- 
-USTRUCT()
-struct FCombatAIReservationSnapshot
-{
-	GENERATED_BODY()
-	
-	UPROPERTY() bool bHasReservation = false;
-	UPROPERTY() FName ReservedSkillId = NAME_None;
-	// 필요 시 타겟 스냅샷/ActorId 확장
-};
 
 UCLASS()
-class JRPG_API UCombatAIContext :public UObject
+class JRPG_API UCombatAIContext : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	// Owner
+	void Initialize(AActor*InOwner,EPartyRole InRole,UCombatAIPresetAsset *InPresetAsset);
+
+	void Refresh();
+
+	// ---- World/Owner
 	UPROPERTY() TWeakObjectPtr<AActor> Owner;
+	UPROPERTY() TWeakObjectPtr<APawn> OwnerPawn;
+	UPROPERTY() TWeakObjectPtr<AController> OwnerController;
 
-	// Subsystems
-	UPROPERTY() TObjectPtr<UBattleSessionSubsystem> Session = nullptr;
-	UPROPERTY() TObjectPtr<UTacticalModeSubsystem> Tactical = nullptr;
-	UPROPERTY() TObjectPtr<UTrinityChainSubsystem> Chain = nullptr;
+	UPROPERTY() EPartyRole Role = EPartyRole::Attacker;
+	UPROPERTY() TWeakObjectPtr<UCombatAIPresetAsset> PresetAsset;
 
-	// Components
-	UPROPERTY() TObjectPtr<UHPComponent> HP = nullptr;
-	UPROPERTY() TObjectPtr<UAPComponent> AP = nullptr;
-	UPROPERTY() TObjectPtr<USkillComponent> Skill = nullptr;
-	UPROPERTY() TObjectPtr<UThreatComponent> Threat = nullptr;// Enemy only
-	UPROPERTY() TObjectPtr<UStatusComponent> Status = nullptr;
-	UPROPERTY() TObjectPtr<UGroggyComponent> Groggy = nullptr;
+	// ---- Components
+	UPROPERTY() TWeakObjectPtr<USkillComponent> SkillComp;
+	UPROPERTY() TWeakObjectPtr<UHPComponent> HPComp;
+	UPROPERTY() TWeakObjectPtr<UThreatComponent> ThreatComp;
 
-	// Cached flags
-	UPROPERTY() float NowReal = 0.f;
-	UPROPERTY() bool bSessionActive = false;
-	UPROPERTY() bool bInputLocked = false;
-	UPROPERTY() bool bChainActive = false;
-	UPROPERTY() bool bEnemySuppressed = false;
+	// ---- Targets/Party
+	UPROPERTY() TWeakObjectPtr<AActor> PrimaryTarget;
+	UPROPERTY() TArray<TWeakObjectPtr<AActor>> PartyMembers;
 
-	UPROPERTY() FCombatAIReservationSnapshot Reservation;
+	// ---- Flags
+	UPROPERTY() bool bSessionActive = false;// BattleSessionSubsystem Phase==Active 등으로 채움
+	UPROPERTY() bool bInTactical = false;
+	UPROPERTY() bool bInChainSequence = false;
 
-public:
-	static UCombatAIContext* Build(AActor*InOwner);
+	UPROPERTY() bool bSelfIsDead = false;
+	UPROPERTY() float SelfHp01 = 1.f;
 
-	// Common
-	bool IsAlive() const;
-	float GetHPPercent() const;
+	// Ally danger snapshot
+	UPROPERTY() bool bAnyAllyCritical = false;
+	UPROPERTY() TWeakObjectPtr<AActor> AllyCriticalTarget;
+	UPROPERTY() bool bAnyAllyHasCC = false;
+	UPROPERTY() TWeakObjectPtr<AActor> AllyCC_Target;
 
-	bool IsCCBlocked() const;// Status 기반
-	bool IsGroggyStunned() const;// GroggyPhase==Stunned
-	bool IsRising() const;
+	// Target groggy snapshot
+	UPROPERTY() EGroggyPhase TargetGroggyPhase = EGroggyPhase::Normal;
+	UPROPERTY() float TargetBreakRatio01 = 0.f;
 
-	// Party
-	AActor* GetPrimaryTarget() const;
-
-	// Enemy
-	AActor* GetThreatTarget() const;
-
-	// Participants (세션 권위)
-	void GetPartyMembers(TArray<AActor*> &Out) const;
-	void GetEnemies(TArray<AActor*> &Out) const;
+	// SP snapshot
+	UPROPERTY() int32 CurrentSP = 0;
+	UPROPERTY() int32 SPCap = 0;
+	UPROPERTY() bool bChainReady = false;
+	UPROPERTY() FCombatSPSettingsView SPSettings;
 
 private:
-	void PullSubsystemsAndComponents();
-	void PullDerivedFlags();
-	void PullReservationSnapshot();
+	void RefreshSubsystemFlags();
+	void RefreshPartySnapshot();
+	void RefreshTargetSnapshot();
+	void RefreshSP();
+
+	// Helpers: 인터페이스 구현 컴포넌트를 찾아서 읽는다.
+	static bool TryReadGroggyFromActor(AActor *Actor, EGroggyPhase &OutPhase, float &OutBreakRatio01);
+	static bool TryReadSPFromWorld(UWorld *World, int32 &OutCurrent, int32 &OutCap, bool &OutReady, FCombatSPSettingsView &OutSettings);
+	static bool TryReadChainActiveFromWorld(UWorld *World, bool &bOutChainActive);
 };

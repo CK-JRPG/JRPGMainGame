@@ -1,13 +1,15 @@
 ﻿// Source/JRPGCombat/Public/Combat/AI/EnemyAIController.h
+
 #pragma once
 
 #include "CoreMinimal.h"
 #include "AIController.h"
-#include "Combat/AI/CombatAITypes.h"
+#include "Combat/AI/CombatAIActionTypes.h"
 #include "EnemyAIController.generated.h"
 
-class UCombatAIPresetAsset;
 class UThreatComponent;
+class USkillComponent;
+class UCombatAIPresetAsset;
 
 UCLASS()
 class JRPG_API AEnemyAIController :public AAIController
@@ -17,38 +19,26 @@ class JRPG_API AEnemyAIController :public AAIController
 public:
 	AEnemyAIController();
 
-	// 공용 프리셋(프로젝트 단위) 또는 적 종류별 교체
-	UPROPERTY(EditAnywhere,Category="AI") 
-	TObjectPtr<UCombatAIPresetAsset> PresetAsset = nullptr;
+	virtual void OnPossess(APawn *InPawn)override;
+	virtual void Tick(float DeltaSeconds)override;
 
-protected:
-	virtual void OnPossess(APawn *InPawn) override;
-	virtual void OnUnPossess() override;
-	virtual void BeginPlay() override;
+	UPROPERTY(EditAnywhere) TObjectPtr<UCombatAIPresetAsset> PresetAsset;
 
 private:
-	FTimerHandle DecisionTimer;
+	UPROPERTY() TObjectPtr<APawn> ControlledPawn;
+	UPROPERTY() TObjectPtr<UThreatComponent> ThreatComp;
+	UPROPERTY() TObjectPtr<USkillComponent> SkillComp;
 
-	EEnemyCombatAIState State = EEnemyCombatAIState::Idle;
+	UPROPERTY() EEnemyCombatState State = EEnemyCombatState::Idle;
 
-	// Engage/패턴용 런타임 상태
-	TMap<FName,float> SkillNextAvailableReal; // internal cooldown
-	int32 OpeningUses = 0;
+	// Rising 동안 타겟 락을 늘리기 위한 간단한 타이머
+	double TargetLockUntilReal = 0.0;
 
-	TWeakObjectPtr<UThreatComponent> CachedThreat;
+	void RefreshStateFromGroggyAndChain();
+	void TickCombatNormal(float DeltaSeconds);
+	void TickGroggyStunned(float DeltaSeconds);
+	void TickRising(float DeltaSeconds);
 
-	void StartLoop();
-	void StopLoop();
-	void ThinkOnce();
-
-	void RefreshStateFromSystems();
-	EEnemyCombatAIState ComputeState() const;
-
-	void EnsureEngageInitialThreat();
-	AActor* ResolveCurrentTarget();
-
-	bool IsSuppressedByChain() const;
-	void ApplySuppressedStop();
-
-	float NowReal() const;
+	bool IsChainSequenceActive()const;
+	bool ReadGroggy(EGroggyPhase&OutPhase)const;
 };

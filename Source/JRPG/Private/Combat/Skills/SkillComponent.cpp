@@ -17,10 +17,10 @@ USkillComponent::USkillComponent()
 void USkillComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	Stats = GetOwner()?GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
-	HP = GetOwner()?GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
-	AP = GetOwner()?GetOwner()->FindComponentByClass<UAPComponent>() : nullptr;
-	SP = GetOwner()?GetOwner()->FindComponentByClass<USPComponent>() : nullptr;
+	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
+	HP = GetOwner() ? GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
+	AP = GetOwner() ? GetOwner()->FindComponentByClass<UAPComponent>() : nullptr;
+	SP = GetOwner() ? GetOwner()->FindComponentByClass<USPComponent>() : nullptr;
 
 	for (USkillDataAsset *S : KnownSkills)
 	{
@@ -31,7 +31,7 @@ void USkillComponent::BeginPlay()
 
 void USkillComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponentTickFunction*)
 {
-	for (auto &KV :Cooldowns)
+	for (auto &KV : Cooldowns)
 	{
 		if (KV.Value > 0.f)
 			KV.Value = FMath::Max(0.f, KV.Value - DeltaTime);
@@ -70,7 +70,7 @@ float USkillComponent::GetCooldownRemaining(FName SkillId) const
 	return V ? *V : 0.f;
 }
 
-FSkill CastResult USkillComponent::ValidateCast(const USkillDataAsset &Skill,const TArray<AActor*> &Targets) const
+FSkillCastResult USkillComponent::ValidateCast(const USkillDataAsset &Skill, const TArray<AActor*> &Targets) const
 {
 	if (!AP.IsValid() || !SP.IsValid())
 		return FSkillCastResult::Fail("Reject.MissingResource");
@@ -91,7 +91,7 @@ FSkill CastResult USkillComponent::ValidateCast(const USkillDataAsset &Skill,con
 	return FSkillCastResult::Ok();
 }
 
-float USkillComponent::ComputeDamageAgainst(AActor*Target,constUSkillDataAsset&Skill)const
+float USkillComponent::ComputeDamageAgainst(AActor*Target,const USkillDataAsset&Skill)const
 {
 	const float Atk = Stats.IsValid() ? Stats->GetSnapshot().Attack : 10.f;
 
