@@ -2,6 +2,7 @@
 
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/Stats/CombatStatsComponent.h"
+#include "Combat/Battle/CombatActionComponent.h"
 
 #include "Combat/Skills/SkillComponent.h"
 #include "Combat/Status/StatusEffectComponent.h"
@@ -23,6 +24,7 @@ ACombatCharacter::ACombatCharacter()
 	SPComp = CreateDefaultSubobject<USPComponent>(TEXT("SPComponent"));
 
 	StatsComp = CreateDefaultSubobject<UCombatStatsComponent>(TEXT("CombatStatsComponent"));
+	ActionComp = CreateDefaultSubobject<UCombatActionComponent>(TEXT("CombatActionComponent"));
 	SkillComp = CreateDefaultSubobject<USkillComponent>(TEXT("SkillComponent"));
 	StatusComp = CreateDefaultSubobject<UStatusEffectComponent>(TEXT("StatusEffectComponent"));
 	GroggyComp = CreateDefaultSubobject<UGroggyComponent>(TEXT("GroggyComponent"));

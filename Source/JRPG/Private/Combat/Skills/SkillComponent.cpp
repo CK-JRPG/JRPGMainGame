@@ -1,12 +1,17 @@
 ﻿#include "Combat/Skills/SkillComponent.h"
 
+#include "Combat/Battle/CombatFormulaLibrary.h"
+#include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Characters/Stats/CombatStatsComponent.h"
+
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
 
 #include "Combat/Status/StatusEffectComponent.h"
 #include "Combat/Status/StatusEffectDataAsset.h"
+#include "Combat/Groggy/GroggyComponent.h"
+#include "Combat/Threat/ThreatComponent.h"
 
 USkillComponent::USkillComponent()
 {
@@ -17,12 +22,12 @@ USkillComponent::USkillComponent()
 void USkillComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	Stats = GetOwner()?GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
-	HP = GetOwner()?GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
-	AP = GetOwner()?GetOwner()->FindComponentByClass<UAPComponent>() : nullptr;
-	SP = GetOwner()?GetOwner()->FindComponentByClass<USPComponent>() : nullptr;
+	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
+	HP = GetOwner() ? GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
+	AP = GetOwner() ? GetOwner()->FindComponentByClass<UAPComponent>() : nullptr;
+	SP = GetOwner() ? GetOwner()->FindComponentByClass<USPComponent>() : nullptr;
 
-	for (USkillDataAsset *S : KnownSkills)
+	for (USkillDataAsset* S : KnownSkills)
 	{
 		if (S && S->IsValidSkill() && !Cooldowns.Contains(S->SkillId))
 			Cooldowns.Add(S->SkillId, 0.f);
@@ -31,19 +36,16 @@ void USkillComponent::BeginPlay()
 
 void USkillComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponentTickFunction*)
 {
-	for (auto &KV :Cooldowns)
+	for (auto& KV : Cooldowns)
 	{
-		if (KV.Value > 0.f)
-			KV.Value = FMath::Max(0.f, KV.Value - DeltaTime);
+		if (KV.Value > 0.f) KV.Value = FMath::Max(0.f, KV.Value - DeltaTime);
 	}
 }
 
-USkillDataAsset* USkillComponent::FindSkill(FName SkillId)const
+USkillDataAsset* USkillComponent::FindSkill(FName SkillId) const
 {
-	for (USkillDataAsset *S : KnownSkills)
-		if (S && S->SkillId == SkillId)
-			return S;
-	
+	for (USkillDataAsset* S : KnownSkills)
+		if (S && S->SkillId == SkillId) return S;
 	return nullptr;
 }
 
@@ -52,120 +54,130 @@ bool USkillComponent::HasSkill(FName SkillId) const
 	return FindSkill(SkillId) != nullptr;
 }
 
-void USkillComponent::LearnSkill(USkillDataAsset *Skill)
+void USkillComponent::LearnSkill(USkillDataAsset* Skill)
 {
-	if (!Skill || !Skill->IsValidSkill())
-		return;
-	
-	if (HasSkill(Skill->SkillId))
-		return;
-	
+	if (!Skill || !Skill->IsValidSkill()) return;
+	if (HasSkill(Skill->SkillId)) return;
 	KnownSkills.Add(Skill);
 	Cooldowns.Add(Skill->SkillId, 0.f);
 }
 
 float USkillComponent::GetCooldownRemaining(FName SkillId) const
 {
-	const float *V = Cooldowns.Find(SkillId);
+	const float* V = Cooldowns.Find(SkillId);
 	return V ? *V : 0.f;
 }
 
-FSkill CastResult USkillComponent::ValidateCast(const USkillDataAsset &Skill,const TArray<AActor*> &Targets) const
+bool USkillComponent::IsHostileTarget(AActor* Target) const
 {
-	if (!AP.IsValid() || !SP.IsValid())
-		return FSkillCastResult::Fail("Reject.MissingResource");
-	
-	if (Skill.APCost>0 && !AP->CanConsume(Skill.APCost))
-		return FSkillCastResult::Fail("Reject.NotEnoughAP");
-	
-	if (Skill.SPCost>0 && SP->GetSP() < Skill.SPCost)
-		return FSkillCastResult::Fail("Reject.NotEnoughSP");
+	if (!GetOwner() || !Target) return false;
 
-	if (GetCooldownRemaining(Skill.SkillId) > 0.f)
-		return FSkillCastResult::Fail("Reject.Cooldown");
+	ICombatParticipantInterface* A = Cast<ICombatParticipantInterface>(GetOwner());
+	ICombatParticipantInterface* T = Cast<ICombatParticipantInterface>(Target);
+	if (!A || !T) return false;
 
-	// 최소: 대상 0이면 실패(자기 자신 스킬도 Targets에 자기 포함해서 호출)
-	if (Targets.Num() <= 0)
-		return FSkillCastResult::Fail("Reject.InvalidTarget");
+	const ECombatTeam TA = A->GetCombatTeam();
+	const ECombatTeam TT = T->GetCombatTeam();
+	if (TA == ECombatTeam::Neutral || TT == ECombatTeam::Neutral) return false;
+	return TA != TT;
+}
 
+FSkillCastResult USkillComponent::ValidateCast(const USkillDataAsset& Skill, const TArray<AActor*>& Targets) const
+{
+	if (!AP.IsValid() || !SP.IsValid()) return FSkillCastResult::Fail("Reject.MissingResource");
+	if (Skill.APCost > 0 && !AP->CanConsume(Skill.APCost)) return FSkillCastResult::Fail("Reject.NotEnoughAP");
+	if (Skill.SPCost > 0 && SP->GetSP() < Skill.SPCost) return FSkillCastResult::Fail("Reject.NotEnoughSP");
+	if (GetCooldownRemaining(Skill.SkillId) > 0.f) return FSkillCastResult::Fail("Reject.Cooldown");
+	if (Targets.Num() <= 0) return FSkillCastResult::Fail("Reject.InvalidTarget");
 	return FSkillCastResult::Ok();
 }
 
-float USkillComponent::ComputeDamageAgainst(AActor*Target,constUSkillDataAsset&Skill)const
+void USkillComponent::ApplySkillEffects(constUSkillDataAsset&Skill,constTArray<AActor*>&Targets)
 {
 	const float Atk = Stats.IsValid() ? Stats->GetSnapshot().Attack : 10.f;
+	const float CritRate = Stats.IsValid() ? Stats->GetSnapshot().CritRate : 0.f;
+	const float CritBonus = Stats.IsValid() ? Stats->GetSnapshot().CritDamage : 0.f;
 
-	float TDef = 5.f;
-	if (Target)
+	for (AActor* T : Targets)
 	{
-		if (UCombatStatsComponent *TS = Target->FindComponentByClass<UCombatStatsComponent>())
-			TDef = TS->GetSnapshot().Defense;
-	}
+		if (!T) continue;
 
-	const float Raw = Skill.BasePower + Atk * Skill.AttackScale - TDef * Skill.DefenseScale;
-	return FMath::Max(1.f,Raw);
+		UHPComponent* THP = T->FindComponentByClass<UHPComponent>();
+		UCombatStatsComponent* TStats = T->FindComponentByClass<UCombatStatsComponent>();
+		UThreatComponent* TThreat = T->FindComponentByClass<UThreatComponent>();
+		UGroggyComponent* TGroggy = T->FindComponentByClass<UGroggyComponent>();
+		UStatusEffectComponent* TStatus = T->FindComponentByClass<UStatusEffectComponent>();
+
+		float DamageDone = 0.f;
+
+		if (THP && (Skill.BasePower > 0.f || Skill.AttackScale > 0.f))
+		{
+			const float Def = TStats ? TStats->GetSnapshot().Defense : 5.f;
+
+			const FDamageBreakdown B = UCombatFormulaLibrary::BuildDamage(
+			Atk,
+			Def,
+			Skill.BasePower,
+			Skill.AttackScale,
+			Skill.DefenseScale,
+			1.0f,
+			Skill.bAllowCrit,
+			CritRate,
+			CritBonus,
+			Skill.VarianceMin,
+			Skill.VarianceMax,
+			Skill.GroggyPower,
+			1.0f
+						);
+
+			DamageDone = B.FinalDamage;
+			THP->ApplyDamage(DamageDone, GetOwner(), Skill.SkillId);
+
+			if (IsHostileTarget(T))
+			{
+				if (TGroggy && Skill.GroggyPower > 0.f)
+				{
+					TGroggy->AddGroggyDamage(B.GroggyDamage, GetOwner(), Skill.SkillId);
+				}
+				if (TThreat)
+				{
+					const float Threat = FMath::Max(0.f, Skill.ThreatBase + DamageDone * FMath::Max(0.f, Skill.ThreatFromDamageMul));
+					if (Threat > 0.f)
+						TThreat->AddThreat(GetOwner(), Threat, Skill.SkillId);
+				}
+			}
+		}
+
+		if (THP && Skill.HealPower > 0.f)
+		{
+			THP->Heal(Skill.HealPower, GetOwner(), Skill.SkillId);
+		}
+
+		if (TStatus && Skill.ApplyStatus && FMath::FRand() <= FMath::Clamp(Skill.StatusChance, 0.f, 1.f))
+		{
+			TStatus->ApplyStatus(Skill.ApplyStatus, GetOwner(), Skill.StatusStacks, Skill.SkillId);
+		}
+	}
 }
 
-void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill,const TArray<AActor*> &Targets)
+FSkillCastResult USkillComponent::CastSkill(FName SkillId,const TArray<AActor*>& Targets, FName)
 {
-	for (AActor*T :Targets)
-	{
-		if (!T)continue;
+	USkillDataAsset* Skill = FindSkill(SkillId);
+	if (!Skill) return FSkillCastResult::Fail("Reject.SkillNotFound");
 
-		// Damage
-		if (Skill.BasePower > 0.f || Skill.AttackScale != 0.f)
-		{
-			if (UHPComponent *THP = T->FindComponentByClass<UHPComponent>())
-			{
-				const float Dmg =ComputeDamageAgainst(T, Skill);
-				THP->ApplyDamage(Dmg, GetOwner(), Skill.SkillId);
-			}
-		}
+	const FSkillCastResult Valid = ValidateCast(*Skill, Targets);
+	if (!Valid.bOk) return Valid;
 
-		// Heal
-		if (Skill.HealPower>0.f)
-		{
-			if (UHPComponent *THP = T->FindComponentByClass<UHPComponent>())
-			{
-				THP->Heal(Skill.HealPower, GetOwner(), Skill.SkillId);
-			}
-		}
-
-		// Status
-		if (Skill.ApplyStatus&& FMath::FRand() <= FMath::Clamp(Skill.StatusChance, 0.f, 1.f))
-		{
-			if (UStatusEffectComponent *SEC = T->FindComponentByClass<UStatusEffectComponent>())
-			{
-				SEC->ApplyStatus(Skill.ApplyStatus, GetOwner(), Skill.StatusStacks, Skill.SkillId);
-			}
-		}
-	}
-}
-
-FSkillCastResult USkillComponent::CastSkill(FNameSkillId,constTArray<AActor*>&Targets,FName)
-{
-	USkillDataAsset*Skill =FindSkill(SkillId);
-	if (!Skill)return FSkillCastResult::Fail("Reject.SkillNotFound");
-
-	const FSkillCastResultV =ValidateCast(*Skill,Targets);
-	if (!V.bOk)returnV;
-
-	// consume
-	if (Skill->APCost > 0 && !AP->Consume(Skill->APCost,SkillId))
-		return FSkillCastResult::Fail("Reject.NotEnoughAP");
-	
+	if (Skill->APCost > 0 && !AP->Consume(Skill->APCost, SkillId)) return FSkillCastResult::Fail("Reject.NotEnoughAP");
 	if (Skill->SPCost > 0 && !SP->ConsumeSP(Skill->SPCost, SkillId))
 	{
-		AP->Restore(Skill->APCost,"Rollback");
+		AP->Restore(Skill->APCost, "Rollback");
 		return FSkillCastResult::Fail("Reject.NotEnoughSP");
 	}
 
-	// set cooldown
 	Cooldowns.FindOrAdd(SkillId) = FMath::Max(0.f, Skill->CooldownSec);
+	ApplySkillEffects(*Skill,Targets);
 
-	// apply effects
-	ApplySkillEffects(*Skill, Targets);
-
-	OnSkillCast.Broadcast(SkillId, GetOwner(), Targets.Num());
+	OnSkillCast.Broadcast(SkillId,GetOwner(), Targets.Num());
 	return FSkillCastResult::Ok();
 }
