@@ -1,26 +1,25 @@
-﻿#include "Combat/Characters/CombatCharacterComponent.h"
-#include "Combat/Characters/CombatCharacterDataAsset.h"
-#include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
+﻿#include"Combat/Characters/CombatCharacterComponent.h"
+#include"Combat/Characters/CombatCharacterDataAsset.h"
+#include"Combat/Characters/CombatCharacterRegistrySubsystem.h"
 
-#include "Combat/Stats/HPComponent.h"
-#include "Combat/Stats/APComponent.h"
-#include "Combat/SP/SPComponent.h"
+#include"Combat/Skills/SkillComponent.h"
+#include "Combat/Skills/SkillDataAsset.h"
 
-#include "Combat/Items/InventorySubsystem.h"
+#if __has_include("Combat/Items/InventorySubsystem.h")
+	#include "Combat/Items/InventorySubsystem.h"
+	#define JRPG_HAS_INVENTORY 1
+#else
+	#define JRPG_HAS_INVENTORY 0
+#endif
 
 UCombatCharacterComponent::UCombatCharacterComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick=false;
 }
 
 void UCombatCharacterComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
-	HP = GetOwner() ? GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
-	AP = GetOwner() ? GetOwner()->FindComponentByClass<UAPComponent>() : nullptr;
-	SP = GetOwner() ? GetOwner()->FindComponentByClass<USPComponent>() : nullptr;
-
 	InitializeFromDef();
 	RegisterToRegistry();
 }
@@ -35,42 +34,41 @@ void UCombatCharacterComponent::InitializeFromDef()
 {
 	if (!CharacterDef || !CharacterDef->IsValidDef())
 		return;
-
+	
 	CharacterId = CharacterDef->CharacterId;
 	Team = CharacterDef->DefaultTeam;
 	Role = CharacterDef->DefaultRole;
-
-	ApplyBaseParamsToResources();
 	GiveStartingItems();
-}
-
-void UCombatCharacterComponent::ApplyBaseParamsToResources()
-{
-	if (!CharacterDef) return;
-
-	const FCharacterBaseParams& P =CharacterDef->BaseParams;
-
-	if (HP) HP->InitializeHP(P.MaxHP, true);
-	if (AP) AP->InitializeAP(P.MaxAP, true);
-	if (SP) SP->InitializeSP(P.MaxSP, 0);
+	GiveStartingSkills();
 }
 
 void UCombatCharacterComponent::GiveStartingItems()
 {
-	if (!CharacterDef) return;
-	if (!GetWorld() || !GetWorld()->GetGameInstance()) return;
+#if JRPG_HAS_INVENTORY
+	if (!CharacterDef)
+		return;
+	
+	if (!GetWorld()||!GetWorld()->GetGameInstance())
+		return;
 
-	if (UInventorySubsystem* Inv = GetWorld()->GetGameInstance()->GetSubsystem<UInventorySubsystem>())
+	if (UInventorySubsystem *Inv = GetWorld()->GetGameInstance()->GetSubsystem<UInventorySubsystem>())
 	{
-		for (const auto& KV :CharacterDef->StartingItems)
+		for (constauto &KV :CharacterDef -> StartingItems)
 		{
-			const FName ItemId = KV.Key;
-			const int32 Qty = KV.Value;
-			if (!ItemId.IsNone() && Qty > 0)
-			{
-				Inv->AddItem(ItemId, Qty, "Character.StartingItems", nullptr);
-			}
+			if (!KV.Key.IsNone() && KV.Value>0)
+				Inv->AddItem(KV.Key, KV.Value,"Character.StartingItems", nullptr);
 		}
+	}
+#endif
+}
+
+void UCombatCharacterComponent::GiveStartingSkills()
+{
+	if (!CharacterDef) return;
+	if (USkillComponent *SC =GetOwner() ? GetOwner()->FindComponentByClass<USkillComponent>() : nullptr)
+	{
+		// 여기선 SkillId만 있으므로 실제 SkillDataAsset 매핑은 프로젝트에서 AssetManager로 연결.
+		// SkillId 목록을 유지만 해두고, 런타임에 외부에서 LearnSkill로 주입해도 됨.
 	}
 }
 
@@ -78,20 +76,18 @@ void UCombatCharacterComponent::RegisterToRegistry()
 {
 	if (CharacterId.IsNone()) return;
 	if (!GetWorld()||!GetWorld()->GetGameInstance()) return;
-
-	if (UCombatCharacterRegistrySubsystem* Reg = GetWorld()->GetGameInstance()->GetSubsystem<UCombatCharacterRegistrySubsystem>())
-	{
-		Reg->RegisterCharacter(CharacterId, GetOwner());
-	}
+	if (UCombatCharacterRegistrySubsystem *Reg =GetWorld()->GetGameInstance()->GetSubsystem<UCombatCharacterRegistrySubsystem>())
+		Reg->RegisterCharacter(CharacterId,GetOwner());
 }
 
 void UCombatCharacterComponent::UnregisterFromRegistry()
 {
-	if (CharacterId.IsNone()) return;
-	if (!GetWorld() || !GetWorld()->GetGameInstance()) return;
-
-	if (UCombatCharacterRegistrySubsystem* Reg = GetWorld()->GetGameInstance()->GetSubsystem<UCombatCharacterRegistrySubsystem>())
-	{
+	if (CharacterId.IsNone()) 
+		return;
+	
+	if (!GetWorld()||!GetWorld()->GetGameInstance()) 
+		return;
+	
+	if (UCombatCharacterRegistrySubsystem *Reg = GetWorld()->GetGameInstance()->GetSubsystem<UCombatCharacterRegistrySubsystem>())
 		Reg->UnregisterCharacter(CharacterId, GetOwner());
-	}
 }

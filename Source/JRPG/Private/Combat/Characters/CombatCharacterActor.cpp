@@ -1,7 +1,12 @@
 ﻿#include "Combat/Characters/CombatCharacterActor.h"
 
 #include "Combat/Characters/CombatCharacterComponent.h"
-#include "Combat/Characters/CombatLevelProviderComponent.h"
+#include "Combat/Characters/Stats/CombatStatsComponent.h"
+
+#include "Combat/Skills/SkillComponent.h"
+#include "Combat/Status/StatusEffectComponent.h"
+#include "Combat/Groggy/GroggyComponent.h"
+#include "Combat/Threat/ThreatComponent.h"
 
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
@@ -12,17 +17,21 @@ ACombatCharacter::ACombatCharacter()
 	PrimaryActorTick.bCanEverTick = false;
 
 	CharacterComp = CreateDefaultSubobject<UCombatCharacterComponent>(TEXT("CombatCharacterComponent"));
-	LevelProviderComp = CreateDefaultSubobject<UCombatLevelProviderComponent>(TEXT("CombatLevelProviderComponent"));
 
 	HPComp = CreateDefaultSubobject<UHPComponent>(TEXT("HPComponent"));
 	APComp = CreateDefaultSubobject<UAPComponent>(TEXT("APComponent"));
 	SPComp = CreateDefaultSubobject<USPComponent>(TEXT("SPComponent"));
+
+	StatsComp = CreateDefaultSubobject<UCombatStatsComponent>(TEXT("CombatStatsComponent"));
+	SkillComp = CreateDefaultSubobject<USkillComponent>(TEXT("SkillComponent"));
+	StatusComp = CreateDefaultSubobject<UStatusEffectComponent>(TEXT("StatusEffectComponent"));
+	GroggyComp = CreateDefaultSubobject<UGroggyComponent>(TEXT("GroggyComponent"));
+	ThreatComp = CreateDefaultSubobject<UThreatComponent>(TEXT("ThreatComponent"));
 }
 
 void ACombatCharacter::BeginPlay()
 {
 	Super::BeginPlay();
-	// CharacterComp가 BeginPlay에서 Def 기반 초기화를 수행
 }
 
 FName ACombatCharacter::GetCombatantId() const
@@ -42,5 +51,5 @@ bool ACombatCharacter::IsPlayerControlledCombatant() const
 
 UActorComponent* ACombatCharacter::GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const
 {
-	return CompClass ?GetComponentByClass(CompClass) : nullptr;
+	return CompClass ? GetComponentByClass(CompClass) : nullptr;
 }
