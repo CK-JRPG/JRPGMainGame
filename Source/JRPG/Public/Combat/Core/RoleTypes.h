@@ -1,4 +1,6 @@
-﻿#pragma once
+// Source/JRPGCombat/Public/Combat/Core/RoleTypes.h
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "RoleTypes.generated.h"

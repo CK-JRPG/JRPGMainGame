@@ -1,4 +1,6 @@
-﻿#pragma once
+// Source/JRPGCombat/Public/Combat/Progression/Bond/BondWalkComponent.h
+#pragma once
+
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
