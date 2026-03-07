@@ -76,6 +76,10 @@ struct FBattleSessionConfig
 	UPROPERTY(EditAnywhere) bool bEndBattleOnAllPlayersDefeated = true;
 
 	UPROPERTY(EditAnywhere) FBattleRewardBundle VictoryRewards;
+	
+	UPROPERTY(EditAnywhere) bool bEnableCombatClamp = false;
+	UPROPERTY(EditAnywhere) FVector CombatClampCenter = FVector::ZeroVector;
+	UPROPERTY(EditAnywhere) float CombatClampRadius = 0.f;
 };
 
 USTRUCT()
