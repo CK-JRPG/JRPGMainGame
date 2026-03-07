@@ -1,6 +1,7 @@
 // Source/JRPGCombat/Public/Combat/Progression/Bond/BondWalkComponent.h
 #pragma once
 
+
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "BondWalkComponent.generated.h"
@@ -16,14 +17,9 @@ class JRPG_API UBondWalkComponent : public UActorComponent
 public:
 	UBondWalkComponent();
 
-	UPROPERTY(EditAnywhere)
-	TObjectPtr<UBondSettingsDataAsset> SettingsOverride = nullptr;
-	UPROPERTY(EditAnywhere)
-	float SampleIntervalSec = 0.25f;
-
-	// “가만히 서 있기”를 Walk로 치지 않기 위한 최소 속도
-	UPROPERTY(EditAnywhere)
-	float MinMoveSpeedCmPerSec = 10.f;
+	UPROPERTY(EditAnywhere) TObjectPtr<UBondSettingsDataAsset> SettingsOverride = nullptr;
+	UPROPERTY(EditAnywhere) float SampleIntervalSec = 0.25f;
+	UPROPERTY(EditAnywhere) float MinMoveSpeedCmPerSec = 10.f;
 
 protected:
 	virtual void BeginPlay() override;
@@ -40,4 +36,6 @@ private:
 
 	UBondSubsystem* GetBond() const;
 	const UBondSettingsDataAsset* GetSettings() const;
+
+	const TArray<FName>* GetPartyIds() const;
 };
