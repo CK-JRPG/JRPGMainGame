@@ -7,6 +7,7 @@
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Characters/CombatCharacterComponent.h"
 
+#include"Combat/SP/SynergyPointSubsystem.h"
 #include "Combat/Stats/HPComponent.h"
 
 UBattleSessionSubsystem* UChainAttackSubsystem::GetBattle() const
@@ -89,6 +90,14 @@ bool UChainAttackSubsystem::TryStartChain(AActor* Starter, const FChainAttackCon
 	if (!Starter) return false;
 	if (!IsPlayerActor(Starter)) return false;
 
+	if (USynergyPointSubsystem* SP =GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr)
+	{
+		if (!SP->IsChainReady())
+		{
+			return false;
+		}
+	}
+	
 	UBattleSessionSubsystem* Battle = GetBattle();
 	if (!Battle || !Battle->IsBattleActive()) return false;
 	if (!Battle->CanActorActNow(Starter)) return false;

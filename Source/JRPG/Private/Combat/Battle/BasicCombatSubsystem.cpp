@@ -7,6 +7,7 @@
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
+#include "Combat/SP/SynergyPointSubsystem.h"
 
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Groggy/GroggyComponent.h"
@@ -64,26 +65,39 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 	Out.Attacker = Attacker;
 	Out.Target = Target;
 	Out.Breakdown = UCombatFormulaLibrary::BuildDamage(
-	Atk,
-	Def,
-	Req.BasePower,
-	Req.AttackScale,
-	Req.DefenseScale,
-	Req.PowerMultiplier,
-	Req.bAllowCrit,
-	CritRate,
-	CritBonus,
-	Req.VarianceMin,
-	Req.VarianceMax,
-	Req.GroggyPower,
-	Req.ThreatMultiplier
+		Atk,
+		Def,
+		Req.BasePower,
+		Req.AttackScale,
+		Req.DefenseScale,
+		Req.PowerMultiplier,
+		Req.bAllowCrit,
+		CritRate,
+		CritBonus,
+		Req.VarianceMin,
+		Req.VarianceMax,
+		Req.GroggyPower,
+		Req.ThreatMultiplier
 		);
 
 	TargetHP->ApplyDamage(Out.Breakdown.FinalDamage, Attacker, Req.ReasonTag);
-
+	
 	if (TargetGroggy && Out.Breakdown.GroggyDamage > 0.f)
 	{
 		TargetGroggy->AddGroggyDamage(Out.Breakdown.GroggyDamage, Attacker, Req.ReasonTag);
+	}
+	
+	if (USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr)
+	{
+		if (Out.Breakdown.FinalDamage > 0.f)
+		{
+			SP->ReportDamage(Attacker,Target,Out.Breakdown.FinalDamage,false,Req.ReasonTag);
+		}
+
+		if (Out.Breakdown.GroggyDamage > 0.f)
+		{
+			SP->ReportBreak(Attacker, Target, Out.Breakdown.GroggyDamage, false, false, Req.ReasonTag);
+		}
 	}
 
 	if (TargetThreat && Out.Breakdown.ThreatGenerated > 0.f)

@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Combat/Threat/ThreatTypes.h"
+#include "JRPG/Public/Combat/Threat/ThreatTypes.h"
 #include "ThreatComponent.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnThreatTableChanged, AActor* /*Owner*/);
@@ -25,7 +25,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
-	virtual void TickComponent(floatDeltaTime, ELevelTickTickType, FActorComponentTickFunction *ThisTickFunction) override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 private:
 	UPROPERTY() TArray<FThreatEntry> Table;

@@ -25,7 +25,7 @@ public:
 
 	FOnGroggyStateChanged OnGroggyStateChanged;
 
-	void AddGroggyDamage(float Amount,AActor *Source,FName ReasonTag);
+	void AddGroggyDamage(float Amount, AActor* SourceActor, FName ReasonTag, bool bFromTacticalReservation = false);
 	void ResetGauge(FName ReasonTag);
 
 protected:
@@ -40,6 +40,9 @@ private:
 	UPROPERTY() TObjectPtr<UGroggyModSourceObject> ModSource = nullptr;
 
 	TWeakObjectPtr<class UCombatStatsComponent> Stats;
+	
+	TWeakObjectPtr<AActor> LastBreakSource;
+	bool bLastBreakFromTacticalReservation = false;
 
 	void EnterGroggy();
 	void ExitGroggy();

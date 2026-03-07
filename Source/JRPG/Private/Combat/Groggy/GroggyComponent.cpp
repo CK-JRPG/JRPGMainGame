@@ -1,4 +1,4 @@
-﻿#include "Combat/Groggy/GroggyComponent.h"
+﻿#include "JRPG/Public/Combat/Groggy/GroggyComponent.h"
 #include "Combat/Characters/Stats/CombatStatsComponent.h"
 
 UGroggyComponent::UGroggyComponent()
@@ -13,13 +13,16 @@ void UGroggyComponent::BeginPlay()
 	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
 }
 
-void UGroggyComponent::AddGroggyDamage(float Amount, AActor*, FName)
+void UGroggyComponent::AddGroggyDamage(float Amount, AActor* SourceActor, FName ReasonTag, bool bFromTacticalReservation = false)
 {
 	if (Amount <= 0.f) 
 		return;
 	
 	if (bGroggy) 
 		return;
+	
+	LastBreakSource = SourceActor;
+	bLastBreakFromTacticalReservation = bFromTacticalReservation;
 
 	Gauge = FMath::Clamp(Gauge + Amount, 0.f, MaxGauge);
 	if (Gauge >= MaxGauge)
@@ -28,7 +31,7 @@ void UGroggyComponent::AddGroggyDamage(float Amount, AActor*, FName)
 	}
 }
 
-void UGroggyComponent::ResetGauge(FName)
+void UGroggyComponent::ResetGauge(FName ReasonTag)
 {
 	Gauge = 0.f;
 	
@@ -51,6 +54,14 @@ void UGroggyComponent::EnterGroggy()
 	}
 
 	OnGroggyStateChanged.Broadcast(true);
+	
+	if (USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr)
+	{
+		if (AActor* Source = LastBreakSource.Get())
+		{
+			SP->ReportBreak(Source, GetOwner(), 0.f, true, bLastBreakFromTacticalReservation, "Groggy.StunTrigger");
+		}
+	}
 }
 
 void UGroggyComponent::ExitGroggy()
@@ -66,7 +77,7 @@ void UGroggyComponent::ExitGroggy()
 	OnGroggyStateChanged.Broadcast(false);
 }
 
-void UGroggyComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponentTickFunction*)
+void UGroggyComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	if (!bGroggy)
 		return;

@@ -1,8 +1,8 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Combat/Skills/SkillDataAsset.h"
-#include "Combat/Skills/SkillTypes.h"
+#include "JRPG/Public/Combat/Skills/SkillDataAsset.h"
+#include "JRPG/Public/Combat/Skills/SkillTypes.h"
 #include "SkillComponent.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnSkillCast, FName /*SkillId*/, AActor* /*Caster*/, int32 /*TargetCount*/);

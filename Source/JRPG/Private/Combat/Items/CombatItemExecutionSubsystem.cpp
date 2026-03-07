@@ -5,11 +5,16 @@
 #include "Combat/Items/CombatUsableItemDataAsset.h"
 
 #include "Combat/Characters/CombatParticipantInterface.h"
+
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
+
 #include "Combat/SP/SPComponent.h"
+#include "Combat/SP/SynergyPointSubsystem.h"
+
 #include "Combat/Groggy/GroggyComponent.h"
 #include "Combat/Threat/ThreatComponent.h"
+
 #include "Combat/Status/StatusEffectComponent.h"
 #include "Combat/Status/CombatStatusCleanseInterface.h"
 
@@ -44,11 +49,14 @@ bool UCombatItemExecutionSubsystem::IsSameTeam(AActor* A, AActor* B) const
 
 bool UCombatItemExecutionSubsystem::IsEnemyTeam(AActor* A, AActor* B) const
 {
-	if (!A || !B) return false;
+	if (!A || !B) 
+		return false;
 
 	ICombatParticipantInterface* PA = Cast<ICombatParticipantInterface>(A);
 	ICombatParticipantInterface* PB = Cast<ICombatParticipantInterface>(B);
-	if (!PA || !PB)returnfalse;
+	
+	if (!PA || !PB) 
+		return false;
 
 	const ECombatTeam TA = PA->GetCombatTeam();
 	const ECombatTeam TB = PB->GetCombatTeam();
@@ -197,15 +205,24 @@ bool UCombatItemExecutionSubsystem::WouldAnyEffectApply(
 FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItemUseRequest& Request)
 {
 	AActor* User = Request.User.Get();
-	if (!User)return FCombatItemUseResult::Fail("Reject.InvalidUser");
-	if (!IsAliveCombatant(User))return FCombatItemUseResult::Fail("Reject.UserDead");
+	if (!User) 
+		return FCombatItemUseResult::Fail("Reject.InvalidUser");
+	
+	if (!IsAliveCombatant(User))
+		return FCombatItemUseResult::Fail("Reject.UserDead");
 
 	UCombatItemComponent* ItemComp = User->FindComponentByClass<UCombatItemComponent>();
-	if (!ItemComp)return FCombatItemUseResult::Fail("Reject.NoItemComponent");
+	USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
+	
+	if (!ItemComp) 
+		return FCombatItemUseResult::Fail("Reject.NoItemComponent");
 
 	UCombatUsableItemDataAsset* ItemDef = ItemComp->FindItemDef(Request.ItemId);
-	if (!ItemDef)return FCombatItemUseResult::Fail("Reject.ItemNotFound");
-	if (!ItemComp->HasItem(ItemDef->ItemId, 1))return FCombatItemUseResult::Fail("Reject.OutOfItem");
+	if (!ItemDef)
+		return FCombatItemUseResult::Fail("Reject.ItemNotFound");
+	
+	if (!ItemComp->HasItem(ItemDef->ItemId, 1))
+		return FCombatItemUseResult::Fail("Reject.OutOfItem");
 
 	TArray<AActor*> Targets;
 	for (const TWeakObjectPtr<AActor>& W : Request.Targets)
@@ -252,18 +269,29 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 		UThreatComponent* Threat = T->FindComponentByClass<UThreatComponent>();
 		UStatusEffectComponent* Status = T->FindComponentByClass<UStatusEffectComponent>();
 
-		if (HP && ItemDef->HealHP > 0.f)
+		if (HP&&ItemDef->HealHP > 0.f)
 		{
 			const float Before = HP->GetHP();
+			const float BeforeRatio = HP->GetMaxHP() > 0.f ? (Before / HP->GetMaxHP()) : 1.f;
+
 			HP->Heal(ItemDef->HealHP, User, ItemDef->ItemId);
-			const float After = HP->GetHP();
-			Out.Breakdown.TotalHealedHP += FMath::Max(0.f, After - Before);
+
+			const float After = HP-> GetHP();
+			const float Delta = FMath::Max(0.f,After-Before);
+
+			Out.Breakdown.TotalHealedHP += Delta;
+
+			if (SP && Delta > 0.f)
+			{
+				SP->ReportHeal(User,T,Delta,BeforeRatio,false,ItemDef->ItemId);
+			}
 		}
 
 		if (AP && ItemDef->RestoreAP > 0)
 		{
 			const int32 Before = AP->GetAP();
 			AP->Restore(ItemDef->RestoreAP, ItemDef->ItemId);
+			
 			const int32 After = AP->GetAP();
 			Out.Breakdown.TotalRestoredAP += FMath::Max(0, After - Before);
 		}
@@ -272,22 +300,35 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 		{
 			const int32 Before = SP->GetSP();
 			SP->AddSP(ItemDef->GrantSP, ItemDef->ItemId);
+			
 			const int32 After = SP->GetSP();
 			Out.Breakdown.TotalGrantedSP += FMath::Max(0, After - Before);
 		}
 
-		if (HP && ItemDef->FlatDamage > 0.f)
+		if (HP&&ItemDef->FlatDamage>0.f)
 		{
 			const float Before = HP->GetHP();
 			HP->ApplyDamage(ItemDef->FlatDamage, User, ItemDef->ItemId);
 			const float After = HP->GetHP();
-			Out.Breakdown.TotalDealtDamage += FMath::Max(0.f, Before - After);
+			const float Delta = FMath::Max(0.f, Before - After);
+
+			Out.Breakdown.TotalDealtDamage+=Delta;
+
+			if (SP && Delta > 0.f)
+			{
+				SP->ReportDamage(User, T, Delta, false, ItemDef->ItemId);
+			}
 		}
 
 		if (Groggy && ItemDef->FlatGroggyDamage > 0.f)
 		{
 			Groggy->AddGroggyDamage(ItemDef->FlatGroggyDamage, User, ItemDef->ItemId);
 			Out.Breakdown.TotalGroggyDamage += ItemDef->FlatGroggyDamage;
+
+			if (SP)
+			{
+				SP->ReportBreak(User, T, ItemDef->FlatGroggyDamage, false, false, ItemDef->ItemId);
+			}
 		}
 
 		if (Threat && !FMath::IsNearlyZero(ItemDef->FlatThreatToUserOnTarget))
@@ -298,10 +339,31 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 
 		if (Status && ItemDef->ApplyStatus)
 		{
-			if (FMath::FRand() <= FMath::Clamp(ItemDef->StatusChance, 0.f, 1.f))
+			if (FMath::FRand() <= FMath::Clamp(ItemDef->StatusChance,0.f,1.f))
 			{
 				Status->ApplyStatus(ItemDef->ApplyStatus, User, ItemDef->StatusStacks, ItemDef->ItemId);
 				Out.Breakdown.StatusAppliedCount += 1;
+
+				if (SP)
+				{
+					ICombatParticipantInterface* PU = Cast<ICombatParticipantInterface>(User);
+					ICombatParticipantInterface* PT = Cast<ICombatParticipantInterface>(T);
+
+					const bool bEnemy =
+						PU && PT &&
+						PU->GetCombatTeam() != ECombatTeam::Neutral &&
+						PT->GetCombatTeam() != ECombatTeam::Neutral &&
+						PU->GetCombatTeam() != PT->GetCombatTeam();
+
+					if (bEnemy)
+					{
+						SP->ReportDebuff(User, T, ItemDef->ApplyStatus->StatusId, false, ItemDef->ItemId);
+					}
+					else
+					{
+						SP->ReportBuff(User, T, ItemDef->ApplyStatus->StatusId, false, ItemDef->ItemId);
+					}
+				}
 			}
 		}
 
@@ -316,6 +378,21 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 					ItemDef->ItemId);
 
 				Out.Breakdown.StatusRemovedCount += Removed;
+
+				if (SP && Removed > 0)
+				{
+					bool bCriticalCC = false;
+					for (const FGameplayTag &Tag : ItemDef->DispelAnyTags)
+					{
+						if (Tag.ToString().Contains(TEXT("CC")))
+						{
+							bCriticalCC = true;
+							break;
+						}
+					}
+
+					SP->ReportCleanse(User, T, Removed, bCriticalCC, false, ItemDef->ItemId);
+				}
 			}
 		}
 	}

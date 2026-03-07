@@ -1,17 +1,21 @@
-﻿#include "Combat/Skills/SkillComponent.h"
+﻿#include "JRPG/Public/Combat/Skills/SkillComponent.h"
+#include "JRPG/Public/Combat/Skills/SkillDataAsset.h"
 
-#include "Combat/Battle/CombatFormulaLibrary.h"
-#include "Combat/Characters/CombatParticipantInterface.h"
-#include "Combat/Characters/Stats/CombatStatsComponent.h"
+#include "JRPG/Public/Combat/Battle/CombatFormulaLibrary.h"
+#include "JRPG/Public/Combat/Characters/CombatParticipantInterface.h"
+#include "JRPG/Public/Combat/Characters/Stats/CombatStatsComponent.h"
 
-#include "Combat/Stats/HPComponent.h"
-#include "Combat/Stats/APComponent.h"
-#include "Combat/SP/SPComponent.h"
+#include "JRPG/Public/Combat/Stats/HPComponent.h"
+#include "JRPG/Public/Combat/Stats/APComponent.h"
+#include "JRPG/Public/Combat/SP/SPComponent.h"
+#include "JRPG/Public/Combat/SP/SynergyPointSubsystem.h"
 
-#include "Combat/Status/StatusEffectComponent.h"
-#include "Combat/Status/StatusEffectDataAsset.h"
-#include "Combat/Groggy/GroggyComponent.h"
-#include "Combat/Threat/ThreatComponent.h"
+#include "JRPG/Public/Combat/Status/CombatStatusCleanseInterface.h"
+#include "JRPG/Public/Combat/Status/StatusEffectComponent.h"
+#include "JRPG/Public/Combat/Status/StatusEffectDataAsset.h"
+#include "JRPG/Public/Combat/Groggy/GroggyComponent.h"
+#include "JRPG/Public/Combat/Threat/ThreatComponent.h"
+#include "JRPG/Public/Combat/Skills/SkillTypes.h"
 
 USkillComponent::USkillComponent()
 {
@@ -27,7 +31,7 @@ void USkillComponent::BeginPlay()
 	AP = GetOwner() ? GetOwner()->FindComponentByClass<UAPComponent>() : nullptr;
 	SP = GetOwner() ? GetOwner()->FindComponentByClass<USPComponent>() : nullptr;
 
-	for (USkillDataAsset*S : KnownSkills)
+	for (USkillDataAsset *S : KnownSkills)
 	{
 		if (S && S->IsValidSkill() && !Cooldowns.Contains(S->SkillId))
 			Cooldowns.Add(S->SkillId, 0.f);
@@ -78,7 +82,8 @@ float USkillComponent::GetCooldownRemaining(FName SkillId) const
 
 bool USkillComponent::IsHostileTarget(AActor *Target)const
 {
-	if (!GetOwner() || !Target)returnfalse;
+	if (!GetOwner() || !Target)
+		return false;
 
 	ICombatParticipantInterface *A =Cast<ICombatParticipantInterface>(GetOwner());
 	ICombatParticipantInterface *T =Cast<ICombatParticipantInterface>(Target);
@@ -117,9 +122,9 @@ FSkillCastResult USkillComponent::ValidateCast(const USkillDataAsset &Skill,cons
 	return FSkillCastResult::Ok();
 }
 
-FSkillCastResult USkillComponent::PrepareSkillCast(FName SkillId,const TArray<AActor*>&Targets, bool bFromTacticalReservation, FName ReasonTag)
+FSkillCastResult USkillComponent::PrepareSkillCast(FName SkillId, const TArray<AActor*>&Targets, bool bFromTacticalReservation, FName ReasonTag)
 {
-	USkillDataAsset*Skill =GetSkillDef(SkillId);
+	USkillDataAsset* Skill = GetSkillDef(SkillId);
 	if (!Skill)
 		return FSkillCastResult::Fail("Reject.SkillNotFound");
 
@@ -152,11 +157,11 @@ FSkillCastResult USkillComponent::PrepareSkillCast(FName SkillId,const TArray<AA
 			Prepared.Targets.Add(T);
 	}
 
-	bHasPrepared =true;
+	bHasPrepared = true;
 	return FSkillCastResult::Ok();
 }
 
-void USkillComponent::ApplySkillEffects(const USkillDataAsset&Skill, const TArray<AActor*>&Targets, bool bFromTacticalReservation)
+void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArray<AActor*>&Targets, bool bFromTacticalReservation)
 {
 	const float Atk = Stats.IsValid() ? Stats->GetSnapshot().Attack : 10.f;
 	const float CritRate = Stats.IsValid() ? Stats->GetSnapshot().CritRate : 0.f;
@@ -171,38 +176,51 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset&Skill, const TArra
 		UCombatStatsComponent* TStats = T->FindComponentByClass<UCombatStatsComponent>();
 		UThreatComponent* TThreat = T->FindComponentByClass<UThreatComponent>();
 		UGroggyComponent* TGroggy = T->FindComponentByClass<UGroggyComponent>();
-		UStatusEffectComponent *TStatus = T->FindComponentByClass<UStatusEffectComponent>();
-
+		UStatusEffectComponent* TStatus = T->FindComponentByClass<UStatusEffectComponent>();
+		USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
+		
 		float DamageDone = 0.f;
 
-		if (THP && (Skill.BasePower>0.f || Skill.AttackScale > 0.f))
+		if (THP && (Skill.BasePower > 0.f || Skill.AttackScale > 0.f))
 		{
 			const float Def = TStats ? TStats->GetSnapshot().Defense : 5.f;
 
 			const FDamageBreakdown B = UCombatFormulaLibrary::BuildDamage(
-			Atk,Def,
-			Skill.BasePower,
-			Skill.AttackScale,
-			Skill.DefenseScale,
-			1.0f,
-			Skill.bAllowCrit,
-			CritRate,
-			CritBonus,
-			Skill.VarianceMin,
-			Skill.VarianceMax,
-			Skill.GroggyPower,
-			1.0f
+				Atk,Def,
+				Skill.BasePower,
+				Skill.AttackScale,
+				Skill.DefenseScale,
+				1.0f,
+				Skill.bAllowCrit,
+				CritRate,
+				CritBonus,
+				Skill.VarianceMin,
+				Skill.VarianceMax,
+				Skill.GroggyPower,
+				1.0f
 						);
 
 			DamageDone = B.FinalDamage;
-			THP->ApplyDamage(DamageDone,GetOwner(), Skill.SkillId);
+			
+			if (SP && DamageDone>0.f)
+			{
+				SP->ReportDamage(GetOwner(),T, DamageDone,bFromTacticalReservation, Skill.SkillId);
+			}
+			
+			//THP->ApplyDamage(DamageDone,GetOwner(), Skill.SkillId);
 
 			if (IsHostileTarget(T))
 			{
-				if (TGroggy&&Skill.GroggyPower > 0.f)
+				if (TGroggy && Skill.GroggyPower > 0.f)
 				{
 					TGroggy->AddGroggyDamage(B.GroggyDamage,GetOwner(), Skill.SkillId);
 				}
+				
+				if (SP && Skill.GroggyPower > 0.f)
+				{
+					SP->ReportBreak(GetOwner(),T, B.GroggyDamage,false, bFromTacticalReservation, Skill.SkillId);
+				}
+				
 				if (TThreat)
 				{
 					const float Threat = FMath::Max(0.f,Skill.ThreatBase+DamageDone* FMath::Max(0.f,Skill.ThreatFromDamageMul));
@@ -211,16 +229,77 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset&Skill, const TArra
 				}
 			}
 		}
+		
+		const float BeforeRatio = THP ? (THP->GetMaxHP() > 0.f ? (THP->GetHP() / THP->GetMaxHP()) : 1.f) :1.f;
+		if (SP && Skill.HealPower > 0.f)
+		{
+			const float BeforeHP = THP->GetHP();
+			THP->Heal(Skill.HealPower,GetOwner(), Skill.SkillId);
+			const float Healed = FMath::Max(0.f,THP->GetHP() - BeforeHP);
 
+			if (Healed > 0.f)
+			{
+				SP->ReportHeal(GetOwner(),T, Healed, BeforeRatio, bFromTacticalReservation, Skill.SkillId);
+			}
+		}
+
+		
+		if (TStatus && Skill.ApplyStatus && FMath::FRand() <= FMath::Clamp(Skill.StatusChance,0.f,1.f))
+		{
+			TStatus->ApplyStatus(Skill.ApplyStatus,GetOwner(), Skill.StatusStacks, Skill.SkillId);
+			
+			if (SP)
+			{
+				if (IsHostileTarget(T))
+				{
+					SP->ReportDebuff(GetOwner(),T,Skill.ApplyStatus->StatusId, bFromTacticalReservation,Skill.SkillId);
+				}
+				else
+				{
+					SP->ReportBuff(GetOwner(),T,Skill.ApplyStatus->StatusId, bFromTacticalReservation,Skill.SkillId);
+				}
+			}
+		}
+		
+		if (TStatus && Skill.DispelAnyTags.Num() > 0)
+		{
+			if (ICombatStatusCleanseInterface* Cleanse = Cast<ICombatStatusCleanseInterface>(TStatus))
+			{
+				const int32 Removed = Cleanse->RemoveStatusesByAnyTags(
+					Skill.DispelAnyTags,
+					Skill.DispelRemoveCount,
+					GetOwner(),
+					Skill.SkillId);
+
+				if (SP&&Removed>0)
+				{
+					bool bCriticalCC = false;
+					for (const FGameplayTag&Tag : Skill.DispelAnyTags)
+					{
+						if (Tag.ToString().Contains(TEXT("CC")))
+						{
+							bCriticalCC =true;
+							break;
+						}
+					}
+
+					SP->ReportCleanse(GetOwner(),T,Removed,bCriticalCC,bFromTacticalReservation,Skill.SkillId);
+				}
+			}
+		}
+			
+		
+		/*
 		if (THP && Skill.HealPower > 0.f)
 		{
 			THP->Heal(Skill.HealPower,GetOwner(), Skill.SkillId);
 		}
-
-		if (TStatus && Skill.ApplyStatus&& FMath::FRand()<= FMath::Clamp(Skill.StatusChance,0.f,1.f))
+		
+		if (TStatus && Skill.ApplyStatus && FMath::FRand() <= FMath::Clamp(Skill.StatusChance,0.f,1.f))
 		{
 			TStatus->ApplyStatus(Skill.ApplyStatus,GetOwner(), Skill.StatusStacks, Skill.SkillId);
 		}
+		*/
 	}
 
 	OnSkillResolvedDetailed.Broadcast(Skill.SkillId, GetOwner(), Targets.Num(), bFromTacticalReservation);
