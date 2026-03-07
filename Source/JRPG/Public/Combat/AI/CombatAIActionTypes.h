@@ -21,7 +21,7 @@ enum class EPartyAIState : uint8
 };
 
 UENUM(BlueprintType)
-enum class EEnemyCombatState :uint8
+enum class EEnemyCombatState : uint8
 {
 	Idle,
 	Engage,
@@ -57,11 +57,11 @@ struct FCombatAIAction
 	{
 		FCombatAIAction A;
 		A.Type = ECombatAIActionType::Wait;
-		A.Score =InScore;
+		A.Score = InScore;
 		return A;
 	}
 
-	static FCombatAIAction MakeBasicAttack(TWeakObjectPtr<AActor> InTarget, float InScore)
+	static FCombatAIAction MakeBasicAttack (TWeakObjectPtr<AActor> InTarget, float InScore)
 	{
 		FCombatAIAction A;
 		A.Type = ECombatAIActionType::BasicAttack;

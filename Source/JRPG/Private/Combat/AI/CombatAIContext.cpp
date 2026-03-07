@@ -1,127 +1,203 @@
 ﻿// Source/JRPGCombat/Private/Combat/AI/CombatAIContext.cpp
-#include "Combat/AI/CombatAIContext.h"
 
-#include "GameFramework/Actor.h"
-#include "Engine/World.h"
+#include"Combat/AI/CombatAIContext.h"
+#include"GameFramework/Pawn.h"
+#include"Engine/World.h"
 
-// 우리 모듈 구조 헤더들(이미 만들어둔 것으로 가정)
-#include "Combat/Infrastructure/BattleSessionSubsystem.h"
-#include "Combat/Infrastructure/TacticalModeSubsystem.h"
-#include "Combat/Infrastructure/TrinityChainSubsystem.h"
+#include"Combat/Stats/HPComponent.h"
+#include"Combat/Threat/ThreatComponent.h"
+#include"Combat/Skills/SkillComponent.h"
 
-#include "Combat/Stats/HPComponent.h"
-#include "Combat/Stats/APComponent.h"
-#include "Combat/Skills/SkillComponent.h"
-#include "Combat/Threat/ThreatComponent.h"
-#include "Combat/Status/StatusComponent.h"// (가정) 상태이상 시스템에서 제공
-#include "Combat/Groggy/GroggyComponent.h"// (가정) 그로기 시스템에서 제공
-
-UCombatAIContext* UCombatAIContext::Build(AActor *InOwner)
+void UCombatAIContext::Initialize(AActor*InOwner,EPartyRole InRole,UCombatAIPresetAsset*InPresetAsset)
 {
-	if (!InOwner) return nullptr;
+	Owner = InOwner;
+	OwnerPawn = Cast<APawn>(InOwner);
+	OwnerController = OwnerPawn.IsValid() ? OwnerPawn->GetController() : nullptr;
+	Role = InRole;
+	PresetAsset = InPresetAsset;
 
-	UCombatAIContext*Ctx = NewObject<UCombatAIContext>(GetTransientPackage());
-	Ctx->Owner = InOwner;
-
-	Ctx->PullSubsystemsAndComponents();
-	Ctx->PullDerivedFlags();
-	Ctx->PullReservationSnapshot();
-	return Ctx;
+	SkillComp = InOwner ? InOwner->FindComponentByClass<USkillComponent>() : nullptr;
+	HPComp = InOwner ? InOwner->FindComponentByClass<UHPComponent>() : nullptr;
+	ThreatComp = InOwner ? InOwner->FindComponentByClass<UThreatComponent>() : nullptr;
 }
 
-void UCombatAIContext::PullSubsystemsAndComponents()
+void UCombatAIContext::Refresh()
 {
-	UWorld *World = Owner.IsValid() ? Owner->GetWorld() : nullptr;
-	if (!World) return;
+	if (!Owner.IsValid())
+		return;
 
-	Session  = World->GetSubsystem<UBattleSessionSubsystem>();
-	Tactical = World->GetSubsystem<UTacticalModeSubsystem>();
-	Chain    = World->GetSubsystem<UTrinityChainSubsystem>();
+	RefreshSubsystemFlags();
 
-	HP     = Owner.IsValid() ? Owner->FindComponentByClass<UHPComponent>() : nullptr;
-	AP     = Owner.IsValid() ? Owner->FindComponentByClass<UAPComponent>() : nullptr;
-	Skill  = Owner.IsValid() ? Owner->FindComponentByClass<USkillComponent>() : nullptr;
-	Status = Owner.IsValid() ? Owner->FindComponentByClass<UStatusComponent>() : nullptr;
-	Groggy = Owner.IsValid() ? Owner->FindComponentByClass<UGroggyComponent>() : nullptr;
+	// Basic alive/hp
+	if (HPComp.IsValid())
+	{
+		SelfHp01 = HPComp->GetHpRatio01();
+		bSelfIsDead = HPComp->IsDead();
+	}
+	else
+	{
+		SelfHp01 = 1.f;
+		bSelfIsDead = false;
+	}
 
-	Threat = Owner.IsValid() ? Owner->FindComponentByClass<UThreatComponent>() : nullptr;// Enemy only
+	RefreshPartySnapshot();
+	RefreshTargetSnapshot();
+	RefreshSP();
 }
 
-void UCombatAIContext::PullDerivedFlags()
+void UCombatAIContext::RefreshSubsystemFlags()
 {
-	UWorld *World = Owner.IsValid() ? Owner->GetWorld() : nullptr;
-	if (!World) return;
+	// 여기서 BattleSessionSubsystem / TacticalModeSubsystem 등을 조회해 채움.
+	// 지금은 “컴파일 가능한 형태”로 훅만 제공.
+	bSessionActive = true;
 
-	NowReal = World->GetRealTimeSeconds();
+	bInChainSequence = false;
+	if (UWorld *World = Owner->GetWorld())
+	{
+		bool bChain = false;
+		if (TryReadChainActiveFromWorld(World,bChain))
+		{
+			bInChainSequence = bChain;
+		}
+	}
 
-	bSessionActive = (Session != nullptr) ? Session->IsSessionActive() : false;
-
-	// 입력 잠금: 전술/체인에서 걸릴 수 있음(기본 이동 문서와 동일 계약)
-	bInputLocked = (Session != nullptr) ? Session->IsInputLocked() : false;
-
-	bChainActive = (Chain != nullptr) ? Chain->IsChainActive() : false;
-
-	// “체인 진행 중 적 공격 금지” 상태를 별도 플래그로 제공한다고 가정
-	bEnemySuppressed = (Chain!=nullptr) ? Chain -> IsEnemySuppressed() : false;
+	// Tactical은 전술 모드 Subsystem에서 가져옴 :contentReference[oaicite:16]{index=16}
+	bInTactical = false;
 }
 
-void UCombatAIContext::PullReservationSnapshot()
+void UCombatAIContext::RefreshPartySnapshot()
 {
-	Reservation = {};
+	// 실제 구현에서는 CombatParticipantRegistry에서 PartyMembers를 받음.
+	// 여기서는 Owner 포함 파티 3인 정도를 전제로 외부에서 채우거나,
+	// 프로젝트에서 Registry 연동 시 교체.
+	bAnyAllyCritical = false;
+	bAnyAllyHasCC = false;
+	AllyCriticalTarget = nullptr;
+	AllyCC_Target = nullptr;
 
-	if (!Owner.IsValid() || !Tactical) return;
+	for (const TWeakObjectPtr<AActor> &Ally : PartyMembers)
+	{
+		if (!Ally.IsValid() || Ally.Get() == Owner.Get())
+			continue;
 
-	// TacticalModeSubsystem이 “예약 데이터 제공만” 하고,
-	// SkillComponent가 소비한다는 계약에 맞춰: AI는 “보류/우선순위 조정”에만 사용
-	FName ReservedSkill;
-	const bool bHas = Tactical->GetReservationSkillId(Owner.Get(),ReservedSkill);
-	Reservation.bHasReservation = bHas;
-	Reservation.ReservedSkillId = bHas ? ReservedSkill : NAME_None;
+		if (UHPComponent *AllyHP = Ally->FindComponentByClass<UHPComponent>())
+		{
+			const floatHp01 = AllyHP->GetHpRatio01();
+			const floatCritThr = PresetAsset.IsValid() ? PresetAsset->Thresholds.PartyDangerHp01 : 0.30f;
+			if (!AllyHP->IsDead() && Hp01<CritThr)
+			{
+				bAnyAllyCritical = true;
+				AllyCriticalTarget = Ally;
+				break;
+			}
+		}
+	}
+
+	// CC 탐지는 StatusComponent 쪽 GameplayTag로 처리(다음: 그로기/상태이상 구현에서 연결).
+	// 지금은 훅만 남김.
 }
 
-bool UCombatAIContext::IsAlive() const
+void UCombatAIContext::RefreshTargetSnapshot()
 {
-	return HP ? HP->IsAlive() : true;
+	// PrimaryTarget은 문서: 기본은 세션 PrimaryTarget 공격 :contentReference[oaicite:17]{index=17}
+	// 실제로는 BattleSessionSubsystem에서 가져오기.
+	TargetGroggyPhase = EGroggyPhase::Normal;
+	TargetBreakRatio01 = 0.f;
+	if (PrimaryTarget.IsValid())
+	{
+		TryReadGroggyFromActor(PrimaryTarget.Get(),TargetGroggyPhase,TargetBreakRatio01);
+	}
 }
 
-float UCombatAIContext::GetHPPercent() const
+void UCombatAIContext::RefreshSP()
 {
-	return HP ? HP->GetHPPercent() : 1.0f;
+	CurrentSP = 0;
+	SPCap = 0;
+	bChainReady = false;
+	SPSettings = FCombatSPSettingsView();
+
+	if (UWorld *World = Owner->GetWorld())
+	{
+		TryReadSPFromWorld(World,CurrentSP,SPCap,bChainReady,SPSettings);
+	}
 }
 
-bool UCombatAIContext::IsCCBlocked() const
+bool UCombatAIContext::TryReadGroggyFromActor(AActor *Actor, EGroggyPhase &OutPhase, float &OutBreakRatio01)
 {
-	return Status ? Status->IsActionBlockedByCC() : false;
+	OutPhase = EGroggyPhase::Normal;
+	OutBreakRatio01 = 0.f;
+
+	if (!Actor)
+		return false;
+
+	// 컴포넌트가 ICombatGroggyProvider를 구현하면 그걸 읽는다.
+	TArray<UActorComponent*> Comps;
+	Actor->GetComponents(Comps);
+	for (UActorComponent *C :Comps)
+	{
+		if (C && C->GetClass()->ImplementsInterface(UCombatGroggyProvider::StaticClass()))
+		{
+			ICombatGroggyProvider *Provider = Cast<ICombatGroggyProvider>(C);
+			if (Provider)
+			{
+				OutPhase =Provider->GetGroggyPhase();
+				OutBreakRatio01 = FMath::Clamp(Provider->GetBreakRatio01(),0.f,1.f);
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
-bool UCombatAIContext::IsGroggyStunned() const
+bool UCombatAIContext::TryReadSPFromWorld(UWorld *World, int32 &OutCurrent, int32 &OutCap, bool &OutReady, FCombatSPSettingsView &OutSettings)
 {
-	return Groggy ? (Groggy->GetPhase() == EGroggyPhase::Stunned) : false;
+	if (!World)
+		return false;
+
+	// 실제 구현: World Subsystem(예: SynergyPointSubsystem)이 ICombatSynergyPointProvider 구현하도록 만들면 됨.
+	// 여기서는 훅만 제공.
+	for (TObjectIterator<UObject> It; It; ++It)
+	{
+		UObject *Obj = *It;
+		if (!Obj || Obj->GetWorld() != World)
+			continue;
+
+		if (Obj->GetClass()->ImplementsInterface(UCombatSynergyPointProvider::StaticClass()))
+		{
+			ICombatSynergyPointProvider *SP =Cast<ICombatSynergyPointProvider>(Obj);
+			if (SP)
+			{
+				OutCurrent = SP->GetCurrentSP();
+				OutCap = SP->GetSPCap();
+				OutReady = SP->IsChainReady();
+				OutSettings = SP->GetSettingsView();
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
-bool UCombatAIContext::IsRising() const
+bool UCombatAIContext::TryReadChainActiveFromWorld(UWorld *World, bool &bOutChainActive)
 {
-	return Groggy ? (Groggy->GetPhase() == EGroggyPhase::Rising) : false;
-}
+	if (!World)
+		return false;
 
-AActor* UCombatAIContext::GetPrimaryTarget() const
-{
-	return Session ?Session->GetPrimaryTarget() : nullptr;
-}
+	for (TObjectIterator<UObject> It; It; ++It)
+	{
+		UObject *Obj = *It;
+		if (!Obj || Obj->GetWorld() != World)
+			continue;
 
-AActor* UCombatAIContext::GetThreatTarget() const
-{
-	return Threat ? Threat->GetCurrentTarget() : nullptr;
-}
-
-void UCombatAIContext::GetPartyMembers(TArray<AActor*> &Out) const
-{
-	if (!Session) return;
-	Session->GetPartyMembers(Out);
-}
-
-void UCombatAIContext::GetEnemies(TArray<AActor*> &Out) const
-{
-	if (!Session) return;
-	Session->GetEnemies(Out);
+		if (Obj->GetClass()->ImplementsInterface(UCombatChainFlowProvider::StaticClass()))
+		{
+			ICombatChainFlowProvider *Chain =Cast<ICombatChainFlowProvider>(Obj);
+			if (Chain)
+			{
+				bOutChainActive = Chain->IsChainSequenceActive();
+				return true;
+			}
+		}
+	}
+	return false;
 }

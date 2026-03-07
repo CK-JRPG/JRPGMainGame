@@ -1,38 +1,44 @@
 ﻿// Source/JRPGCombat/Public/Combat/AI/CombatAIScorer.h
+
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Combat/AI/CombatAITypes.h"
+#include "Combat/AI/CombatAIActionTypes.h"
+#include "Combat/AI/CombatAIContext.h"
+#include "CombatAIScorer.generated.h"
 
-class UCombatAIContext;
-class UCombatAIPresetAsset;
-
-class JRPG_API FCombatAIScorer
+USTRUCT()
+struct FSkillAIMeta
 {
-public:
-	// Party AI
-	static FCombatAIAction ChoosePartyAction(
-		const UCombatAIContext &Ctx,
-		const UCombatAIPresetAsset &PresetAsset,
-		ECombatPartyRole Role,
-		ECombatAIPreset Preset);
+	GENERATED_BODY()
 
-	// Enemy AI
-	static FCombatAIAction ChooseEnemyAction(
-		const UCombatAIContext &Ctx,
-		const UCombatAIPresetAsset &PresetAsset,
-		EEnemyCombatAIState State,
-		AActor *CurrentTarget);
+	UPROPERTY() bool bIsHeal = false;
+	UPROPERTY() bool bIsCleanse = false;
+	UPROPERTY() bool bIsTaunt = false;
+	UPROPERTY() bool bIsBuff = false;
+	UPROPERTY() bool bIsDebuff = false;
+	UPROPERTY() bool bIsBreak = false;
+	UPROPERTY() bool bIsHighDps = false;
+};
+
+// NOTE: 이 부분은 프로젝트의 SkillDataAsset/SkillComponent 구현에 맞춰 채우면 됨.
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FGetSkillAIMetaDelegate, class USkillComponent* /*SkillComp*/, FName /*SkillId*/);
+
+UCLASS()
+class JRPG_API UCombatAIScorer :public UObject
+{
+	GENERATED_BODY()
+
+public:
+	void Initialize(FGetSkillAIMetaDelegate InMetaResolver);
+
+	float ScoreAction(const UCombatAIContext &Ctx,const FCombatAIAction &Action) const;
 
 private:
-	// Helpers
-	static bool CanUseAnySkill(const UCombatAIContext &Ctx, const TArray<FName> &SkillIds, FName &OutChosen);
-	static AActor* FindMostCriticalAlly(const UCombatAIContext &Ctx, float HpThreshold);
-	static bool AllyHasCC(const UCombatAIContext &Ctx, AActor *&OutAllyWithCC);
+	FGetSkillAIMetaDelegate MetaResolver;
 
-	static float ApplyReservationHoldPenalty(
-		const UCombatAIContext &Ctx,
-		const UCombatAIPresetAsset &PresetAsset,
-		ECombatAIPreset Preset,
-		float RawScore);
+	float ScoreRoleLogic(const UCombatAIContext &Ctx,const FCombatAIAction &A,const FSkillAIMeta &Meta) const;
+	float ScoreSPOpportunity(const UCombatAIContext &Ctx,const FCombatAIAction &A,const FSkillAIMeta &Meta) const;
+
+	static float SoftCapPenalty(float Value,float SoftCap);
 };
