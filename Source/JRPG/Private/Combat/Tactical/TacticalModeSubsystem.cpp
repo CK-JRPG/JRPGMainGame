@@ -48,6 +48,7 @@ bool UTacticalModeSubsystem::TryEnterTacticalMode(AActor*Requester,FName ReasonT
 	UBattleSessionSubsystem*Battle =GetBattle();
 	if (!Battle)return false;
 
+
 	if (!Battle->PauseFlow("TacticalMode"))
 		return false;
 
@@ -62,9 +63,9 @@ bool UTacticalModeSubsystem::TryEnterTacticalMode(AActor*Requester,FName ReasonT
 
 void UTacticalModeSubsystem::ExitTacticalMode(FName)
 {
-	if (!IsActive())return;
+	if (!IsActive()) return;
 
-	FTacticalModeSnapshot Final =Snapshot;
+	FTacticalModeSnapshot Final = Snapshot;
 
 	if (UBattleSessionSubsystem*Battle =GetBattle())
 	{
@@ -140,3 +141,4 @@ bool UTacticalModeSubsystem::HasReservation(AActor *Actor)const
 		return false;
 	return Reservations.Contains(Actor);
 }
+

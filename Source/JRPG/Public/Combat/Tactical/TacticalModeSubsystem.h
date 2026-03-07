@@ -8,7 +8,7 @@
 class UBattleSessionSubsystem;
 
 UCLASS()
-class JRPG_API UTacticalModeSubsystem :public UWorldSubsystem
+class JRPG_API UTacticalModeSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -36,3 +36,4 @@ private:
 	bool IsPlayerTurnActor(AActor *Actor) const;
 	bool IsSessionParticipant(AActor *Actor) const;
 };
+

@@ -54,5 +54,6 @@ public:
 	virtual UActorComponent* GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const override;
 
 protected:
-	virtual void BeginPlay()override;
+
+	virtual void BeginPlay() override;
 };

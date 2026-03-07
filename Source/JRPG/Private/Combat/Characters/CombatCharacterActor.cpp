@@ -61,3 +61,4 @@ UActorComponent* ACombatCharacter::GetOptionalComponentByClass(TSubclassOf<UActo
 {
 	return CompClass ? GetComponentByClass(CompClass) : nullptr;
 }
+

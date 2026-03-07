@@ -33,8 +33,10 @@ struct FTacticalModeSnapshot
 
 	UPROPERTY() TWeakObjectPtr<AActor> OperatorActor;
 	UPROPERTY() FName EnterReason = NAME_None;
+
 };
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTacticalModeEntered, const FTacticalModeSnapshot& /*Snapshot*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTacticalModeExited, const FTacticalModeSnapshot& /*Snapshot*/);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnTacticalReservationChanged, AActor* /*Actor*/, bool /*bHasReservation*/,FName /*SkillId*/);
+

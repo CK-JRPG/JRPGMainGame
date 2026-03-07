@@ -1,6 +1,4 @@
-﻿
-// Source/JRPGCombat/Private/Combat/Battle/BattleSessionSubsystem.cpp
-#include "Combat/Battle/BattleSessionSubsystem.h"
+﻿#include "Combat/Battle/BattleSessionSubsystem.h"
 
 #include "Combat/Battle/BasicCombatSubsystem.h"
 #include "Combat/Battle/CombatActionComponent.h"
@@ -11,6 +9,8 @@
 
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
+
+#include "Combat/Items/CombatItemExecutionSubsystem.h"
 
 #if __has_include("Combat/Progression/Leveling/LevelingSubsystem.h")
 	#include "Combat/Progression/Leveling/LevelingSubsystem.h"
@@ -51,6 +51,9 @@ void UBattleSessionSubsystem::OnWorldBeginPlay(UWorld &InWorld)
 void UBattleSessionSubsystem::ResetSessionState()
 {
 	bBattleActive = false;
+	bFlowPaused = false;
+	FlowPauseReason = NAME_None;
+
 	ActiveConfig = FBattleSessionConfig();
 
 	Snapshot = FBattleSessionSnapshot();
@@ -217,7 +220,7 @@ void UBattleSessionSubsystem::BuildTurnOrderForRound()
 			});
 }
 
-bool UBattleSessionSubsystem::StartBattle(constFBattleSessionConfig &Config,FGuid &OutSessionId)
+bool UBattleSessionSubsystem::StartBattle(const FBattleSessionConfig &Config,FGuid &OutSessionId)
 {
 	if (bBattleActive)
 		return false;
@@ -254,16 +257,32 @@ bool UBattleSessionSubsystem::StartBattle(constFBattleSessionConfig &Config,FGui
 
 void UBattleSessionSubsystem::AbortBattle(FName)
 {
-if (!bBattleActive)return;
-EndBattle(EBattleEndReason::Aborted);
+	if (!bBattleActive) return;
+	EndBattle(EBattleEndReason::Aborted);
+}
+
+bool UBattleSessionSubsystem::PauseFlow(FName ReasonTag)
+{
+	if (!bBattleActive) return false;
+	if (bFlowPaused) return false;
+
+	bFlowPaused = true;
+	FlowPauseReason = ReasonTag;
+	return true;
+}
+
+void UBattleSessionSubsystem::ResumeFlow(FName)
+{
+	if (!bBattleActive) return;
+	bFlowPaused = false;
+	FlowPauseReason = NAME_None;
 }
 
 bool UBattleSessionSubsystem::BeginNextTurn()
 {
-	if (!bBattleActive)
-		return false;
-	if (CheckBattleEndAndResolve())
-		return false;
+	if (!bBattleActive) return false;
+	if (bFlowPaused) return false;
+	if (CheckBattleEndAndResolve()) return false;
 
 	// 다음 인덱스
 	int32 StartIdx = Snapshot.TurnIndex + 1;
@@ -274,7 +293,7 @@ bool UBattleSessionSubsystem::BeginNextTurn()
 		Snapshot.Round++;
 		Snapshot.TurnIndex = -1;
 		BuildTurnOrderForRound();
-		StartIdx  0;
+		StartIdx 0;
 	}
 
 	for (int32 i = StartIdx; i<TurnOrder.Num(); ++i)
@@ -295,11 +314,11 @@ bool UBattleSessionSubsystem::BeginNextTurn()
 		{
 			if (UAPComponent*AP =A->FindComponentByClass<UAPComponent>())
 			{
-				AP-> Restore(AP->GetMaxAP(),"Battle.TurnStartAP");
+				AP->Restore(AP->GetMaxAP(),"Battle.TurnStartAP");
 			}
 		}
 
-		const ECombatTeamTeam = GetParticipantTeam(A);
+		const ECombatTeam Team = GetParticipantTeam(A);
 		SetFlowState(Team == ECombatTeam::Player ? EBattleFlowState::PlayerTurn : EBattleFlowState::EnemyTurn);
 
 		OnTurnStarted.Broadcast(A,Snapshot.Round);
@@ -319,10 +338,10 @@ bool UBattleSessionSubsystem::BeginNextTurn()
 
 void UBattleSessionSubsystem::FinishCurrentTurn(FName)
 {
-	if (!bBattleActive)
-		return;
+	if (!bBattleActive) return;
+	if (bFlowPaused) return;
 
-	AActor *Current =Snapshot.CurrentTurnActor.Get();
+	AActor* Current = Snapshot.CurrentTurnActor.Get();
 	if (Current)
 	{
 		OnTurnEnded.Broadcast(Current,Snapshot.Round);
@@ -336,30 +355,25 @@ void UBattleSessionSubsystem::FinishCurrentTurn(FName)
 	}
 }
 
-bool UBattleSessionSubsystem::CanActorActNow(AActor *Actor)const
+bool UBattleSessionSubsystem::CanActorActNow(AActor *Actor) const
 {
-	if (!bBattleActive || !Actor) 
-		return false;
-	
-	if (Snapshot.CurrentTurnActor.Get() != Actor)
-		return false;
-	
-	if (!IsParticipantAlive(Actor)) 
-		return false;
+	if (!bBattleActive || !Actor) return false;
+	if (bFlowPaused) return false;
+	if (Snapshot.CurrentTurnActor.Get() != Actor) return false;
+	if (!IsParticipantAlive(Actor)) return false;
 
 	const ECombatTeam Team = GetParticipantTeam(Actor);
-	
-	if (Team == ECombatTeam::Player && Snapshot.FlowState != EBattleFlowState::PlayerTurn)
-		return false;
-	
-	if (Team == ECombatTeam::Enemy && Snapshot.FlowState != EBattleFlowState::EnemyTurn)
-		return false;
+	if (Team == ECombatTeam::Player&&Snapshot.FlowState != EBattleFlowState::PlayerTurn) return false;
+	if (Team == ECombatTeam::Enemy&&Snapshot.FlowState != EBattleFlowState::EnemyTurn) return false;
 
 	return true;
 }
 
 FCombatActionResult UBattleSessionSubsystem::TryExecuteBasicAttack(AActor *Attacker,AActor *Target)
 {
+	if (bFlowPaused)
+		return FCombatActionResult::Fail("Reject.BattleFlowPaused");
+	
 	if (!CanActorActNow(Attacker))
 		return FCombatActionResult::Fail("Reject.NotCurrentTurn");
 
@@ -374,7 +388,7 @@ FCombatActionResult UBattleSessionSubsystem::TryExecuteBasicAttack(AActor *Attac
 	if (!R.bOk)
 	{
 		// 실패하면 원래 턴 상태로 복구
-		const ECombatTeamTeam =GetParticipantTeam(Attacker);
+		const ECombatTeam Team = GetParticipantTeam(Attacker);
 		SetFlowState(Team == ECombatTeam::Player ? EBattleFlowState::PlayerTurn : EBattleFlowState::EnemyTurn);
 		return R;
 	}
@@ -383,8 +397,11 @@ FCombatActionResult UBattleSessionSubsystem::TryExecuteBasicAttack(AActor *Attac
 	return R;
 }
 
-FSkillCastResult UBattleSessionSubsystem::TryExecuteSkill(AActor*Attacker,FName SkillId, const TArray<AActor *> &Targets)
+FSkillCastResult UBattleSessionSubsystem::TryExecuteSkill(AActor* Attacker, FName SkillId, const TArray<AActor*> &Targets)
 {
+	if (bFlowPaused)
+		return FSkillCastResult::Fail("Reject.BattleFlowPaused");
+	
 	if (!CanActorActNow(Attacker))
 		return FSkillCastResult::Fail("Reject.NotCurrentTurn");
 
@@ -394,7 +411,7 @@ FSkillCastResult UBattleSessionSubsystem::TryExecuteSkill(AActor*Attacker,FName 
 
 	SetFlowState(EBattleFlowState::ResolvingAction);
 
-	FSkillCastResult R = Action->TryCastSkill(SkillId,Targets);
+	FSkillCastResult R = Action->TryCastSkill(SkillId, Targets);
 
 	if (!R.bOk)
 	{
@@ -471,6 +488,47 @@ void UBattleSessionSubsystem::GetAlliesFor(AActor *Actor,TArray<AActor*> &Out) c
 	}
 }
 
+FCombatItemUseResult UBattleSessionSubsystem::TryUseCombatItem(
+	AActor* User,
+	FName ItemId,
+	const TArray<AActor*> &Targets,
+	bool bFromTacticalReservation)
+{
+	if (bFlowPaused)
+		return FCombatItemUseResult::Fail("Reject.BattleFlowPaused");
+
+	if (!CanActorActNow(User))
+		return FCombatItemUseResult::Fail("Reject.NotCurrentTurn");
+
+	UCombatItemExecutionSubsystem* ItemExec = GetWorld() ? GetWorld()->GetSubsystem<UCombatItemExecutionSubsystem>() : nullptr;
+	if (!ItemExec)
+		return FCombatItemUseResult::Fail("Reject.NoItemExecutionSubsystem");
+
+	FCombatItemUseRequest Req;
+	Req.User = User;
+	Req.ItemId = ItemId;
+	Req.bFromTacticalReservation = bFromTacticalReservation;
+	Req.ReasonTag = "Battle.UseItem";
+
+	for (AActor* T : Targets)
+	{
+		if (T)Req.Targets.Add(T);
+	}
+
+	SetFlowState(EBattleFlowState::ResolvingAction);
+
+	FCombatItemUseResult R =ItemExec->ExecuteUse(Req);
+
+	if (!R.bOk)
+	{
+		const ECombatTeam Team =GetParticipantTeam(User);
+		SetFlowState(Team == ECombatTeam::Player ? EBattleFlowState::PlayerTurn : EBattleFlowState::EnemyTurn);
+		return R;
+	}
+
+	FinishCurrentTurn("Battle.Item");
+	return R;
+}
 
 bool UBattleSessionSubsystem::AreAllEnemiesDefeated()const
 {
@@ -561,7 +619,7 @@ void UBattleSessionSubsystem::GrantVictoryRewards()
 
 				if (PartyIds.Num() == 3)
 				{
-					FBondAddRequestReq;
+					FBondAddRequest Req;
 					Req.Source = EBondSource::CombatWin;
 					Req.Participants = PartyIds;
 					Req.BaseAmount = ActiveConfig.VictoryRewards.BondBPReward;
@@ -580,7 +638,7 @@ void UBattleSessionSubsystem::GrantVictoryRewards()
 	{
 		if (GetWorld() && GetWorld()->GetGameInstance())
 		{
-			if (UEconomySubsystem*Eco = GetWorld()->GetGameInstance()->GetSubsystem<UEconomySubsystem>())
+			if (UEconomySubsystem* Eco = GetWorld()->GetGameInstance()->GetSubsystem<UEconomySubsystem>())
 			{
 				Eco->AddGold(ActiveConfig.VictoryRewards.GoldReward,"Battle.Victory");
 			}
