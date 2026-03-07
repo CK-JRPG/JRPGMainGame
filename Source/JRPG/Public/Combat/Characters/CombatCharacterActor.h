@@ -1,5 +1,4 @@
-﻿// Source/JRPGCombat/Public/Combat/Characters/CombatCharacterActor.h
-#pragma once
+﻿#pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
@@ -13,19 +12,20 @@ class UStatusEffectComponent;
 class UGroggyComponent;
 class UThreatComponent;
 class UCombatAIActionSelectorComponent;
+class UCombatItemComponent;
+class UCombatPresentationComponent;
 
 class UHPComponent;
 class UAPComponent;
 class USPComponent;
 
 UCLASS()
-
-class JRPG_API ACombatCharacterActor : public ACharacter, public ICombatParticipantInterface
+class JRPG_API ACombatCharacter :public ACharacter, public ICombatParticipantInterface
 {
 	GENERATED_BODY()
 
 public:
-	ACombatCharacterActor();
+	ACombatCharacter();
 
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatCharacterComponent> CharacterComp;
 
@@ -36,21 +36,24 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UGroggyComponent> GroggyComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UThreatComponent> ThreatComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatAIActionSelectorComponent> AIActionSelectorComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatItemComponent> ItemComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPresentationComponent> PresentationComp;
 
-	UPROPERTY(VisibleAnywhere) TObjectPtr<UHPComponent> HPComp;
-	UPROPERTY(VisibleAnywhere) TObjectPtr<UAPComponent> APComp;
-	UPROPERTY(VisibleAnywhere) TObjectPtr<USPComponent> SPComp;
+	UPROPERTY(VisibleAnywhere)TObjectPtr<UHPComponent> HPComp;
+	UPROPERTY(VisibleAnywhere)TObjectPtr<UAPComponent> APComp;
+	UPROPERTY(VisibleAnywhere)TObjectPtr<USPComponent> SPComp;
 
 	virtual FName GetCombatantId() const override;
 	virtual ECombatTeam GetCombatTeam() const override;
 	virtual bool IsPlayerControlledCombatant() const override;
 
-	virtual UHPComponent* GetHP()const override {return HPComp; }
-	virtual UAPComponent* GetAP()const override {return APComp; }
-	virtual USPComponent* GetSP()const override {return SPComp; }
+	virtual UHPComponent* GetHP() const override { return HPComp; }
+	virtual UAPComponent* GetAP() const override { return APComp; }
+	virtual USPComponent* GetSP() const override { return SPComp; }
 
 	virtual UActorComponent* GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const override;
 
 protected:
+
 	virtual void BeginPlay() override;
 };
