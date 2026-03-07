@@ -3,6 +3,8 @@
 #include "Combat/Characters/Stats/CombatStatsComponent.h"
 #include "Combat/Stats/HPComponent.h"
 
+#include "Combat/Debug/CombatDebugSubsystem.h"
+
 UStatusEffectComponent::UStatusEffectComponent()
 {
 	PrimaryComponentTick.bCanEverTick =true;
@@ -77,6 +79,18 @@ bool UStatusEffectComponent::ApplyStatus(UStatusEffectDataAsset *Effect,AActor *
 
 		Active.Add(S);
 		OnStatusApplied.Broadcast(Effect->EffectId,S.Stacks);
+		
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Status,
+				Effect->EffectId,
+				FString::Printf(TEXT("Status applied | Stacks=%d"), AddStacks),
+				Source,
+				GetOwner(),
+				FLinearColor(0.9f, 0.6f, 1.f));
+		}
+		
 		return true;
 	}
 
@@ -101,6 +115,18 @@ bool UStatusEffectComponent::ApplyStatus(UStatusEffectDataAsset *Effect,AActor *
 	}
 
 	OnStatusApplied.Broadcast(Effect->EffectId, S.Stacks);
+	
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Status,
+			Effect->EffectId,
+			FString::Printf(TEXT("Status applied | Stacks=%d"), AddStacks),
+			Source,
+			GetOwner(),
+			FLinearColor(0.9f, 0.6f, 1.f));
+	}
+	
 	return true;
 }
 
@@ -115,8 +141,20 @@ bool UStatusEffectComponent::RemoveStatus(FName EffectId, FName)
 
 	Active.RemoveAt(Idx);
 	OnStatusRemoved.Broadcast(EffectId);
+	
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Status,
+			EffectId,
+			TEXT("Status removed"),
+			GetOwner(),
+			GetOwner(),
+			FLinearColor(0.8f,0.8f,1.f));
+	}
+	
 	return true;
-}|
+}
 
 void UStatusEffectComponent::TickPeriodic(FActiveStatus &S, float DeltaTime)
 {
@@ -162,6 +200,17 @@ void UStatusEffectComponent::TickExpiry(float DeltaTime)
 			RemoveMods(S);
 			Active.RemoveAt(i);
 			OnStatusRemoved.Broadcast(Id);
+			
+			if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+			{
+				Debug->AddLog(
+					ECombatDebugCategory::Status,
+					Id,
+					TEXT("Status expired"),
+					GetOwner(),
+					GetOwner(),
+					FLinearColor(0.7f, 0.7f, 1.f));
+			}
 		}
 	}
 }

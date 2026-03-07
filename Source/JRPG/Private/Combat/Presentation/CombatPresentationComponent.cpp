@@ -203,7 +203,18 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 	
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
 	PlayActiveMontageOrResolve();
-
+	
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Presentation,
+			"Present.BasicAttack",
+			FString::Printf(TEXT("Basic attack presentation started")),
+			GetOwner(),
+			Target,
+			FLinearColor(0.8f, 0.9f, 1.f));
+	}
+	
 	return FCombatActionResult::Ok();
 }
 
@@ -260,6 +271,19 @@ FSkillCastResult UCombatPresentationComponent::TryPresentSkill(FName SkillId, co
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
 	PlayActiveMontageOrResolve();
 
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Presentation,
+			"Present.Skill",
+			FString::Printf(TEXT("Skill presentation started | Skill=%s Tactical=%s"),
+				*SkillId.ToString(),
+				bFromTacticalReservation ? TEXT("true") :TEXT("false")),
+				GetOwner(),
+				Targets.Num() > 0 ? Targets[0] : nullptr,
+			FLinearColor(0.7f, 1.f, 1.f));
+	}
+	
 	return FSkillCastResult::Ok();
 }
 
@@ -289,11 +313,35 @@ FCombatItemUseResult UCombatPresentationComponent::TryPresentItem(FName ItemId,c
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
 	PlayActiveMontageOrResolve();
 
+	if (UCombatDebugSubsystem*Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Presentation,
+			"Present.Item",
+			FString::Printf(TEXT("Item presentation started | Item=%s"), *ItemId.ToString()),
+			GetOwner(),
+			Targets.Num() > 0 ? Targets[0] : nullptr,
+			FLinearColor(1.f, 1.f, 0.7f));
+	}
+	
 	return FCombatItemUseResult::Ok();
 }
 
 void UCombatPresentationComponent::ResolveActivePresentation()
 {
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Presentation,
+			"Present.Resolve",
+			FString::Printf(TEXT("Resolve active presentation | Type=%d Action=%s"),
+					(int32)Active.Type,
+					*Active.ActionId.ToString()),
+			GetOwner(),
+			Active.Targets.Num() > 0 ? Active.Targets[0].Get() : nullptr,
+			FLinearColor(1.f, 0.9f, 0.6f));
+	}
+	
 	if (!HasActivePresentation())
 		return;
 	if (Active.bResolved)
@@ -372,6 +420,20 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 
 void UCombatPresentationComponent::FinishActivePresentation()
 {
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Presentation,
+			"Present.Finish",
+			FString::Printf(TEXT("Finish presentation | Type=%d Action=%s Resolved=%s"),
+				(int32)Active.Type,
+				*Active.ActionId.ToString(),
+				Active.bResolved ? TEXT("true") : TEXT("false")),
+			GetOwner(),
+			Active.Targets.Num() > 0 ? Active.Targets[0].Get() : nullptr,
+			FLinearColor(0.8f, 1.f, 0.8f));
+	}
+	
 	if (!HasActivePresentation())
 		return;
 
@@ -381,6 +443,18 @@ void UCombatPresentationComponent::FinishActivePresentation()
 	{
 		if (Active.bResolved)
 		{
+			if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+			{
+				Debug->AddLog(
+					ECombatDebugCategory::Action,
+					"Action.RecoveryApplied",
+					FString::Printf(TEXT("Recovery applied after presentation | Action=%s"),
+						*Active.ActionId.ToString()),
+					GetOwner(),
+					Active.Targets.Num() > 0 ? Active.Targets[0].Get() : nullptr,
+					FLinearColor(0.8f, 1.f, 0.8f));
+			}
+			
 			Battle->CompletePresentedAction(GetOwner(), "Present.Finish");
 		}
 		else
@@ -399,6 +473,20 @@ void UCombatPresentationComponent::FinishActivePresentation()
 
 void UCombatPresentationComponent::CancelActivePresentation(FName ReasonTag, bool bRefundPreparedSkill)
 {
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Presentation,
+			ReasonTag.IsNone() ? "Present.Cancel" : ReasonTag,
+				FString::Printf(TEXT("Cancel presentation | Type=%d Action=%s RefundPreparedSkill=%s"),
+						(int32)Active.Type,
+						*Active.ActionId.ToString(),
+			bRefundPreparedSkill ? TEXT("true") : TEXT("false")),
+			GetOwner(),
+			Active.Targets.Num() > 0 ? Active.Targets[0].Get() : nullptr,
+			FLinearColor(1.f, 0.6f, 0.6f));
+	}
+	
 	CancelActiveMotionIfNeeded();
 	
 	if (!HasActivePresentation())

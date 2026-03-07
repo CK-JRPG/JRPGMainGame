@@ -51,9 +51,9 @@ void UCombatDebugSubsystem::BindGlobalEvents()
 	{
 		Battle->OnBattleStarted.AddUObject(this, &UCombatDebugSubsystem::HandleBattleStarted);
 		Battle->OnBattleEnded.AddUObject(this, &UCombatDebugSubsystem::HandleBattleEnded);
-		Battle->OnTurnStarted.AddUObject(this, &UCombatDebugSubsystem::HandleTurnStarted);
-		Battle->OnTurnEnded.AddUObject(this, &UCombatDebugSubsystem::HandleTurnEnded);
-		Battle->OnBattleStateChanged.AddUObject(this, &UCombatDebugSubsystem::HandleBattleStateChanged);
+		Battle->OnBattlePhaseChanged.AddUObject(this, &UCombatDebugSubsystem::HandleBattlePhaseChanged);
+		Battle->OnActorActionLockChanged.AddUObject(this, &UCombatDebugSubsystem::HandleActorActionLockChanged);
+		Battle->OnExclusiveModeChanged.AddUObject(this, &UCombatDebugSubsystem::HandleExclusiveModeChanged);
 	}
 
 	if (UBasicCombatSubsystem* Basic = GetWorld()->GetSubsystem<UBasicCombatSubsystem>())
@@ -69,7 +69,7 @@ void UCombatDebugSubsystem::BindGlobalEvents()
 		Tactical->OnTacticalReservationChanged.AddUObject(this, &UCombatDebugSubsystem::HandleTacticalReservationChanged);
 	}
 
-	if (UChainAttackSubsystem* Chain =GetWorld()->GetSubsystem<UChainAttackSubsystem>())
+	if (UChainAttackSubsystem* Chain = GetWorld()->GetSubsystem<UChainAttackSubsystem>())
 	{
 		Chain->OnChainAttackStarted.AddUObject(this, &UCombatDebugSubsystem::HandleChainStarted);
 		Chain->OnChainAttackStepResolved.AddUObject(this, &UCombatDebugSubsystem::HandleChainStepResolved);
@@ -151,8 +151,14 @@ void UCombatDebugSubsystem::HandleBattleStarted(const FBattleSessionSnapshot& Sn
 	AddLog(
 		ECombatDebugCategory::Session,
 		"Battle.Start",
-		FString::Printf(TEXT("Battle started | Session=%s Round=%d"), *Snapshot.SessionId.ToString(), Snapshot.Round),
-		nullptr, nullptr, FLinearColor(0.2f, 1.f, 0.2f));
+		FString::Printf(
+			TEXT("Battle started | Session=%s Phase=%d AliveP=%d AliveE=%d"),
+				*Snapshot.SessionId.ToString(),
+				(int32)Snapshot.Phase,
+				Snapshot.AlivePlayers,
+				Snapshot.AliveEnemies),
+		nullptr,nullptr,
+		FLinearColor(0.2f, 1.f, 0.2f));
 }
 
 void UCombatDebugSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason)
@@ -160,35 +166,50 @@ void UCombatDebugSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& Snap
 	AddLog(
 		ECombatDebugCategory::Session,
 		"Battle.End",
-		FString::Printf(TEXT("Battle ended | Session=%s Reason=%d"), *Snapshot.SessionId.ToString(), (int32)Reason),
-		nullptr, nullptr, FLinearColor(1.f, 0.5f, 0.2f));
+		FString::Printf(
+			TEXT("Battle ended | Session=%s Reason=%d AliveP=%d AliveE=%d"),
+				*Snapshot.SessionId.ToString(),
+				(int32)Reason,
+				Snapshot.AlivePlayers,
+				Snapshot.AliveEnemies),
+		nullptr,nullptr,
+		FLinearColor(1.f, 0.5f, 0.2f));
 }
 
-void UCombatDebugSubsystem::HandleTurnStarted(AActor* Actor,int32 Round)
-{
-	AddLog(
-		ECombatDebugCategory::Turn,
-		"Turn.Start",
-		FString::Printf(TEXT("Turn started | Round=%d Actor=%s"), Round, *ActorNameSafe(Actor)),
-		Actor, nullptr, FLinearColor::Cyan);
-}
-
-void UCombatDebugSubsystem::HandleTurnEnded(AActor* Actor, int32 Round)
-{
-	AddLog(
-		ECombatDebugCategory::Turn,
-		"Turn.End",
-		FString::Printf(TEXT("Turn ended | Round=%d Actor=%s"), Round, *ActorNameSafe(Actor)),
-		Actor, nullptr, FLinearColor(0.5f, 0.9f, 1.f));
-}
-
-void UCombatDebugSubsystem::HandleBattleStateChanged(EBattleFlowState NewState)
+void UCombatDebugSubsystem::HandleBattlePhaseChanged(EBattlePhase NewPhase)
 {
 	AddLog(
 		ECombatDebugCategory::Session,
-		"Battle.State",
-		FString::Printf(TEXT("FlowState changed -> %d"), (int32)NewState),
-		nullptr, nullptr, FLinearColor::Silver);
+		"Battle.Phase",
+		FString::Printf(TEXT("Battle phase changed -> %d"), (int32)NewPhase),
+		nullptr, nullptr,
+		FLinearColor::Silver);
+}
+
+void UCombatDebugSubsystem::HandleActorActionLockChanged(AActor* Actor, bool bLocked, FName ReasonTag)
+{
+	AddLog(
+		ECombatDebugCategory::Action,
+		ReasonTag.IsNone() ? "Action.LockChanged" : ReasonTag,
+		FString::Printf(
+			TEXT("Action lock changed | Locked=%s"),
+			bLocked ? TEXT("true") : TEXT("false")),
+		Actor,
+		nullptr,
+		bLocked ? FLinearColor(1.f, 0.75f, 0.25f) : FLinearColor(0.6f, 1.f, 0.6f));
+}
+
+void UCombatDebugSubsystem::HandleExclusiveModeChanged(bool bActive, FName ModeTag)
+{
+	AddLog(
+		ECombatDebugCategory::Session,
+		ModeTag.IsNone() ? "Battle.ExclusiveMode" : ModeTag,
+		FString::Printf(
+			TEXT("Exclusive mode changed | Active=%s Tag=%s"),
+			bActive ? TEXT("true") : TEXT("false"),
+			*ModeTag.ToString()),
+		nullptr, nullptr,
+		bActive ? FLinearColor(1.f, 0.8f, 0.2f) : FLinearColor(0.7f, 0.9f, 0.7f));
 }
 
 void UCombatDebugSubsystem::HandleBasicAttackResolved(const FCombatActionResult& Result)

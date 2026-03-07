@@ -18,6 +18,8 @@
 #include "Combat/Status/StatusEffectComponent.h"
 #include "Combat/Status/CombatStatusCleanseInterface.h"
 
+#include "Combat/Debug/CombatDebugSubsystem.h"
+
 bool UCombatItemExecutionSubsystem::IsAliveCombatant(AActor* Actor) const
 {
 	if (!Actor) return false;
@@ -205,24 +207,94 @@ bool UCombatItemExecutionSubsystem::WouldAnyEffectApply(
 FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItemUseRequest& Request)
 {
 	AActor* User = Request.User.Get();
-	if (!User) 
+	if (!User)
+	{
+		// 실패 디버그 1 (Reject.InvalidUser)
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Item,
+				Request.ItemId,
+				TEXT("Item use failed | Reject.InvalidUser"),
+				User,
+				Request.Targets.Num() > 0 ? Request.Targets[0].Get() : nullptr,
+				FLinearColor(1.f, 0.5f, 0.5f));
+		}
+		
 		return FCombatItemUseResult::Fail("Reject.InvalidUser");
+	}
 	
 	if (!IsAliveCombatant(User))
+	{
+		// 실패 디버그 2 (Reject.UserDead)
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Item,
+				Request.ItemId,
+				TEXT("Item use failed | Reject.UserDead"),
+				User,
+				Request.Targets.Num() > 0 ? Request.Targets[0].Get() : nullptr,
+				FLinearColor(1.f, 0.5f, 0.5f));
+		}
+		
 		return FCombatItemUseResult::Fail("Reject.UserDead");
+	}
 
 	UCombatItemComponent* ItemComp = User->FindComponentByClass<UCombatItemComponent>();
 	USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
 	
-	if (!ItemComp) 
+	if (!ItemComp)
+	{
+		// 실패 디버그 3 (Reject.NoItemComponent)
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Item,
+				Request.ItemId,
+				TEXT("Item use failed | Reject.NoItemComponent"),
+				User,
+				Request.Targets.Num() > 0 ? Request.Targets[0].Get() : nullptr,
+				FLinearColor(1.f, 0.5f, 0.5f));
+		}
+		
 		return FCombatItemUseResult::Fail("Reject.NoItemComponent");
+	}
 
 	UCombatUsableItemDataAsset* ItemDef = ItemComp->FindItemDef(Request.ItemId);
 	if (!ItemDef)
+	{
+		// 실패 디버그 4 (Reject.ItemNotFound)
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Item,
+				Request.ItemId,
+				TEXT("Item use failed | Reject.ItemNotFound"),
+				User,
+				Request.Targets.Num() > 0 ? Request.Targets[0].Get() : nullptr,
+				FLinearColor(1.f, 0.5f, 0.5f));
+		}
+		
 		return FCombatItemUseResult::Fail("Reject.ItemNotFound");
+	}
 	
 	if (!ItemComp->HasItem(ItemDef->ItemId, 1))
+	{
+		// 실패 디버그 5 (Reject.OutOfItem)
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Item,
+				Request.ItemId,
+				TEXT("Item use failed | Reject.OutOfItem"),
+				User,
+				Request.Targets.Num() > 0 ? Request.Targets[0].Get() : nullptr,
+				FLinearColor(1.f, 0.5f, 0.5f));
+		}
+		
 		return FCombatItemUseResult::Fail("Reject.OutOfItem");
+	}
 
 	TArray<AActor*> Targets;
 	for (const TWeakObjectPtr<AActor>& W : Request.Targets)
@@ -233,11 +305,36 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 	FName ValidateReason = NAME_None;
 	if (!ValidateTargets(User, *ItemDef, Targets, ValidateReason))
 	{
+		// 실패 디버그 6 (ValidateReason)
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			// 동적으로 변하는 실패 사유이므로 Printf 사용했습니다.
+			Debug->AddLog(
+				ECombatDebugCategory::Item,
+				Request.ItemId,
+				FString::Printf(TEXT("Item use failed | ValidateReason: %s"), *ValidateReason.ToString()),
+				User,
+				Request.Targets.Num() > 0 ? Request.Targets[0].Get() : nullptr,
+				FLinearColor(1.f, 0.5f, 0.5f));
+		}
+		
 		return FCombatItemUseResult::Fail(ValidateReason);
 	}
 
 	if (!WouldAnyEffectApply(User, *ItemDef, Targets))
 	{
+		// 실패 디버그 7 (Reject.NoEffect)
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Item,
+				Request.ItemId,
+				TEXT("Item use failed | Reject.NoEffect"),
+				User,
+				Request.Targets.Num() > 0 ? Request.Targets[0].Get() : nullptr,
+				FLinearColor(1.f, 0.5f, 0.5f));
+		}
+		
 		return FCombatItemUseResult::Fail("Reject.NoEffect");
 	}
 
@@ -245,6 +342,18 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 	{
 		if (!ItemComp->ConsumeItem(ItemDef->ItemId, 1, Request.ReasonTag))
 		{
+			// 실패 디버그 8 (Reject.OutOfItem (On Consume))
+			if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+			{
+				Debug->AddLog(
+					ECombatDebugCategory::Item,
+					Request.ItemId,
+					TEXT("Item use failed | Reject.OutOfItem (On Consume)"),
+					User,
+					Request.Targets.Num() > 0 ? Request.Targets[0].Get() : nullptr,
+					FLinearColor(1.f, 0.5f, 0.5f));
+			}
+			
 			return FCombatItemUseResult::Fail("Reject.OutOfItem");
 		}
 	}
@@ -398,5 +507,25 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 	}
 
 	OnCombatItemUsed.Broadcast(Out);
+	
+	// 성공 디버그
+	if (UCombatDebugSubsystem*Debug =GetWorld() ?GetWorld()->GetSubsystem<UCombatDebugSubsystem>() :nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Item,
+			ItemDef->ItemId,
+			FString::Printf(
+				TEXT("Item used | Heal=%.0f AP=%d SP=%d Damage=%.0f StatusApplied=%d StatusRemoved=%d"),
+					Out.Breakdown.TotalHealedHP,
+					Out.Breakdown.TotalRestoredAP,
+					Out.Breakdown.TotalGrantedSP,
+					Out.Breakdown.TotalDealtDamage,
+					Out.Breakdown.StatusAppliedCount,
+					Out.Breakdown.StatusRemovedCount),
+			User,
+			Targets.Num()>0 ?Targets[0] :nullptr,
+			FLinearColor(1.f,1.f,0.6f));
+	}
+	
 	return Out;
 }

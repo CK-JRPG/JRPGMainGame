@@ -7,6 +7,8 @@
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Groggy/GroggyComponent.h"
 
+#include "Combat/Debug/CombatDebugSubsystem.h"
+
 UCombatMotionComponent::UCombatMotionComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -243,6 +245,23 @@ void UCombatMotionComponent::StartAcceptedMotion(const FCombatMotionRequest& Req
 	{
 		OnCombatMotionReplaced.Broadcast(ReplacedHandle, Handle, "Cancel.ReplacedByHigher");
 	}
+	
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+		   ECombatDebugCategory::Motion,
+		   "Motion.Start",
+		   FString::Printf(
+			  TEXT("Motion started | Handle=%llu Type=%d Mode=%d Duration=%.2f Distance=%.1f"),
+				(unsigned long long)Handle.UniqueId,
+				(int32)Req.Type,
+				(int32)Req.ExecMode,
+				Req.Duration,
+				Req.Distance),
+		   GetOwner(),
+		   Req.Target.Get(),
+		   FLinearColor(0.7f, 1.f, 1.f));
+	}
 }
 
 void UCombatMotionComponent::FinishTeleportRequestImmediately(const FCombatMotionRequest& Req, const FCombatMotionHandle& Handle)
@@ -282,11 +301,33 @@ FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatM
 	FName Reason = NAME_None;
 	if (!ValidateRequest(Req, Reason))
 	{
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Motion,
+				Reason,
+				TEXT("Motion request rejected"),
+				GetOwner(),
+				Req.Target.Get(),
+				FLinearColor::Red);
+		}
+		
 		return FCombatMotionResponse::Make(ECombatMotionResult::Rejected, FCombatMotionHandle(), Reason);
 	}
 
 	if (!ResolveRequestContext(Req, Reason))
 	{
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Motion,
+				Reason,
+				TEXT("Motion request rejected"),
+				GetOwner(),
+				Req.Target.Get(),
+				FLinearColor::Red);
+		}
+		
 		return FCombatMotionResponse::Make(ECombatMotionResult::Rejected, FCombatMotionHandle(), Reason);
 	}
 
@@ -297,6 +338,17 @@ FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatM
 	{
 		if (!CanReplaceCurrent(Req, Reason))
 		{
+			if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+			{
+				Debug->AddLog(
+					ECombatDebugCategory::Motion,
+					Reason,
+					TEXT("Motion request rejected"),
+					GetOwner(),
+					Req.Target.Get(),
+					FLinearColor::Red);
+			}
+			
 			return FCombatMotionResponse::Make(ECombatMotionResult::Rejected, FCombatMotionHandle(), Reason);
 		}
 
@@ -311,6 +363,18 @@ FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatM
 	if (Req.ExecMode == ECombatMotionExecMode::Teleport)
 	{
 		FinishTeleportRequestImmediately(Req, NewHandle);
+		
+		if (UCombatDebugSubsystem*Debug =GetWorld() ?GetWorld()->GetSubsystem<UCombatDebugSubsystem>() :nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Motion,
+				"Motion.AcceptTeleport",
+				FString::Printf(TEXT("Teleport motion accepted | Type=%d OwnerTag=%s"), (int32)Req.Type, *Req.OwnerTag.ToString()),
+				GetOwner(),
+				Req.Target.Get(),
+				FLinearColor(0.7, 1.f, 0.7f));
+		}
+		
 		return FCombatMotionResponse::Make(
 			bHadActive ? ECombatMotionResult::ReplacedExisting : ECombatMotionResult::Accepted,
 			NewHandle,
@@ -319,6 +383,21 @@ FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatM
 
 	StartAcceptedMotion(Req, NewHandle, bHadActive, OldHandle);
 
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Motion,
+			"Motion.Accept",
+			FString::Printf(TEXT("Motion accepted | Type=%d Mode=%d Priority=%d OwnerTag=%s"),
+				(int32)Req.Type,
+				(int32)Req.ExecMode,
+				Req.Priority,
+				*Req.OwnerTag.ToString()),
+			GetOwner(),
+			Req.Target.Get(),
+			FLinearColor(0.7f,1.f,1.f));
+	}
+	
 	return FCombatMotionResponse::Make(
 		bHadActive ? ECombatMotionResult::ReplacedExisting : ECombatMotionResult::Accepted,
 		NewHandle,
@@ -345,6 +424,19 @@ int32 UCombatMotionComponent::CancelAllByOwner(FName OwnerTag, FName ReasonTag)
 
 void UCombatMotionComponent::EndActiveMotion(FName EndReasonTag)
 {
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Motion,
+			EndReasonTag.IsNone() ?"Motion.End" :EndReasonTag,
+			FString::Printf(TEXT("Motion ended | Handle=%llu Type=%d"),
+				(unsigned long long)MotionState.ActiveHandle.UniqueId,
+				(int32)MotionState.ActiveRequest.Type),
+			GetOwner(),
+			MotionState.ActiveRequest.Target.Get(),
+			FLinearColor(0.9f, 0.9f, 1.f));
+	}
+	
 	if (!IsMotionActive()) return;
 
 	const FCombatMotionHandle Handle = MotionState.ActiveHandle;
@@ -453,6 +545,17 @@ void UCombatMotionComponent::TickVelocityCurve(float DeltaTime)
 		MotionState.bBlocked = true;
 		MotionState.LastBlockHitResult = Hit;
 		OnCombatMotionBlocked.Broadcast(MotionState.ActiveHandle, Hit);
+		
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Motion,
+				"Motion.Blocked",
+				FString::Printf(TEXT("Motion blocked by collision")),
+				GetOwner(),
+				MotionState.ActiveRequest.Target.Get(),
+				FLinearColor(1.f, 0.6f, 0.2f));
+		}
 
 		if (Req.EndPolicy == ECombatMotionEndPolicy::HitWallOrBlocked)
 		{

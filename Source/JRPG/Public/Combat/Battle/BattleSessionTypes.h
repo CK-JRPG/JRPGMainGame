@@ -96,8 +96,24 @@ struct FBattleSessionSnapshot
 	UPROPERTY() TWeakObjectPtr<AActor> CurrentTurnActor;
 };
 
+USTRUCT()
+struct FBattleActorRuntimeState
+{
+	GENERATED_BODY()
+
+	UPROPERTY() TWeakObjectPtr<AActor> Actor;
+	UPROPERTY() ECombatTeam Team = ECombatTeam::Neutral;
+	UPROPERTY() bool bAlive = false;
+
+	UPROPERTY() bool bActionLocked = false;
+	UPROPERTY() FName ActionLockReason = NAME_None;
+
+	UPROPERTY() bool bPresentedActionActive = false;
+	UPROPERTY() float RemainingRecoverySec = 0.f;
+};
+
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBattleStarted, const FBattleSessionSnapshot &/*Snapshot*/);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnBattleEnded,const FBattleSessionSnapshot &/*Snapshot*/, EBattleEndReason/*Reason*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnBattleEnded, const FBattleSessionSnapshot &/*Snapshot*/, EBattleEndReason /*Reason*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTurnStarted, AActor* /*Actor*/, int32 /*Round*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTurnEnded, AActor* /*Actor*/, int32 /*Round*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBattleStateChanged, EBattleFlowState /*NewState*/);

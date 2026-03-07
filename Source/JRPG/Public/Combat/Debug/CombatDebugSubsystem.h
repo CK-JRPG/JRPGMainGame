@@ -29,8 +29,8 @@ public:
 		ECombatDebugCategory Category,
 		FName Tag,
 		const FString& Message,
-		AActor* Instigator =nullptr,
-		AActor* Target =nullptr,
+		AActor* Instigator = nullptr,
+		AActor* Target = nullptr,
 		FLinearColor Color = FLinearColor::White);
 
 	void ClearLogs();
@@ -51,13 +51,13 @@ private:
 	// battle
 	void HandleBattleStarted(const FBattleSessionSnapshot& Snapshot);
 	void HandleBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);
-	void HandleTurnStarted(AActor* Actor, int32 Round);
-	void HandleTurnEnded(AActor* Actor, int32 Round);
-	void HandleBattleStateChanged(EBattleFlowState NewState);
+	void HandleBattlePhaseChanged(EBattlePhase NewPhase);
+	void HandleActorActionLockChanged(AActor* Actor, bool bLocked, FName ReasonTag);
+	void HandleExclusiveModeChanged(bool bActive, FName ModeTag);
 
 	// action
 	void HandleBasicAttackResolved(const FCombatActionResult& Result);
-	void HandleCombatantDefeated(AActor* Victim, AActor* Killer);
+	void HandleCombatantDefeated(AActor* Victim,AActor* Killer);
 
 	// tactical
 	void HandleTacticalEntered(const FTacticalModeSnapshot& Snapshot);

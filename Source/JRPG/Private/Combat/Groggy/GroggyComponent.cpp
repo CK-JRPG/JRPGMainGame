@@ -1,6 +1,8 @@
 ﻿#include "JRPG/Public/Combat/Groggy/GroggyComponent.h"
 #include "Combat/Characters/Stats/CombatStatsComponent.h"
 
+#include "Combat/Debug/CombatDebugSubsystem.h"
+
 UGroggyComponent::UGroggyComponent()
 {
 	PrimaryComponentTick.bCanEverTick =true;
@@ -62,6 +64,17 @@ void UGroggyComponent::EnterGroggy()
 			SP->ReportBreak(Source, GetOwner(), 0.f, true, bLastBreakFromTacticalReservation, "Groggy.StunTrigger");
 		}
 	}
+	
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Groggy,
+			"Groggy.Enter",
+			FString::Printf(TEXT("Groggy entered | Duration=%.2f"), RemainingGroggy),
+			GetOwner(),
+			GetOwner(),
+			FLinearColor(1.f,0.7f,0.2f));
+	}
 }
 
 void UGroggyComponent::ExitGroggy()
@@ -75,6 +88,17 @@ void UGroggyComponent::ExitGroggy()
 		Stats->RemoveModifiersBySource(ModSource);
 	}
 	OnGroggyStateChanged.Broadcast(false);
+	
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Groggy,
+			"Groggy.Exit",
+			TEXT("Groggy exited"),
+			GetOwner(),
+			GetOwner(),
+			FLinearColor(1.f, 0.9f, 0.4f));
+	}
 }
 
 void UGroggyComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)

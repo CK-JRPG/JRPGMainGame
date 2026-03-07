@@ -62,6 +62,8 @@ public:
 
 	bool GetCombatClamp(FVector& OutCenter, float& OutRadius) const;
 	
+	void GetParticipantRuntimeStates(TArray<FBattleActorRuntimeState>& OutStates) const;
+	
 protected:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 
