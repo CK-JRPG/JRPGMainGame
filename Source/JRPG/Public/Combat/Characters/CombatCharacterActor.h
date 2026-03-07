@@ -19,12 +19,13 @@ class UAPComponent;
 class USPComponent;
 
 UCLASS()
-class JRPG_API ACombatCharacter :public ACharacter,public ICombatParticipantInterface
+
+class JRPG_API ACombatCharacterActor : public ACharacter, public ICombatParticipantInterface
 {
 	GENERATED_BODY()
 
 public:
-	ACombatCharacter();
+	ACombatCharacterActor();
 
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatCharacterComponent> CharacterComp;
 
