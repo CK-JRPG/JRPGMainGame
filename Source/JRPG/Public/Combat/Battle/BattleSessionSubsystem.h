@@ -65,6 +65,11 @@ public:
 	void GetOpponentsFor(AActor*Actor,TArray<AActor*>&Out)const;
 	void GetAlliesFor(AActor*Actor,TArray<AActor*>&Out)const;
 
+	bool GetCombatClamp(FVector& OutCenter, float& OutRadius) const;
+	
+	void GetParticipantRuntimeStates(TArray<FBattleActorRuntimeState>& OutStates) const;
+	
+
 protected:
 	virtual void OnWorldBeginPlay(UWorld &InWorld) override;
 

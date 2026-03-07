@@ -9,6 +9,8 @@
 #include "Combat/Items/CombatItemTypes.h"
 #include "Combat/Motion/CombatMotionTypes.h"
 
+#include "Combat/Debug/CombatDebugSubsystem.h"
+
 #include "CombatPresentationComponent.generated.h"
 
 class USkillComponent;

@@ -553,6 +553,32 @@ void UBattleSessionSubsystem::RebuildSnapshotCounts()
 	Snapshot.ExclusiveModeTag = Snapshot.bExclusiveMode ? *ExclusiveModeOwners.CreateConstIterator() : NAME_None;
 }
 
+void UBattleSessionSubsystem::GetParticipantRuntimeStates(TArray<FBattleActorRuntimeState>& OutStates) const
+{
+	OutStates.Reset();
+
+	const double Now = BattleNow();
+
+	for (const FBattleParticipantSlot& Slot : Participants)
+	{
+		FBattleActorRuntimeState S;
+		S.Actor = Slot.Actor;
+		S.Team = Slot.Team;
+		S.bAlive = Slot.Actor.IsValid() && IsParticipantAlive(Slot.Actor.Get());
+		S.bPresentedActionActive = Slot.Actor.IsValid() && ActivePresentedActors.Contains(Slot.Actor);
+
+		const float RemainingRecovery = (float)FMath::Max(0.0, Slot.NextActionAllowedReal - Now);
+		S.RemainingRecoverySec = RemainingRecovery;
+
+		S.bActionLocked = S.bPresentedActionActive || RemainingRecovery > 0.f;
+		S.ActionLockReason = S.bPresentedActionActive
+			? FName("PresentedAction")
+			: (RemainingRecovery> 0.f ? FName("Recovery") : NAME_None);
+
+		OutStates.Add(S);
+	}
+}
+
 bool UBattleSessionSubsystem::AreAllEnemiesDefeated() const
 {
 	bool bHasEnemy = false;

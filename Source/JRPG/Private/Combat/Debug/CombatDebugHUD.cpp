@@ -36,15 +36,42 @@ void ACombatDebugHUD::DrawHUD()
 		{
 			const FBattleSessionSnapshot& S = Battle->GetSnapshot();
 			const FString BattleLine = FString::Printf(
-				TEXT("[Battle] Active=%s State=%d Round=%d TurnIndex=%d Current=%s Paused=%s"),
-					Battle->IsBattleActive() ?TEXT("true") :TEXT("false"),
-					(int32)S.FlowState,
-					S.Round,
-					S.TurnIndex,
-					S.CurrentTurnActor.IsValid() ? *S.CurrentTurnActor->GetName() : TEXT("-"),
-					Battle->IsFlowPaused() ?TEXT("true") :TEXT("false"));
+				TEXT("[Battle] Active=%s Phase=%d AliveP=%d AliveE=%d ActiveActions=%d Exclusive=%s(%s)"),
+					Battle->IsBattleActive() ? TEXT("true") : TEXT("false"),
+					(int32)S.Phase,
+					S.AlivePlayers,
+					S.AliveEnemies,
+					S.ActivePresentedActionCount,
+					S.bExclusiveMode ? TEXT("true") : TEXT("false"),
+					*S.ExclusiveModeTag.ToString());
+
 			Canvas->DrawShadowedString(X, Y, *BattleLine, Font, FLinearColor::White);
 			Y += LineHeight;
+
+			TArray<FBattleActorRuntimeState> RuntimeStates;
+			Battle->GetParticipantRuntimeStates(RuntimeStates);
+
+			for (const FBattleActorRuntimeState& R : RuntimeStates)
+			{
+				const FString ActorName = R.Actor.IsValid() ? R.Actor->GetName() : TEXT("-");
+				const FString RuntimeLine = FString::Printf(
+					TEXT("  [%s] Team=%d Alive=%s Locked=%s Reason=%s Presented=%s Recovery=%.2f"),
+						*ActorName,
+						(int32)R.Team,
+						R.bAlive ?TEXT("true") :TEXT("false"),
+						R.bActionLocked ?TEXT("true") :TEXT("false"),
+						*R.ActionLockReason.ToString(),
+						R.bPresentedActionActive ?TEXT("true") :TEXT("false"),
+						R.RemainingRecoverySec);
+
+				const FLinearColor LineColor =
+					!R.bAlive ? FLinearColor::Red :
+					(R.bPresentedActionActive ? FLinearColor(0.9f, 0.8f, 0.3f) :
+					(R.bActionLocked ? FLinearColor(1.f, 0.7f, 0.3f) : FLinearColor(0.7f, 1.f, 0.7f)));
+
+				Canvas->DrawShadowedString(X, Y, *RuntimeLine, Font, LineColor);
+				Y += LineHeight;
+			}
 		}
 
 		if (UTacticalModeSubsystem* Tactical = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
