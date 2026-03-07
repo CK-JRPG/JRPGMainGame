@@ -1,0 +1,338 @@
+﻿#include "Combat/Presentation/CombatPresentationComponent.h"
+
+#include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Battle/BasicCombatSubsystem.h"
+#include "Combat/Items/CombatItemExecutionSubsystem.h"
+
+#include "Combat/Characters/CombatCharacterComponent.h"
+#include "Combat/Characters/CombatCharacterDataAsset.h"
+#include "Combat/Skills/SkillComponent.h"
+#include "Combat/Skills/SkillDataAsset.h"
+#include "Combat/Tactical/TacticalModeSubsystem.h"
+
+#include "GameFramework/Character.h"
+
+UCombatPresentationComponent::UCombatPresentationComponent()
+{
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickInterval = 0.05f;
+}
+
+void UCombatPresentationComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	SkillComp = GetOwner() ?GetOwner()->FindComponentByClass<USkillComponent>() : nullptr;
+	CharacterComp = GetOwner() ?GetOwner()->FindComponentByClass<UCombatCharacterComponent>() : nullptr;
+}
+
+UBattleSessionSubsystem* UCombatPresentationComponent::GetBattle()const
+{
+	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+}
+
+UTacticalModeSubsystem* UCombatPresentationComponent::GetTactical() const
+{
+	return GetWorld() ? GetWorld()->GetSubsystem<UTacticalModeSubsystem>() : nullptr;
+}
+
+void UCombatPresentationComponent::TickComponent(float, ELevelTick, FActorComponentTickFunction*)
+{
+	if (!GetOwner() || HasActivePresentation()) return;
+	TryConsumeTacticalReservation();
+}
+
+void UCombatPresentationComponent::TryConsumeTacticalReservation()
+{
+	UTacticalModeSubsystem*Tactical =GetTactical();
+	UBattleSessionSubsystem*Battle =GetBattle();
+	if (!Tactical||!Battle)return;
+	if (!Battle->CanActorActNow(GetOwner()))return;
+
+	FTacticalReservation R;
+	if (!Tactical->GetReservation(GetOwner(),R)) 
+		return;
+
+	TArray<AActor*> Targets;
+	for (const TWeakObjectPtr<AActor> &W : R.Targets)
+	{
+		if (AActor *A = W.Get())
+			Targets.Add(A);
+	}
+
+	const FSkillCastResult Result = TryPresentSkill(R.SkillId, Targets,true);
+	if (Result.bOk)
+	{
+		Tactical->ClearReservation(GetOwner());
+	}
+}
+
+void UCombatPresentationComponent::EmitCue(FName CueTag)
+{
+	if (CueTag.IsNone())
+		return;
+
+	FCombatCueEvent Evt;
+	Evt.OwnerActor =GetOwner();
+	Evt.CueTag =CueTag;
+	Evt.ContextTag =Active.ActionId;
+	OnCombatCueEvent.Broadcast(Evt);
+}
+
+void UCombatPresentationComponent::PlayActiveMontageOrResolve()
+{
+	EmitCue(Active.StartCueTag);
+
+	if (Active.ResolveTiming == ECombatResolveTiming::Immediate || !Active.Montage)
+	{
+		ResolveActivePresentation();
+		FinishActivePresentation();
+		return;
+	}
+
+	if (ACharacter *C = Cast<ACharacter>(GetOwner()))
+	{
+		C->PlayAnimMontage(Active.Montage);
+	}
+	else
+	{
+		ResolveActivePresentation();
+		FinishActivePresentation();
+	}
+}
+
+FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *Target)
+{
+	UBattleSessionSubsystem *Battle = GetBattle();
+	if (!Battle)
+		return FCombatActionResult::Fail("Reject.NoBattleSession");
+	
+	if (!Battle->BeginPresentedAction(GetOwner(),"Present.BasicAttack"))
+		return FCombatActionResult::Fail("Reject.CannotPresentAction");
+
+	if (!CharacterComp.IsValid() || !CharacterComp->CharacterDef)
+	{
+		Battle->AbortPresentedAction(GetOwner(),"Reject.NoCharacterDef");
+		return FCombatActionResult::Fail("Reject.NoCharacterDef");
+	}
+
+	Active = FActivePresentationState();
+	Active.Type = EPresentedCombatActionType::BasicAttack;
+	Active.ActionId = "BasicAttack";
+	Active.Targets.Add(Target);
+	Active.ResolveTiming = CharacterComp->CharacterDef->BasicAttackResolveTiming;
+	Active.Montage = CharacterComp->CharacterDef->BasicAttackMontage;
+	Active.StartCueTag = CharacterComp->CharacterDef->BasicAttackStartCueTag;
+	Active.HitCueTag = CharacterComp->CharacterDef->BasicAttackHitCueTag;
+	Active.FinishCueTag = CharacterComp->CharacterDef->BasicAttackFinishCueTag;
+
+	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
+	PlayActiveMontageOrResolve();
+
+	return FCombatActionResult::Ok();
+}
+
+FSkillCastResult UCombatPresentationComponent::TryPresentSkill(FName SkillId, const TArray<AActor*> &Targets, bool bFromTacticalReservation)
+{
+	UBattleSessionSubsystem *Battle = GetBattle();
+	if (!Battle)
+		return FSkillCastResult::Fail("Reject.NoBattleSession");
+	
+	if (!SkillComp.IsValid())
+		return FSkillCastResult::Fail("Reject.NoSkillComponent");
+	
+	if (!Battle->BeginPresentedAction(GetOwner(), "Present.Skill"))
+		return FSkillCastResult::Fail("Reject.CannotPresentAction");
+
+	USkillDataAsset*Def =SkillComp->GetSkillDef(SkillId);
+	if (!Def)
+	{
+		Battle->AbortPresentedAction(GetOwner(),"Reject.SkillNotFound");
+		return FSkillCastResult::Fail("Reject.SkillNotFound");
+	}
+
+	const FSkillCastResult Prep = SkillComp->PrepareSkillCast(SkillId,Targets,bFromTacticalReservation, "Present.Skill");
+	if (!Prep.bOk)
+	{
+		Battle->AbortPresentedAction(GetOwner(), Prep.ReasonTag);
+		return Prep;
+	}
+
+	Active =FActivePresentationState();
+	Active.Type = EPresentedCombatActionType::Skill;
+	Active.ActionId =SkillId;
+	Active.ResolveTiming =Def->ResolveTiming;
+	Active.Montage =Def->CastMontage;
+	Active.StartCueTag =Def->StartCueTag;
+	Active.HitCueTag =Def->HitCueTag;
+	Active.FinishCueTag =Def->FinishCueTag;
+	Active.bFromTacticalReservation =bFromTacticalReservation;
+
+	for (AActor *T : Targets)
+	{
+		if (T)
+			Active.Targets.Add(T);
+	}
+
+	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
+	PlayActiveMontageOrResolve();
+
+	return FSkillCastResult::Ok();
+}
+
+FCombatItemUseResult UCombatPresentationComponent::TryPresentItem(FName ItemId,const TArray<AActor*> &Targets)
+{
+	UBattleSessionSubsystem *Battle = GetBattle();
+	if (!Battle)
+		return FCombatItemUseResult::Fail("Reject.NoBattleSession");
+	
+	if (!Battle->BeginPresentedAction(GetOwner(), "Present.Item"))
+		return FCombatItemUseResult::Fail("Reject.CannotPresentAction");
+
+	Active = FActivePresentationState();
+	Active.Type = EPresentedCombatActionType::Item;
+	Active.ActionId = ItemId;
+	Active.ResolveTiming = ECombatResolveTiming::MontageEnded;
+	Active.StartCueTag = "Item.Start";
+	Active.HitCueTag = "Item.Use";
+	Active.FinishCueTag = "Item.Finish";
+
+	for (AActor *T : Targets)
+	{
+		if (T)
+			Active.Targets.Add(T);
+	}
+
+	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
+	PlayActiveMontageOrResolve();
+
+	return FCombatItemUseResult::Ok();
+}
+
+void UCombatPresentationComponent::ResolveActivePresentation()
+{
+	if (!HasActivePresentation())
+		return;
+	if (Active.bResolved)
+		return;
+
+	UBattleSessionSubsystem *Battle = GetBattle();
+	if (!Battle || !Battle->CanActorResolvePresentedAction(GetOwner()))
+		return;
+
+	EmitCue(Active.HitCueTag);
+
+	switch (Active.Type)
+	{
+	case EPresentedCombatActionType::BasicAttack:
+		{
+			if (!CharacterComp.IsValid()||!CharacterComp->CharacterDef)break;
+			if (Active.Targets.Num()<=0)break;
+
+			AActor*Target =Active.Targets[0].Get();
+			if (!Target)break;
+
+			FBasicAttackRequest Req;
+			Req.Attacker =GetOwner();
+			Req.Target =Target;
+			Req.BasePower =CharacterComp->CharacterDef->BasicAttackBasePower;
+			Req.AttackScale =CharacterComp->CharacterDef->BasicAttackAttackScale;
+			Req.DefenseScale = CharacterComp->CharacterDef->BasicAttackDefenseScale;
+			Req.APCost = CharacterComp->CharacterDef->BasicAttackAPCost;
+			Req.SPGainOnHit = CharacterComp->CharacterDef->BasicAttackSPGainOnHit;
+			Req.SPGainOnKill = CharacterComp->CharacterDef->BasicAttackSPGainOnKill;
+			Req.GroggyPower = CharacterComp->CharacterDef->BasicAttackGroggyPower;
+			Req.ThreatMultiplier = CharacterComp->CharacterDef->BasicAttackThreatMultiplier;
+			Req.ReasonTag = "Present.BasicAttack";
+
+			if (UBasicCombatSubsystem *Basic = GetWorld()->GetSubsystem<UBasicCombatSubsystem>())
+			{
+				Basic->ExecuteBasicAttack(Req);
+			}
+			Active.bResolved = true;
+			break;
+		}
+
+	case EPresentedCombatActionType::Skill:
+		{
+			if (SkillComp.IsValid())
+			{
+				const FSkillCastResult R = SkillComp->ResolvePreparedSkillCast();
+				Active.bResolved = R.bOk;
+			}
+			break;
+		}
+
+	case EPresentedCombatActionType::Item:
+		{
+			if (UCombatItemExecutionSubsystem *Exec = GetWorld()->GetSubsystem<UCombatItemExecutionSubsystem>())
+			{
+				FCombatItemUseRequest Req;
+				Req.User = GetOwner();
+				Req.ItemId = Active.ActionId;
+				Req.ReasonTag = "Present.Item";
+				for (const TWeakObjectPtr<AActor> &W : Active.Targets)
+				{
+					if (AActor *A = W.Get())Req.Targets.Add(A);
+				}
+
+				const FCombatItemUseResult R = Exec->ExecuteUse(Req);
+				Active.bResolved = R.bOk;
+			}
+			break;
+		}
+
+	default:
+		break;
+	}
+}
+
+void UCombatPresentationComponent::FinishActivePresentation()
+{
+	if (!HasActivePresentation())
+		return;
+
+	EmitCue(Active.FinishCueTag);
+
+	if (UBattleSessionSubsystem*Battle =GetBattle())
+	{
+		if (Active.bResolved)
+		{
+			Battle->CompletePresentedAction(GetOwner(), "Present.Finish");
+		}
+		else
+		{
+			Battle->AbortPresentedAction(GetOwner(), "Present.Unresolved");
+			if (Active.Type == EPresentedCombatActionType::Skill&&SkillComp.IsValid() && SkillComp->HasPreparedSkillCast())
+			{
+				SkillComp->CancelPreparedSkillCast(true, "Present.Unresolved");
+			}
+		}
+	}
+
+	OnPresentationFinished.Broadcast(Active.Type, Active.ActionId);
+	ClearActiveState();
+}
+
+void UCombatPresentationComponent::CancelActivePresentation(FName ReasonTag, bool bRefundPreparedSkill)
+{
+	if (!HasActivePresentation())
+		return;
+
+	if (Active.Type == EPresentedCombatActionType::Skill && SkillComp.IsValid() && SkillComp->HasPreparedSkillCast())
+	{
+		SkillComp->CancelPreparedSkillCast(bRefundPreparedSkill, ReasonTag);
+	}
+
+	if (UBattleSessionSubsystem *Battle = GetBattle())
+	{
+		Battle->AbortPresentedAction(GetOwner(),ReasonTag);
+	}
+
+	OnPresentationFinished.Broadcast(Active.Type, Active.ActionId);
+	ClearActiveState();
+}
+
+void UCombatPresentationComponent::ClearActiveState()
+{
+	Active = FActivePresentationState();
+}

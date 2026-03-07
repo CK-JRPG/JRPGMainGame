@@ -1,5 +1,4 @@
-﻿// Source/JRPGCombat/Private/Combat/Characters/CombatCharacterActor.cpp
-#include "Combat/Characters/CombatCharacterActor.h"
+﻿#include "Combat/Characters/CombatCharacterActor.h"
 
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/Stats/CombatStatsComponent.h"
@@ -10,16 +9,18 @@
 #include "Combat/Groggy/GroggyComponent.h"
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/AI/CombatAIActionSelectorComponent.h"
+#include "Combat/Items/CombatItemComponent.h"
+#include "Combat/Presentation/CombatPresentationComponent.h"
 
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
 
-ACombatCharacterActor::ACombatCharacterActor()
+ACombatCharacter::ACombatCharacter()
 {
-	PrimaryActorTick.bCanEverTick =false;
+	PrimaryActorTick.bCanEverTick = false;
 
-	CharacterComp = CreateDefaultSubobject<UCombatCharacterComponent>(TEXT("CombatCharacterComponent"));
+	CharacterComp =CreateDefaultSubobject<UCombatCharacterComponent>(TEXT("CombatCharacterComponent"));
 
 	HPComp = CreateDefaultSubobject<UHPComponent>(TEXT("HPComponent"));
 	APComp = CreateDefaultSubobject<UAPComponent>(TEXT("APComponent"));
@@ -32,29 +33,31 @@ ACombatCharacterActor::ACombatCharacterActor()
 	GroggyComp = CreateDefaultSubobject<UGroggyComponent>(TEXT("GroggyComponent"));
 	ThreatComp = CreateDefaultSubobject<UThreatComponent>(TEXT("ThreatComponent"));
 	AIActionSelectorComp = CreateDefaultSubobject<UCombatAIActionSelectorComponent>(TEXT("CombatAIActionSelectorComponent"));
+	ItemComp = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
+	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
 }
 
-void ACombatCharacterActor::BeginPlay()
+void ACombatCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-FName ACombatCharacterActor::GetCombatantId() const
+FName ACombatCharacter::GetCombatantId() const
 {
 	return CharacterComp ? CharacterComp->GetCharacterId() : NAME_None;
 }
 
-ECombatTeam ACombatCharacterActor::GetCombatTeam() const
+ECombatTeam ACombatCharacter::GetCombatTeam() const
 {
 	return CharacterComp ? CharacterComp->GetTeam() : ECombatTeam::Neutral;
 }
 
-bool ACombatCharacterActor::IsPlayerControlledCombatant() const
+bool ACombatCharacter::IsPlayerControlledCombatant() const
 {
 	return IsPlayerControlled();
 }
 
-UActorComponent* ACombatCharacterActor::GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const
+UActorComponent* ACombatCharacter::GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const
 {
-	return CompClass ?GetComponentByClass(CompClass) :nullptr;
+	return CompClass ? GetComponentByClass(CompClass) : nullptr;
 }
