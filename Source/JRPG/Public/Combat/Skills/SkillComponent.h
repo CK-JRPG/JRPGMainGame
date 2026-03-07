@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "SkillTypes.h"
 #include "Components/ActorComponent.h"
 #include "Combat/Skills/SkillDataAsset.h"
 #include "Combat/Skills/SkillTypes.h"
@@ -16,7 +17,9 @@ class JRPG_API USkillComponent :public UActorComponent
 public:
 	USkillComponent();
 
-	UPROPERTY(EditAnywhere) TArray<TObjectPtr<USkillDataAsset>> KnownSkills;
+
+	UPROPERTY(EditAnywhere) 
+	TArray<TObjectPtr<USkillDataAsset>> KnownSkills;
 
 	FOnSkillCast OnSkillCast;
 
@@ -25,6 +28,7 @@ public:
 
 	float GetCooldownRemaining(FName SkillId) const;
 	FSkillCastResult CastSkill(FName SkillId, const TArray<AActor*>& Targets, FName ReasonTag);
+
 
 protected:
 	virtual void BeginPlay() override;

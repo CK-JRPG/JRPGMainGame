@@ -26,7 +26,7 @@ void USkillComponent::BeginPlay()
 LastRealTime = FPlatformTime::Seconds();
 }
 
-void USkillComponent::EndPlay(const EEndPlayReason::TypeEndPlayReason)
+void USkillComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 CooldownRemaining.Reset();
 GlobalCooldownRemaining =0.f;
@@ -208,7 +208,7 @@ void USkillComponent::TickTacticalReservation(float RealDelta)
 
 	// CanUse(AP/쿨) 검사 후 가능한 순간 자동 실행 :contentReference[oaicite:38]{index=38}
 	FJRPGReason Reason;
-	const bool bCanUse =CanUseReservedSkill(Res.SkillId,Reason);
+	const bool bCanUse = CanUseReservedSkill(Res.SkillId,Reason);
 
 	// UI용 Ready 플래그 갱신(문서 Flags: Queued/Ready) :contentReference[oaicite:39]{index=39}
 	if (bCanUse)

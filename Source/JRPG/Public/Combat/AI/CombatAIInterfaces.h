@@ -3,9 +3,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Interface.h"
-#include "CombatAIInterfaces.generated.h"
+#include"CoreMinimal.h"
+#include"UObject/Interface.h"
+#include"CombatAIInterfaces.generated.h"
 
 // ---- SP Provider (AI는 SP를 직접 조작하지 않고, 상태/세팅만 참조하는 용도)
 // SP는 전투 중 감소하지 않으며, 체인 종료/전투 종료에서만 초기화 :contentReference[oaicite:4]{index=4}
@@ -14,14 +14,21 @@ struct FCombatSPSettingsView
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere,BlueprintReadOnly) int32 SPCap = 100;
-	UPROPERTY(EditAnywhere,BlueprintReadOnly) int32 SPMaxGainPerSec = 50; // 악용 방지 상한 :contentReference[oaicite:5]{index=5}
-	UPROPERTY(EditAnywhere,BlueprintReadOnly) float SameEventCooldownSec = 3.f; // 동일 이벤트 반복 억제 :contentReference[oaicite:6]{index=6}
-	UPROPERTY(EditAnywhere,BlueprintReadOnly) float TacticalRoleBonusMultiplier = 1.25f; // 전술 예약 보너스 배율 :contentReference[oaicite:7]{index=7}
+	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	int32 SPCap = 100;
+	
+	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	int32 SPMaxGainPerSec = 50; // 악용 방지 상한 :contentReference[oaicite:5]{index=5}
+	
+	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	float SameEventCooldownSec = 3.f; // 동일 이벤트 반복 억제 :contentReference[oaicite:6]{index=6}
+	
+	UPROPERTY(EditAnywhere,BlueprintReadOnly)
+	float TacticalRoleBonusMultiplier = 1.25f; // 전술 예약 보너스 배율 :contentReference[oaicite:7]{index=7}
 };
 
 UINTERFACE(MinimalAPI)
-class UCombatSynergyPointProvider : public UInterface
+class UCombatSynergyPointProvider :public UInterface
 {
 	GENERATED_BODY()
 };
@@ -31,10 +38,10 @@ class ICombatSynergyPointProvider
 	GENERATED_BODY()
 
 	public:
-	virtual int32 GetCurrentSP() const =0;
-	virtual int32 GetSPCap() const =0;
-	virtual bool IsChainReady() const =0;
-	virtual FCombatSPSettingsView GetSettingsView() const =0;
+	virtual int32 GetCurrentSP() const = 0;
+	virtual int32 GetSPCap() const = 0;
+	virtual bool IsChainReady() const = 0;
+	virtual FCombatSPSettingsView GetSettingsView() const = 0;
 };
 
 // ---- Groggy/Break Gauge Provider (AI가 Stun/Rising 판정용으로만 사용)
@@ -75,5 +82,5 @@ class ICombatChainFlowProvider
 	GENERATED_BODY()
 
 public:
-	virtual bool IsChainSequenceActive() const =0;
+	virtual bool IsChainSequenceActive() const = 0;
 };

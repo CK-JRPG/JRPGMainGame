@@ -22,6 +22,7 @@ USkillComponent::USkillComponent()
 void USkillComponent::BeginPlay()
 {
 	Super::BeginPlay();
+
 	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
 	HP = GetOwner() ? GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
 	AP = GetOwner() ? GetOwner()->FindComponentByClass<UAPComponent>() : nullptr;
@@ -36,7 +37,8 @@ void USkillComponent::BeginPlay()
 
 void USkillComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponentTickFunction*)
 {
-	for (auto& KV : Cooldowns)
+
+	for (auto &KV : Cooldowns)
 	{
 		if (KV.Value > 0.f) KV.Value = FMath::Max(0.f, KV.Value - DeltaTime);
 	}
