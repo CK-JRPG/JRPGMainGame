@@ -1,24 +1,21 @@
-﻿// Source/JRPGCombat/Private/Combat/AI/CombatAIActionSelectorComponent.cpp
-#include "Combat/AI/CombatAIActionSelectorComponent.h"
+﻿#include "Combat/AI/CombatAIActionSelectorComponent.h"
 
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Battle/CombatTargetingSubsystem.h"
 
+#include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Skills/SkillComponent.h"
 #include "Combat/Skills/SkillDataAsset.h"
 
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
-
 #include "Combat/Characters/CombatParticipantInterface.h"
-
-#include "Engine/World.h"
-#include "TimerManager.h"
 
 UCombatAIActionSelectorComponent::UCombatAIActionSelectorComponent()
 {
-	PrimaryComponentTick.bCanEverTick = false;
+	PrimaryComponentTick.bCanEverTick =true;
+	PrimaryComponentTick.TickInterval =0.05f;
 }
 
 void UCombatAIActionSelectorComponent::BeginPlay()
@@ -26,26 +23,30 @@ void UCombatAIActionSelectorComponent::BeginPlay()
 	Super::BeginPlay();
 
 	SkillComp = GetOwner() ? GetOwner()->FindComponentByClass<USkillComponent>() : nullptr;
-
-	if (UBattleSessionSubsystem *Battle = GetBattle())
-	{
-		Battle->OnTurnStarted.AddUObject(this, &UCombatAIActionSelectorComponent::HandleTurnStarted);
-	}
+	PresentationComp = GetOwner() ? GetOwner()->FindComponentByClass<UCombatPresentationComponent>() : nullptr;
 }
 
-void UCombatAIActionSelectorComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void UCombatAIActionSelectorComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponentTickFunction*)
 {
-	if (GetWorld())
-	{
-		GetWorld()->GetTimerManager().ClearTimer(ThinkTimer);
-	}
+	if (!bAutoDriveEnemyAI || !GetOwner()) 
+		return;
 
-	if (UBattleSessionSubsystem *Battle =GetBattle())
-	{
-		Battle->OnTurnStarted.RemoveAll(this);
-	}
+	ThinkAccumulator += DeltaTime;
+	if (ThinkAccumulator<ThinkIntervalSec) 
+		return;
+	
+	ThinkAccumulator = 0.f;
 
-	Super::EndPlay(EndPlayReason);
+	UBattleSessionSubsystem* Battle = GetBattle();
+	
+	if (!Battle || !Battle->IsBattleActive()) return;
+	if (Battle->GetPhase() != EBattlePhase::Active) return;
+	if (!Battle->CanActorExecuteAction(GetOwner())) return;
+
+	ICombatParticipantInterface* P = Cast<ICombatParticipantInterface>(GetOwner());
+	if (!P || P->GetCombatTeam() != ECombatTeam::Enemy) return;
+
+	ThinkAndAct();
 }
 
 UBattleSessionSubsystem* UCombatAIActionSelectorComponent::GetBattle() const
@@ -58,14 +59,14 @@ UCombatTargetingSubsystem* UCombatAIActionSelectorComponent::GetTargeting() cons
 	return GetWorld() ? GetWorld()->GetSubsystem<UCombatTargetingSubsystem>() : nullptr;
 }
 
-float UCombatAIActionSelectorComponent::GetHPRatio(AActor *Actor) const
+float UCombatAIActionSelectorComponent::GetHPRatio(AActor* Actor)const
 {
 	if (!Actor)
 		return 1.f;
 
-	if (ICombatParticipantInterface *P =Cast<ICombatParticipantInterface>(Actor))
+	if (ICombatParticipantInterface* P = Cast<ICombatParticipantInterface>(Actor))
 	{
-		if (UHPComponent *HP = P->GetHP())
+		if (UHPComponent* HP = P->GetHP())
 		{
 			const float Max = FMath::Max(1.f,HP->GetMaxHP());
 			return HP->GetHP() / Max;
@@ -76,210 +77,59 @@ float UCombatAIActionSelectorComponent::GetHPRatio(AActor *Actor) const
 
 bool UCombatAIActionSelectorComponent::CanAffordSkill(const USkillDataAsset &Skill) const
 {
-	if (!GetOwner())return false;
-
-	UAPComponent *AP = GetOwner()->FindComponentByClass<UAPComponent>();
-	USPComponent *SP = GetOwner()->FindComponentByClass<USPComponent>();
-	if (!AP || !SP)return false;
-
-	if (Skill.APCost>0 && !AP->CanConsume(Skill.APCost))
+	if (!GetOwner())
 		return false;
+
+	UAPComponent*AP =GetOwner()->FindComponentByClass<UAPComponent>();
+	USPComponent*SP =GetOwner()->FindComponentByClass<USPComponent>();
 	
-	if (Skill.SPCost>0 && SP->GetSP() < Skill.SPCost)
+	if (!AP || !SP) 
+		return false;
+	if (Skill.APCost > 0 && !AP->CanConsume(Skill.APCost)) 
+		return false;
+	if (Skill.SPCost > 0 && SP->GetSP() < Skill.SPCost) 
 		return false;
 
-	if (SkillComp.IsValid() && SkillComp->GetCooldownRemaining(Skill.SkillId) > 0.f)
+	if (SkillComp.IsValid()&&SkillComp->GetCooldownRemaining(Skill.SkillId) > 0.f)
 		return false;
 
 	return true;
 }
 
-void UCombatAIActionSelectorComponent::HandleTurnStarted(AActor *Actor, int32)
-{
-	if (!bAutoDriveEnemyTurns) 
-		return;
-	
-	if (!GetOwner() || Actor != GetOwner())
-		return;
-
-	ICombatParticipantInterface *P =Cast<ICombatParticipantInterface>(GetOwner());
-	
-	if (!P)
-		return;
-	
-	if (P->GetCombatTeam()!= ECombatTeam::Enemy)
-		return;
-
-	if (GetWorld())
-	{
-		GetWorld()->GetTimerManager().SetTimer(ThinkTimer,this, &UCombatAIActionSelectorComponent::ThinkAndAct,ThinkDelaySec,false);
-	}
-}
-
-USkillDataAsset* UCombatAIActionSelectorComponent::PickBestHealSkill(TArray<AActor*> &OutTargets) const
-{
-	OutTargets.Reset();
-	if (!SkillComp.IsValid())return nullptr;
-
-	float LowestObserved =1.f;
-	TArray<AActor*> Allies;
-
-	if (UBattleSessionSubsystem*Battle =GetBattle())
-	{
-		Battle->GetAlliesFor(GetOwner(),Allies);
-	}
-	Allies.AddUnique(GetOwner());
-
-	for (AActor *A : Allies)
-	{
-		LowestObserved = FMath::Min(LowestObserved,GetHPRatio(A));
-	}
-
-	if (LowestObserved>HealThresholdRatio)
-		return nullptr;
-
-	float BestScore =- FLT_MAX;
-	USkillDataAsset *BestSkill = nullptr;
-	UCombatTargetingSubsystem *Targeting =GetTargeting();
-	
-	if (!Targeting)	
-		return nullptr;
-
-	for (USkillDataAsset*Skill :SkillComp->KnownSkills)
-	{
-		if (!Skill || !Skill->IsValidSkill())	continue;
-		if (Skill->HealPower <= 0.f)			continue;
-		if (!CanAffordSkill(*Skill))			continue;
-
-		const FTargetingResult T = Targeting->ResolvePreferredTargetsForSkill(GetOwner(), Skill);
-		if (!T.bOk || T.Targets.Num() <= 0) 
-			continue;
-
-		TArray<AActor*>Resolved;
-		for (const TWeakObjectPtr<AActor> &W : T.Targets)
-		{
-			if (AActor*A = W.Get())Resolved.Add(A);
-		}
-		if (Resolved.Num() <= 0)
-			continue;
-
-		float MissingWeight = 0.f;
-		for (AActor *A : Resolved)
-		{
-			MissingWeight += (1.f-GetHPRatio(A));
-		}
-
-		float Score = Skill-> HealPower * 1.5f + MissingWeight * 50.f;
-		if (LowestObserved <= EmergencyHealThresholdRatio)
-		{
-			Score += 30.f;
-		}
-
-		if (Score > BestScore)
-		{
-			BestScore = Score;
-			BestSkill = Skill;
-			OutTargets = Resolved;
-		}
-	}
-
-	return BestSkill;
-}
-
-USkillDataAsset* UCombatAIActionSelectorComponent::PickBestOffensiveSkill(TArray<AActor*>&OutTargets)const
-{
-	OutTargets.Reset();
-	
-	if (!SkillComp.IsValid())
-		return nullptr;
-
-	float BestScore =- FLT_MAX;
-	USkillDataAsset *BestSkill = nullptr;
-	UCombatTargetingSubsystem *Targeting =GetTargeting();
-	if (!Targeting)return nullptr;
-
-	for (USkillDataAsset*Skill : SkillComp->KnownSkills)
-	{
-		if (!Skill || !Skill->IsValidSkill())	continue;
-		if (Skill->HealPower>0.f)				continue;/ / 힐은 다른 단계에서 처리
-		if (!CanAffordSkill(*Skill))			continue;
-
-		const FTargetingResult T = Targeting->ResolvePreferredTargetsForSkill(GetOwner(),Skill);
-		if (!T.bOk || T.Targets.Num() <= 0)
-			continue;
-
-		TArray<AActor*> Resolved;
-		for (const TWeakObjectPtr<AActor> &W : T.Targets)
-		{
-			if (AActor *A = W.Get())
-				Resolved.Add(A);
-		}
-		if (Resolved.Num() <= 0)
-			continue;
-
-		float Score = 0.f;
-		Score += Skill->BasePower;
-		Score += Skill->AttackScale * 20.f;
-		Score += Skill->GroggyPower * 1.2f;
-		Score += Skill->ThreatBase * 0.25f;
-		Score += Skill->ApplyStatus ? 10.f : 0.f;
-		Score += (Skill->TargetType == ESkillTargetType::EnemyAll) ? 15.f : 0.f;
-
-		Score -= (float)Skill->APCost * 0.7f;
-		Score -= (float)Skill->SPCost * 0.4f;
-
-		if (Score > BestScore)
-		{
-			BestScore = Score;
-			BestSkill = Skill;
-			OutTargets = Resolved;
-		}
-	}
-
-	return BestSkill;
-}
+// PickBestHealSkill / PickBestOffensiveSkill는 이전 버전 그대로 사용 가능
 
 void UCombatAIActionSelectorComponent::ThinkAndAct()
 {
-	UBattleSessionSubsystem *Battle = GetBattle();
-	UCombatTargetingSubsystem *Targeting = GetTargeting();
+	UBattleSessionSubsystem* Battle = GetBattle();
+	UCombatTargetingSubsystem* Targeting = GetTargeting();
 	
-	if (!Battle||!Targeting||!GetOwner())	 return;
-	if (!Battle->IsBattleActive())			 return;
-	if (!Battle->CanActorActNow(GetOwner())) return;
+	if (!Battle || !Targeting || !PresentationComp.IsValid()) 
+		return;
 
-	// 1) 힐 필요하면 힐 우선
 	TArray<AActor*> HealTargets;
-	if (USkillDataAsset *HealSkill = PickBestHealSkill(HealTargets))
+	if (USkillDataAsset* HealSkill = PickBestHealSkill(HealTargets))
 	{
-		const FSkillCastResult R = Battle->TryExecuteSkill(GetOwner(), HealSkill->SkillId, HealTargets);
-		
+		const FSkillCastResult R = PresentationComp->TryPresentSkill(HealSkill->SkillId,HealTargets,false);
 		if (R.bOk)
 			return;
 	}
 
-	// 2) 공격 스킬
 	TArray<AActor*> OffensiveTargets;
-	if (USkillDataAsset *OffensiveSkill = PickBestOffensiveSkill(OffensiveTargets))
+	if (USkillDataAsset* OffensiveSkill = PickBestOffensiveSkill(OffensiveTargets))
 	{
-		const FSkillCastResult R = Battle->TryExecuteSkill(GetOwner(), OffensiveSkill->SkillId, OffensiveTargets);
-		
-		if (R.bOk)
+		const FSkillCastResult R =PresentationComp->TryPresentSkill(OffensiveSkill->SkillId,OffensiveTargets,false);
+		if (R.bOk) 
 			return;
 	}
 
-	// 3) 기본 공격
 	const FTargetingResult BasicTarget = Targeting->ResolvePreferredBasicAttackTarget(GetOwner());
-	if (BasicTarget.bOk && BasicTarget.Targets.Num()>0)
+	if (BasicTarget.bOk && BasicTarget.Targets.Num() > 0)
 	{
-		if (AActor *Target = BasicTarget.Targets[0].Get())
+		if (AActor* Target = BasicTarget.Targets[0].Get())
 		{
-			const FCombatActionResult R =Battle->TryExecuteBasicAttack(GetOwner(),Target);
+			const FCombatActionResult R = PresentationComp->TryPresentBasicAttack(Target);
 			if (R.bOk)
 				return;
 		}
 	}
-
-	// 4) 정말 아무 것도 못 하면 턴 종료
-	Battle->FinishCurrentTurn("AI.NoValidAction");
 }
