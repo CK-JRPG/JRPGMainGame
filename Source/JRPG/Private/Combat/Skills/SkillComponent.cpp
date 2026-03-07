@@ -17,6 +17,7 @@ USkillComponent::USkillComponent()
 void USkillComponent::BeginPlay()
 {
 	Super::BeginPlay();
+	
 	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
 	HP = GetOwner() ? GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
 	AP = GetOwner() ? GetOwner()->FindComponentByClass<UAPComponent>() : nullptr;

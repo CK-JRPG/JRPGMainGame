@@ -33,6 +33,9 @@ public:
 
 	// --- Public API ---
 	FJRPGSkillResult RequestUseSkill(const FJRPGSkillRequest& Req);
+	bool CanUseReservedSkill(FName SkillId, FJRPGReason &OutReason) const;
+
+	void TickTacticalReservation(float RealDelta);
 
 	bool IsOnCooldown(FName SkillId) const;
 	bool IsOnGlobalCooldown() const { return GlobalCooldownRemaining > 0.f; }
