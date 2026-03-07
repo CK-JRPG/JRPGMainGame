@@ -1,10 +1,13 @@
 ﻿#pragma once
+
 #include "CoreMinimal.h"
 #include "Engine/PrimaryDataAsset.h"
 #include "GameplayTagContainer.h"
+
 #include "Animation/AnimMontage.h"
 #include "JRPG/Public/Combat/Skills/SkillTypes.h"
 #include "Combat/Presentation/CombatPresentationTypes.h"
+#include "Combat/Motion/CombatMotionTypes.h"
 #include "SkillDataAsset.generated.h"
 
 class UStatusEffectDataAsset;
@@ -47,6 +50,8 @@ public:
 	UPROPERTY(EditAnywhere) FName StartCueTag = "Skill.Start";
 	UPROPERTY(EditAnywhere) FName HitCueTag = "Skill.Hit";
 	UPROPERTY(EditAnywhere) FName FinishCueTag = "Skill.Finish";
+	UPROPERTY(EditAnywhere) bool bHasSkillMotion = false;
+	UPROPERTY(EditAnywhere) FCombatMotionRequest SkillMotion;
 
 	UPROPERTY(EditAnywhere) FGameplayTagContainer DispelAnyTags;
 	UPROPERTY(EditAnywhere) int32 DispelRemoveCount =0;// <=0 means all

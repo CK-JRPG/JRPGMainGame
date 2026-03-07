@@ -7,6 +7,7 @@
 #include "Combat/Battle/BasicCombatTypes.h"
 #include "Combat/Skills/SkillTypes.h"
 #include "Combat/Items/CombatItemTypes.h"
+#include "JRPG/Public/Combat/Skills/SkillTypes.h"
 
 #include "BattleSessionSubsystem.generated.h"
 
@@ -59,6 +60,8 @@ public:
 	
 	FCombatItemUseResult TryUseCombatItem (AActor* User, FName ItemId, const TArray<AActor*> &Targets, bool bFromTacticalReservation = false);
 
+	bool GetCombatClamp(FVector& OutCenter, float& OutRadius) const;
+	
 protected:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 

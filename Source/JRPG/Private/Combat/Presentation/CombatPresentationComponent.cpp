@@ -10,6 +10,8 @@
 #include "Combat/Skills/SkillDataAsset.h"
 #include "Combat/Tactical/TacticalModeSubsystem.h"
 
+#include "Combat/Motion/CombatMotionComponent.h"
+
 #include "GameFramework/Character.h"
 
 UCombatPresentationComponent::UCombatPresentationComponent()
@@ -63,6 +65,73 @@ void UCombatPresentationComponent::TryConsumeTacticalReservation()
 	if (Result.bOk)
 	{
 		Tactical->ClearReservation(GetOwner());
+	}
+}
+
+bool UCombatPresentationComponent::TryStartMotionForBasicAttack()
+{
+	if (!CharacterComp.IsValid() || !CharacterComp->CharacterDef) return true;
+	if (!CharacterComp->CharacterDef->bHasBasicAttackMotion) return true;
+
+	UCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UCombatMotionComponent>() : nullptr;
+	if (!Motion) return false;
+
+	FCombatMotionRequest Req = CharacterComp->CharacterDef->BasicAttackMotion;
+	Req.Instigator = GetOwner();
+	if (Active.Targets.Num() > 0) Req.Target = Active.Targets[0];
+	Req.OwnerTag = "BasicAttack";
+
+	if (Req.ExecMode == ECombatMotionExecMode::RootMotion && Req.RootMontage == nullptr)
+	{
+		Req.RootMontage = CharacterComp->CharacterDef->BasicAttackMontage;
+		Req.bMontageDrivenExternally = true;
+	}
+
+	const FCombatMotionResponse Resp = Motion->RequestCombatMotion(Req);
+	if (Resp.Result == ECombatMotionResult::Accepted || Resp.Result == ECombatMotionResult::ReplacedExisting)
+	{
+		Active.MotionHandle = Resp.Handle;
+		Active.bHasMotion = true;
+		return true;
+	}
+	return false;
+}
+
+bool UCombatPresentationComponent::TryStartMotionForSkill(USkillDataAsset* SkillDef)
+{
+	if (!SkillDef || !SkillDef->bHasSkillMotion) return true;
+
+	UCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UCombatMotionComponent>() : nullptr;
+	if (!Motion) return false;
+
+	FCombatMotionRequest Req = SkillDef->SkillMotion;
+	Req.Instigator = GetOwner();
+	if (Active.Targets.Num() > 0) Req.Target = Active.Targets[0];
+	Req.OwnerTag = SkillDef->SkillId;
+
+	if (Req.ExecMode == ECombatMotionExecMode::RootMotion && Req.RootMontage == nullptr)
+	{
+		Req.RootMontage = SkillDef->CastMontage;
+		Req.bMontageDrivenExternally = true;
+	}
+
+	const FCombatMotionResponse Resp = Motion->RequestCombatMotion(Req);
+	if (Resp.Result == ECombatMotionResult::Accepted || Resp.Result == ECombatMotionResult::ReplacedExisting)
+	{
+		Active.MotionHandle = Resp.Handle;
+		Active.bHasMotion = true;
+		return true;
+	}
+	return false;
+}
+
+void UCombatPresentationComponent::CancelActiveMotionIfNeeded()
+{
+	if (!Active.bHasMotion) return;
+
+	if (UCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UCombatMotionComponent>() : nullptr)
+	{
+		Motion->CancelCombatMotion(Active.MotionHandle, "Cancel.Presentation");
 	}
 }
 
@@ -125,6 +194,13 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 	Active.HitCueTag = CharacterComp->CharacterDef->BasicAttackHitCueTag;
 	Active.FinishCueTag = CharacterComp->CharacterDef->BasicAttackFinishCueTag;
 
+	if (!TryStartMotionForBasicAttack())
+	{
+		Battle->AbortPresentedAction(GetOwner(), "Reject.BasicAttackMotionFailed");
+		ClearActiveState();
+		return FCombatActionResult::Fail("Reject.BasicAttackMotionFailed");
+	}
+	
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
 	PlayActiveMontageOrResolve();
 
@@ -173,6 +249,14 @@ FSkillCastResult UCombatPresentationComponent::TryPresentSkill(FName SkillId, co
 			Active.Targets.Add(T);
 	}
 
+	if (!TryStartMotionForSkill(Def))
+	{
+		SkillComp->CancelPreparedSkillCast(true, "Reject.SkillMotionFailed");
+		Battle->AbortPresentedAction(GetOwner(), "Reject.SkillMotionFailed");
+		ClearActiveState();
+		return FSkillCastResult::Fail("Reject.SkillMotionFailed");
+	}
+	
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
 	PlayActiveMontageOrResolve();
 
@@ -315,6 +399,8 @@ void UCombatPresentationComponent::FinishActivePresentation()
 
 void UCombatPresentationComponent::CancelActivePresentation(FName ReasonTag, bool bRefundPreparedSkill)
 {
+	CancelActiveMotionIfNeeded();
+	
 	if (!HasActivePresentation())
 		return;
 
