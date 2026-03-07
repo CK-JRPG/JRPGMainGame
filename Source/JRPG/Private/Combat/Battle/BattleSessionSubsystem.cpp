@@ -48,17 +48,73 @@ void UBattleSessionSubsystem::OnWorldBeginPlay(UWorld &InWorld)
 	}
 }
 
+bool UBattleSessionSubsystem::BeginPresentedAction(AActor*Actor,FName)
+{
+	if (!bBattleActive||!Actor) 
+		return false;
+	
+	if (bFlowPaused)			
+		return false;
+	
+	if (Snapshot.CurrentTurnActor.Get()!=Actor) 
+		return false;
+	
+	if (Snapshot.FlowState== EBattleFlowState::ResolvingAction) 
+		return false;
+	
+	if (!IsParticipantAlive(Actor)) 
+		return false;
+
+	PresentedResolvingActor = Actor;
+	SetFlowState(EBattleFlowState::ResolvingAction);
+	return true;
+}
+
 void UBattleSessionSubsystem::ResetSessionState()
 {
 	bBattleActive = false;
 	bFlowPaused = false;
 	FlowPauseReason = NAME_None;
+	PresentedResolvingActor = nullptr;
 
 	ActiveConfig = FBattleSessionConfig();
-
 	Snapshot = FBattleSessionSnapshot();
 	Participants.Reset();
 	TurnOrder.Reset();
+}
+
+bool UBattleSessionSubsystem::CanActorResolvePresentedAction(AActor *Actor)const
+{
+	if (!bBattleActive||!Actor) return false;
+	if (bFlowPaused) return false;
+	if (Snapshot.FlowState != EBattleFlowState::ResolvingAction) return false;
+	if (PresentedResolvingActor.Get()!=Actor) return false;
+	if (Snapshot.CurrentTurnActor.Get()!=Actor) return false;
+	
+	return true;
+}
+
+void UBattleSessionSubsystem::CompletePresentedAction(AActor *Actor, FName)
+{
+	if (!CanActorResolvePresentedAction(Actor))
+		return;
+
+	PresentedResolvingActor = nullptr;
+	FinishCurrentTurn("Battle.PresentedActionComplete");
+}
+
+void UBattleSessionSubsystem::AbortPresentedAction(AActor *Actor,FName)
+{
+	if (!Actor)
+		return;
+	
+	if (PresentedResolvingActor.Get() != Actor)
+		return;
+
+	PresentedResolvingActor = nullptr;
+
+	const ECombatTeam Team = GetParticipantTeam(Actor);
+	SetFlowState(Team == ECombatTeam::Player ? EBattleFlowState::PlayerTurn : EBattleFlowState::EnemyTurn);
 }
 
 void UBattleSessionSubsystem::SetFlowState(EBattleFlowState NewState)
@@ -293,7 +349,7 @@ bool UBattleSessionSubsystem::BeginNextTurn()
 		Snapshot.Round++;
 		Snapshot.TurnIndex = -1;
 		BuildTurnOrderForRound();
-		StartIdx 0;
+		StartIdx = 0;
 	}
 
 	for (int32 i = StartIdx; i<TurnOrder.Num(); ++i)
@@ -312,7 +368,7 @@ bool UBattleSessionSubsystem::BeginNextTurn()
 		// 턴 시작 시 AP 회복
 		if (ActiveConfig.bRestoreAPOnTurnStart)
 		{
-			if (UAPComponent*AP =A->FindComponentByClass<UAPComponent>())
+			if (UAPComponent* AP = A->FindComponentByClass<UAPComponent>())
 			{
 				AP->Restore(AP->GetMaxAP(),"Battle.TurnStartAP");
 			}

@@ -52,6 +52,11 @@ public:
 	void GetOpponentsFor(AActor* Actor,TArray<AActor*> &Out) const;
 	void GetAlliesFor(AActor* Actor,TArray<AActor*> &Out) const;
 	
+	bool BeginPresentedAction(AActor *Actor, FName ReasonTag);
+	bool CanActorResolvePresentedAction(AActor *Actor) const;
+	void CompletePresentedAction(AActor *Actor, FName ReasonTag);
+	void AbortPresentedAction(AActor *Actor, FName ReasonTag);
+	
 	FCombatItemUseResult TryUseCombatItem (AActor* User, FName ItemId, const TArray<AActor*> &Targets, bool bFromTacticalReservation = false);
 
 protected:
@@ -68,6 +73,8 @@ private:
 	UPROPERTY() TArray<FBattleParticipantSlot> Participants;
 	UPROPERTY() TArray<FTurnOrderEntry> TurnOrder;
 
+	UPROPERTY()TWeakObjectPtr<AActor>PresentedResolvingActor;
+	
 	UBasicCombatSubsystem* GetBasicCombat() const;
 
 	void ResetSessionState();
