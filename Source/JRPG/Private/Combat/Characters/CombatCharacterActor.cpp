@@ -1,4 +1,5 @@
-﻿#include "Combat/Characters/CombatCharacterActor.h"
+﻿// Source/JRPGCombat/Private/Combat/Characters/CombatCharacterActor.cpp
+#include "Combat/Characters/CombatCharacterActor.h"
 
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/Stats/CombatStatsComponent.h"
@@ -8,6 +9,7 @@
 #include "Combat/Status/StatusEffectComponent.h"
 #include "Combat/Groggy/GroggyComponent.h"
 #include "Combat/Threat/ThreatComponent.h"
+#include "Combat/AI/CombatAIActionSelectorComponent.h"
 
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
@@ -15,7 +17,7 @@
 
 ACombatCharacter::ACombatCharacter()
 {
-	PrimaryActorTick.bCanEverTick = false;
+	PrimaryActorTick.bCanEverTick =false;
 
 	CharacterComp = CreateDefaultSubobject<UCombatCharacterComponent>(TEXT("CombatCharacterComponent"));
 
@@ -29,6 +31,7 @@ ACombatCharacter::ACombatCharacter()
 	StatusComp = CreateDefaultSubobject<UStatusEffectComponent>(TEXT("StatusEffectComponent"));
 	GroggyComp = CreateDefaultSubobject<UGroggyComponent>(TEXT("GroggyComponent"));
 	ThreatComp = CreateDefaultSubobject<UThreatComponent>(TEXT("ThreatComponent"));
+	AIActionSelectorComp = CreateDefaultSubobject<UCombatAIActionSelectorComponent>(TEXT("CombatAIActionSelectorComponent"));
 }
 
 void ACombatCharacter::BeginPlay()
@@ -53,5 +56,5 @@ bool ACombatCharacter::IsPlayerControlledCombatant() const
 
 UActorComponent* ACombatCharacter::GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const
 {
-	return CompClass ? GetComponentByClass(CompClass) : nullptr;
+	return CompClass ?GetComponentByClass(CompClass) :nullptr;
 }

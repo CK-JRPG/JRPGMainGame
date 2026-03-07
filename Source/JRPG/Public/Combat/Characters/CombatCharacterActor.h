@@ -1,5 +1,5 @@
-﻿#pragma once
-
+﻿// Source/JRPGCombat/Public/Combat/Characters/CombatCharacterActor.h
+#pragma once
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
@@ -12,13 +12,14 @@ class USkillComponent;
 class UStatusEffectComponent;
 class UGroggyComponent;
 class UThreatComponent;
+class UCombatAIActionSelectorComponent;
 
 class UHPComponent;
 class UAPComponent;
 class USPComponent;
 
 UCLASS()
-class JRPG_API ACombatCharacter : public ACharacter, public ICombatParticipantInterface
+class JRPG_API ACombatCharacter :public ACharacter,public ICombatParticipantInterface
 {
 	GENERATED_BODY()
 
@@ -33,6 +34,7 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UStatusEffectComponent> StatusComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UGroggyComponent> GroggyComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UThreatComponent> ThreatComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatAIActionSelectorComponent> AIActionSelectorComp;
 
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UHPComponent> HPComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UAPComponent> APComp;
@@ -42,9 +44,9 @@ public:
 	virtual ECombatTeam GetCombatTeam() const override;
 	virtual bool IsPlayerControlledCombatant() const override;
 
-	virtual UHPComponent* GetHP() const override { return HPComp; }
-	virtual UAPComponent* GetAP() const override { return APComp; }
-	virtual USPComponent* GetSP() const override { return SPComp; }
+	virtual UHPComponent* GetHP()const override {return HPComp; }
+	virtual UAPComponent* GetAP()const override {return APComp; }
+	virtual USPComponent* GetSP()const override {return SPComp; }
 
 	virtual UActorComponent* GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const override;
 
