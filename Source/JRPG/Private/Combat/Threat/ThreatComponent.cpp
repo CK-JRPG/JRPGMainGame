@@ -1,4 +1,5 @@
-﻿#include "Combat/Threat/ThreatComponent.h"
+﻿#include "JRPG/Public/Combat/Threat/ThreatComponent.h"
+#include "JRPG/Public/Combat/SP/SynergyPointSubsystem.h"
 
 UThreatComponent::UThreatComponent()
 {
@@ -22,7 +23,8 @@ int32 UThreatComponent::FindIndex(AActor *Source) const
 
 void UThreatComponent::AddThreat(AActor *Source, float Amount, FName)
 {
-	if (!Source || Amount<=0.f) return;
+	if (!Source || Amount <= 0.f) 
+		return;
 
 	const double Now = FPlatformTime::Seconds();
 	const int32 Idx = FindIndex(Source);
@@ -37,8 +39,32 @@ void UThreatComponent::AddThreat(AActor *Source, float Amount, FName)
 	else
 	{
 		Table[Idx].Threat += Amount;
-		Table[Idx].LastUpdateReal =Now;
+		Table[Idx].LastUpdateReal = Now;
 	}
+	
+	AActor* PrevTarget = GetTopThreatSource(); //PreviousTargetActor;
+	AActor* NewTarget = CurrentTarget.Get();
+
+	if (USynergyPointSubsystem *SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr)
+	{
+		const bool bBecameTopThreat = (NewTarget == Source);
+		const bool bRescuedAlly = bBecameTopThreat&&PrevTarget && PrevTarget != Source;
+
+		//Delta가 인자가 아니라서 일단 Amount로 대체했음.
+		//SourceActor변수도 Source로 대체
+		if (Amount > 0.f)
+		{
+			SP->ReportThreatOutcome(
+				Source,
+				GetOwner(),// 적 본체
+				Amount,
+				bBecameTopThreat,
+				bRescuedAlly,
+				false,
+				ActionTag);
+		}
+	}
+	
 	OnThreatTableChanged.Broadcast(GetOwner());
 }
 
