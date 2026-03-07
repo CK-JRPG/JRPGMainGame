@@ -1,4 +1,6 @@
 ﻿#include "Combat/Status/StatusComponent.h"
+
+#include "Combat/Infrastructure/BattleSessionSubsystem.h"
 #include "Combat/Status/StatusDataAsset.h"
 
 UStatusComponent::UStatusComponent()

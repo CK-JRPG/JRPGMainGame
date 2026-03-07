@@ -9,7 +9,7 @@
 #include "Combat/Groggy/GroggyComponent.h"
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Movement/CombatMotionComponent.h"
-#include "Combat/SP/SPEventRouterSubsystem.h
+#include "Combat/SP/SPEventRouterSubsystem.h"
 
 static AActor* ResolveCaster(USkillComponent& SkillComp, const FJRPGSkillRequest& Req)
 {

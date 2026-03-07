@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/PrimaryDataAsset.h"
+#include "Engine/DataAsset.h"
 #include "Combat/Tactical/TacticalTypes.h"
 #include "TacticalSettingsDataAsset.generated.h"
 

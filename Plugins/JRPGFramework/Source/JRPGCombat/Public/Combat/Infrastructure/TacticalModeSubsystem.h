@@ -3,12 +3,15 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "JRPGCoreApiTypes.h"
+#include "Combat/Tactical/TacticalSettingsDataAsset.h"
 #include "Combat/Tactical/TacticalTypes.h"
+#include "Combat/Time/CombatTimeTypes.h"
 #include "TacticalModeSubsystem.generated.h"
 
 class UTacticalSettingsDataAsset;
 class UCombatTimeSubsystem;
 class UBattleSessionSubsystem;
+struct
 
 UCLASS()
 class JRPGCOMBAT_API UTacticalModeSubsystem : public UTickableWorldSubsystem

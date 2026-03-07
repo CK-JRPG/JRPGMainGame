@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "JRPGCoreApiTypes.h"
+#include "Combat/Chain/ChainSettingsDataAsset.h"
 
 #include "Combat/Chain/ChainTypes.h"
 #include "TrinityChainSubsystem.generated.h"

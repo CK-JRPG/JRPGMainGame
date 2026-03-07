@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/SP/SynergyPointSettingsDataAsset.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Combat/SP/SynergyPointTypes.h"
 #include "SynergyPointSubsystem.generated.h"

@@ -48,11 +48,11 @@ public:
 	UFUNCTION() float GetBreakMax() const { return CachedSettings.BreakMax; }
 	UFUNCTION() float GetBreakRatio() const { return (CachedSettings.BreakMax<=0.f) ? 0.f : (BreakValue/CachedSettings.BreakMax); }
 
-	UFUNCTION()FGroggySnapshot GetSnapshot() const;
+	UFUNCTION() FGroggySnapshot GetSnapshot() const;
 
 	// 스킬 ApplyEffects 단계에서 호출 고정:contentReference[oaicite:20]{index=20}
 	UFUNCTION()
-	bool AddBreak(AActor*SourceActor, float BreakAmountRaw, const FGameplayTagContainer& ContextTags);
+	bool AddBreak(AActor* SourceActor, float BreakAmountRaw, const FGameplayTagContainer& ContextTags);
 
 	// 강제 전환(디버그/특수 스크립트)
 	UFUNCTION() void ForceEnterStun();

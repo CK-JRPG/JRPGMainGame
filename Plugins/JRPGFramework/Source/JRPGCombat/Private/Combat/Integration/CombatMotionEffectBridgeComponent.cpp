@@ -6,6 +6,7 @@
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Infrastructure/SynergyPointSubsystem.h"
 #include "Combat/Integration/CombatMotionImpactConfigDataAsset.h"
+#include "Combat/SP/SPTypes.h"
 
 UCombatMotionEffectBridgeComponent::UCombatMotionEffectBridgeComponent()
 {

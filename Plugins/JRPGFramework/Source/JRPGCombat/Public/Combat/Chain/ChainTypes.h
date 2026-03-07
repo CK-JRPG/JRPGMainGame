@@ -1,32 +1,32 @@
 ﻿#pragma once
 
-#include"CoreMinimal.h"
-#include"JRPGCoreApiTypes.h"
-#include"ChainTypes.generated.h"
+#include "CoreMinimal.h"
+#include "JRPGCoreApiTypes.h"
+#include "ChainTypes.generated.h"
 
 UENUM()
-enum class EChainState :uint8
+enum class EChainState : uint8
 {
 	Idle,
-	SelectionFrozen,// Freeze + UI pick
-	ExecuteQueue,// Step 1->2->3
-	Finisher,// Finisher skill
-	Recover,// cleanup
+	SelectionFrozen, // Freeze + UI pick
+	ExecuteQueue,	 // Step 1->2->3
+	Finisher,		 // Finisher skill
+	Recover,		 // cleanup
 	Aborted
 };
 
 UENUM()
-enum class EChainEligibilityPolicy :uint8
+enum class EChainEligibilityPolicy : uint8
 {
-	ChainOnlyEligible,// default recommended
+	ChainOnlyEligible, // default recommended
 	AllowAllOwnedSkills
 };
 
 UENUM()
-enum class EEnemySuppressionScope :uint8
+enum class EEnemySuppressionScope : uint8
 {
-	StopOnly,// AI stop only
-	GateOnly,// damage/status gate only
+	StopOnly, // AI stop only
+	GateOnly, // damage/status gate only
 	StopAndGate
 };
 
@@ -35,7 +35,8 @@ struct FChainToken
 {
 	GENERATED_BODY()
 
-	UPROPERTY()FGuid Guid;
+	UPROPERTY() 
+	FGuid Guid;
 
 	static FChainToken NewToken()
 	{
@@ -53,7 +54,7 @@ struct FChainStepPick
 	GENERATED_BODY()
 
 	UPROPERTY() TWeakObjectPtr<AActor> Caster;
-	UPROPERTY() FName SkillId =NAME_None;
+	UPROPERTY() FName SkillId = NAME_None;
 	// 체인 문서 기본: Target은 PrimaryTarget 고정
 };
 
@@ -63,11 +64,11 @@ struct FChainStepRuntime
 	GENERATED_BODY()
 
 	UPROPERTY() FChainStepPick Pick;
-	UPROPERTY() bool bExecuted =false;
-	UPROPERTY() bool bSucceeded =false;
+	UPROPERTY() bool bExecuted = false;
+	UPROPERTY() bool bSucceeded = false;
 
-	UPROPERTY() int32 TPGained =0;
-	UPROPERTY() FName FailReasonTag =NAME_None;
+	UPROPERTY() int32 TPGained = 0;
+	UPROPERTY() FName FailReasonTag = NAME_None;
 };
 
 USTRUCT()
@@ -104,14 +105,14 @@ struct FChainStepView
 	GENERATED_BODY()
 
 	UPROPERTY() TWeakObjectPtr<AActor> Caster;
-	UPROPERTY() FName SkillId =NAME_None;
-	UPROPERTY() bool bPicked =false;
-	UPROPERTY() bool bCanPick =true;
-	UPROPERTY() FName CantPickReason =NAME_None;
+	UPROPERTY() FName SkillId = NAME_None;
+	UPROPERTY() bool bPicked = false;
+	UPROPERTY() bool bCanPick = true;
+	UPROPERTY() FName CantPickReason = NAME_None;
 
-	UPROPERTY() bool bExecuted =false;
-	UPROPERTY() bool bSucceeded =false;
-	UPROPERTY() int32 TPGained =0;
+	UPROPERTY() bool bExecuted = false;
+	UPROPERTY() bool bSucceeded = false;
+	UPROPERTY() int32 TPGained = 0;
 };
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnChainStateChanged, EChainState/*Prev*/, EChainState/*New*/);
