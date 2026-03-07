@@ -45,11 +45,13 @@ void UCombatPresentationComponent::TickComponent(float, ELevelTick, FActorCompon
 
 void UCombatPresentationComponent::TryConsumeTacticalReservation()
 {
-	UTacticalModeSubsystem*Tactical =GetTactical();
-	UBattleSessionSubsystem*Battle =GetBattle();
-	if (!Tactical||!Battle)return;
-	if (!Battle->CanActorActNow(GetOwner()))return;
-
+	UTacticalModeSubsystem* Tactical = GetTactical();
+	UBattleSessionSubsystem* Battle = GetBattle();
+	if (!Tactical||!Battle)
+		return;
+	if (!Battle->CanActorExecuteAction(GetOwner()))
+		return;
+	
 	FTacticalReservation R;
 	if (!Tactical->GetReservation(GetOwner(),R)) 
 		return;
@@ -442,20 +444,31 @@ void UCombatPresentationComponent::FinishActivePresentation()
 	if (UBattleSessionSubsystem*Battle =GetBattle())
 	{
 		if (Active.bResolved)
-		{
-			if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{			
+			float RecoverySec = Battle->GetDefaultActionRecoverySec();
+
+			if (Active.Type == EPresentedCombatActionType::BasicAttack)
 			{
-				Debug->AddLog(
-					ECombatDebugCategory::Action,
-					"Action.RecoveryApplied",
-					FString::Printf(TEXT("Recovery applied after presentation | Action=%s"),
-						*Active.ActionId.ToString()),
-					GetOwner(),
-					Active.Targets.Num() > 0 ? Active.Targets[0].Get() : nullptr,
-					FLinearColor(0.8f, 1.f, 0.8f));
+				if (CharacterComp.IsValid()&&CharacterComp->CharacterDef && CharacterComp->CharacterDef->BasicAttackMontage)
+				{
+					RecoverySec = CharacterComp->CharacterDef->BasicAttackMontage->GetPlayLength();
+				}
 			}
-			
-			Battle->CompletePresentedAction(GetOwner(), "Present.Finish");
+			else if (Active.Type == EPresentedCombatActionType::Skill)
+			{
+				if (SkillComp.IsValid())
+				{
+					if (USkillDataAsset* Def = SkillComp->GetSkillDef(Active.ActionId))
+					{
+						if (Def->CastMontage)
+						{
+							RecoverySec = Def->CastMontage->GetPlayLength();
+						}
+					}
+				}
+			}
+
+			Battle->CompletePresentedAction(GetOwner(),"Present.Finish",RecoverySec);
 		}
 		else
 		{

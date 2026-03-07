@@ -41,15 +41,18 @@ bool UTacticalModeSubsystem::IsSessionParticipant(AActor *Actor) const
 
 bool UTacticalModeSubsystem::TryEnterTacticalMode(AActor*Requester,FName ReasonTag)
 {
-	if (IsActive())return false;
-	if (!Requester)return false;
-	if (!IsPlayerTurnActor(Requester))return false;
+	if (IsActive()) return false;
+	if (!Requester) return false;
 
 	UBattleSessionSubsystem*Battle =GetBattle();
-	if (!Battle)return false;
+	if (!Battle) 
+		return false;
+	
+	if (Battle->GetPhase()!= EBattlePhase::Active)
+		return false;
 
-
-	if (!Battle->PauseFlow("TacticalMode"))
+	ICombatParticipantInterface*P =Cast<ICombatParticipantInterface>(Requester);
+	if (!P||P->GetCombatTeam()!= ECombatTeam::Player) 
 		return false;
 
 	Snapshot.BattleSessionId = Battle->GetSnapshot().SessionId;
@@ -63,16 +66,11 @@ bool UTacticalModeSubsystem::TryEnterTacticalMode(AActor*Requester,FName ReasonT
 
 void UTacticalModeSubsystem::ExitTacticalMode(FName)
 {
-	if (!IsActive()) return;
+	if (!IsActive())return;
 
 	FTacticalModeSnapshot Final = Snapshot;
+	Snapshot = FTacticalModeSnapshot();
 
-	if (UBattleSessionSubsystem*Battle =GetBattle())
-	{
-		Battle->ResumeFlow("TacticalMode");
-	}
-
-	Snapshot =FTacticalModeSnapshot();
 	OnTacticalModeExited.Broadcast(Final);
 }
 

@@ -104,7 +104,7 @@ bool UChainAttackSubsystem::TryStartChain(AActor* Starter, const FChainAttackCon
 
 	if (!BuildMemberList(Config, Starter)) return false;
 
-	if (!Battle->PauseFlow("ChainAttack"))
+	if (!Battle->EnterExclusiveMode("ChainAttack"))
 		return false;
 
 	ActiveConfig = Config;
@@ -212,7 +212,7 @@ void UChainAttackSubsystem::EndChain(FName)
 
 	if (UBattleSessionSubsystem* Battle = GetBattle())
 	{
-		Battle->ResumeFlow("ChainAttack");
+		Battle->ExitExclusiveMode("ChainAttack");
 
 		if (ActiveConfig.bConsumeBattleTurnOnEnd && Battle->IsBattleActive())
 		{
