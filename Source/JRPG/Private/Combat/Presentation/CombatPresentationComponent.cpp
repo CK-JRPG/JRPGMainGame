@@ -45,11 +45,13 @@ void UCombatPresentationComponent::TickComponent(float, ELevelTick, FActorCompon
 
 void UCombatPresentationComponent::TryConsumeTacticalReservation()
 {
-	UTacticalModeSubsystem*Tactical =GetTactical();
-	UBattleSessionSubsystem*Battle =GetBattle();
-	if (!Tactical||!Battle)return;
-	if (!Battle->CanActorActNow(GetOwner()))return;
-
+	UTacticalModeSubsystem* Tactical = GetTactical();
+	UBattleSessionSubsystem* Battle = GetBattle();
+	if (!Tactical||!Battle)
+		return;
+	if (!Battle->CanActorExecuteAction(GetOwner()))
+		return;
+	
 	FTacticalReservation R;
 	if (!Tactical->GetReservation(GetOwner(),R)) 
 		return;
@@ -381,7 +383,30 @@ void UCombatPresentationComponent::FinishActivePresentation()
 	{
 		if (Active.bResolved)
 		{
-			Battle->CompletePresentedAction(GetOwner(), "Present.Finish");
+			float RecoverySec = Battle->GetDefaultActionRecoverySec();
+
+			if (Active.Type == EPresentedCombatActionType::BasicAttack)
+			{
+				if (CharacterComp.IsValid()&&CharacterComp->CharacterDef && CharacterComp->CharacterDef->BasicAttackMontage)
+				{
+					RecoverySec = CharacterComp->CharacterDef->BasicAttackMontage->GetPlayLength();
+				}
+			}
+			else if (Active.Type == EPresentedCombatActionType::Skill)
+			{
+				if (SkillComp.IsValid())
+				{
+					if (USkillDataAsset* Def = SkillComp->GetSkillDef(Active.ActionId))
+					{
+						if (Def->CastMontage)
+						{
+							RecoverySec = Def->CastMontage->GetPlayLength();
+						}
+					}
+				}
+			}
+
+			Battle->CompletePresentedAction(GetOwner(),"Present.Finish",RecoverySec);
 		}
 		else
 		{
