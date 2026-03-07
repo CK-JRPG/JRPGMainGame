@@ -1,4 +1,5 @@
 ﻿#pragma once
+
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
@@ -14,6 +15,7 @@ class UThreatComponent;
 class UCombatAIActionSelectorComponent;
 class UCombatItemComponent;
 class UCombatPresentationComponent;
+class UCombatMotionComponent;
 
 class UHPComponent;
 class UAPComponent;
@@ -38,10 +40,11 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatAIActionSelectorComponent> AIActionSelectorComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatItemComponent> ItemComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPresentationComponent> PresentationComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatMotionComponent> MotionComp;
 
-	UPROPERTY(VisibleAnywhere)TObjectPtr<UHPComponent> HPComp;
-	UPROPERTY(VisibleAnywhere)TObjectPtr<UAPComponent> APComp;
-	UPROPERTY(VisibleAnywhere)TObjectPtr<USPComponent> SPComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UHPComponent> HPComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UAPComponent> APComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<USPComponent> SPComp;
 
 	virtual FName GetCombatantId() const override;
 	virtual ECombatTeam GetCombatTeam() const override;

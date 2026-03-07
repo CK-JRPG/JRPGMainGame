@@ -586,6 +586,17 @@ FCombatItemUseResult UBattleSessionSubsystem::TryUseCombatItem(
 	return R;
 }
 
+bool UBattleSessionSubsystem::GetCombatClamp(FVector& OutCenter, float& OutRadius) const
+{
+	if (!bBattleActive) return false;
+	if (!ActiveConfig.bEnableCombatClamp) return false;
+	if (ActiveConfig.CombatClampRadius <= 0.f) return false;
+
+	OutCenter = ActiveConfig.CombatClampCenter;
+	OutRadius = ActiveConfig.CombatClampRadius;
+	return true;
+}
+
 bool UBattleSessionSubsystem::AreAllEnemiesDefeated()const
 {
 	bool bHasEnemy = false;

@@ -7,6 +7,7 @@
 #include "Combat/Presentation/CombatPresentationTypes.h"
 #include "Combat/Skills/SkillTypes.h"
 #include "Combat/Items/CombatItemTypes.h"
+#include "Combat/Motion/CombatMotionTypes.h"
 
 #include "CombatPresentationComponent.generated.h"
 
@@ -58,6 +59,9 @@ private:
 		FName StartCueTag = NAME_None;
 		FName HitCueTag = NAME_None;
 		FName FinishCueTag = NAME_None;
+		
+		FCombatMotionHandle MotionHandle;
+		bool bHasMotion = false;
 	};
 
 	FActivePresentationState Active;
@@ -72,4 +76,8 @@ private:
 	void ClearActiveState();
 
 	void TryConsumeTacticalReservation();
+	
+	bool TryStartMotionForBasicAttack();
+	bool TryStartMotionForSkill(USkillDataAsset* SkillDef);
+	void CancelActiveMotionIfNeeded();
 };

@@ -1,10 +1,11 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
-#include "Engine/PrimaryDataAsset.h"
+#include "Engine/DataAsset.h"
 #include "Animation/AnimMontage.h"
 #include "Combat/Core/RoleTypes.h"
 #include "Combat/Characters/CombatTeamTypes.h"
 #include "Combat/Presentation/CombatPresentationTypes.h"
+#include "Combat/Motion/CombatMotionTypes.h"
 #include "CombatCharacterDataAsset.generated.h"
 
 USTRUCT()
@@ -33,7 +34,7 @@ public:
 
 	UPROPERTY(EditAnywhere) FCharacterBaseParams BaseParams;
 
-// 기본 공격 정의
+	// 기본 공격 정의
 	UPROPERTY(EditAnywhere) float BasicAttackBasePower = 5.f;
 	UPROPERTY(EditAnywhere) float BasicAttackAttackScale = 1.0f;
 	UPROPERTY(EditAnywhere) float BasicAttackDefenseScale = 0.5f;
@@ -43,7 +44,7 @@ public:
 	UPROPERTY(EditAnywhere) float BasicAttackGroggyPower = 8.f;
 	UPROPERTY(EditAnywhere) float BasicAttackThreatMultiplier = 1.0f;
 
-// 기본 공격 연출
+	// 기본 공격 연출
 	UPROPERTY(EditAnywhere) TObjectPtr<UAnimMontage> BasicAttackMontage = nullptr;
 	UPROPERTY(EditAnywhere) ECombatResolveTiming BasicAttackResolveTiming = ECombatResolveTiming::AnimNotifyWindow;
 	UPROPERTY(EditAnywhere) FName BasicAttackStartCueTag = "Attack.Start";
@@ -53,5 +54,8 @@ public:
 	UPROPERTY(EditAnywhere) TArray<FName> StartingSkillIds;
 	UPROPERTY(EditAnywhere) TMap<FName,int32> StartingItems;
 
-bool IsValidDef() const { return !CharacterId.IsNone(); }
+	UPROPERTY(EditAnywhere) bool bHasBasicAttackMotion = false;
+	UPROPERTY(EditAnywhere) FCombatMotionRequest BasicAttackMotion;
+	
+	bool IsValidDef() const { return !CharacterId.IsNone(); }
 };

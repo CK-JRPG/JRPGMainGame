@@ -11,6 +11,7 @@
 #include "Combat/AI/CombatAIActionSelectorComponent.h"
 #include "Combat/Items/CombatItemComponent.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
+#include "Combat/Motion/CombatMotionComponent.h"
 
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
@@ -35,6 +36,7 @@ ACombatCharacter::ACombatCharacter()
 	AIActionSelectorComp = CreateDefaultSubobject<UCombatAIActionSelectorComponent>(TEXT("CombatAIActionSelectorComponent"));
 	ItemComp = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
+	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
 }
 
 void ACombatCharacter::BeginPlay()
