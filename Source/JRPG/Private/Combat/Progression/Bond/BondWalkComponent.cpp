@@ -1,3 +1,4 @@
+
 ﻿#include "Combat/Progression/Bond/BondWalkComponent.h"
 
 #include "Combat/Progression/Bond/BondSubsystem.h"
@@ -35,11 +36,13 @@ void UBondWalkComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-UBondSubsystem* UBondWalkComponent::GetBond()const
+
+UBondSubsystem* UBondWalkComponent::GetBond() const
 {
 	return GetWorld() && GetWorld()->GetGameInstance()
-			?GetWorld()->GetGameInstance()->GetSubsystem<UBondSubsystem>()
-			:nullptr;
+		       ? GetWorld()->GetGameInstance()->GetSubsystem<UBondSubsystem>()
+		       : nullptr;
+
 }
 
 const UBondSettingsDataAsset* UBondWalkComponent::GetSettings() const
@@ -48,6 +51,7 @@ const UBondSettingsDataAsset* UBondWalkComponent::GetSettings() const
 	if (UBondSubsystem* B = GetBond()) return B->Settings;
 	return nullptr;
 }
+
 
 const TArray<FName>* UBondWalkComponent::GetPartyIds() const
 {
@@ -103,4 +107,5 @@ void UBondWalkComponent::Sample()
 	}
 
 	LastLoc = Cur;
+
 }
