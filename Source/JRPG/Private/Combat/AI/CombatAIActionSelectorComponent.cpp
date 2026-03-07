@@ -5,11 +5,11 @@
 
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Skills/SkillComponent.h"
-#include "Combat/Skills/SkillDataAsset.h"
+#include "JRPG/Public/Combat/Skills/SkillDataAsset.h"
 
-#include "Combat/Stats/HPComponent.h"
-#include "Combat/Stats/APComponent.h"
-#include "Combat/SP/SPComponent.h"
+#include "JRPG/Public/Combat/Stats/HPComponent.h"
+#include "JRPG/Public/Combat/Stats/APComponent.h"
+#include "JRPG/Public/Combat/SP/SPComponent.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 
 UCombatAIActionSelectorComponent::UCombatAIActionSelectorComponent()

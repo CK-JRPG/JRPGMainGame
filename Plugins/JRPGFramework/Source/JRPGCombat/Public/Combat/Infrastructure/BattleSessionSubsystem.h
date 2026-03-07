@@ -29,6 +29,7 @@ public:
 	EJRPGCombatPhase GetPhase() const { return Phase; }
 
 	void SetPhase(EJRPGCombatPhase NewPhase);
+	void EndBattle();
 
 	// Participants (최소 구현)
 	void RegisterParticipant(AActor *Actor,bool bIsPlayerParty);

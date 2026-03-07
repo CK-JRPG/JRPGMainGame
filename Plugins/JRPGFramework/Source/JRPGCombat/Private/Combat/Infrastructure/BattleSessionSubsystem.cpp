@@ -1,4 +1,5 @@
-﻿#include"Combat/Infrastructure/BattleSessionSubsystem.h"
+﻿#include "Combat/Infrastructure/BattleSessionSubsystem.h"
+#include "Combat/Infrastructure/SynergyPointSubsystem.h"
 
 void UBattleSessionSubsystem::SetPhase(EJRPGCombatPhase NewPhase)
 {
@@ -6,6 +7,21 @@ void UBattleSessionSubsystem::SetPhase(EJRPGCombatPhase NewPhase)
 	const EJRPGCombatPhase Prev =Phase;
 	Phase = NewPhase;
 	OnCombatPhaseChanged.Broadcast(Prev,NewPhase);
+}
+
+void UBattleSessionSubsystem::EndBattle()
+{
+	if (!IsCombatRunning())
+	{
+		return;
+	}
+
+	SetPhase(EJRPGCombatPhase::Ending);
+
+	if (USynergyPointSubsystem* SP = GetWorld()->GetSubsystem<USynergyPointSubsystem>())
+	{
+		SP->ResetForBattleEnd();
+	}
 }
 
 void UBattleSessionSubsystem::RegisterParticipant(AActor*Actor,bool bIsPlayerParty)
