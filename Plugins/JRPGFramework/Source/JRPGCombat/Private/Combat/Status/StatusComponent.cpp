@@ -1,6 +1,6 @@
 ﻿#include "Combat/Status/StatusComponent.h"
 
-#include "Combat/Infrastructure/BattleSessionSubsystem.h"
+#include "Combat/Infrastructure/CombatBattleSessionSubsystem.h"
 #include "Combat/Status/StatusDataAsset.h"
 
 UStatusComponent::UStatusComponent()
@@ -23,7 +23,7 @@ bool UStatusComponent::HasStatus(FName StatusId) const
 
 FJRPGOpResult UStatusComponent::ApplyStatus(const FStatusSpec& Spec)
 {
-	if (UBattleSessionSubsystem* Session = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+	if (UCombatBattleSessionSubsystem* Session = GetWorld()->GetSubsystem<UCombatBattleSessionSubsystem>())
 	{
 		if (Session->ShouldGateEnemyToAlly(Spec.Instigator.Get(),GetOwner()))
 		{

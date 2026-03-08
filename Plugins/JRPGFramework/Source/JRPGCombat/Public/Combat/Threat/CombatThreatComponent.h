@@ -2,9 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "JRPGCoreApiTypes.h"
-#include "Combat/Threat/ThreatTypes.h"
-#include "ThreatComponent.generated.h"
+#include "JRPGCore/Public/JRPGCoreApiTypes.h"
+#include "Combat/Threat/CombatThreatTypes.h"
+#include "CombatThreatComponent.generated.h"
 
 class UThreatConfigDataAsset;
 
@@ -17,12 +17,12 @@ class UThreatConfigDataAsset;
  * - LockTarget: 일정 기간 타겟 전환 방지(그랩/연출 등)
  */
 UCLASS(ClassGroup=(JRPG), meta=(BlueprintSpawnableComponent))
-class JRPGCOMBAT_API UThreatComponent : public UActorComponent
+class JRPGCOMBAT_API UCombatThreatComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UThreatComponent();
+	UCombatThreatComponent();
 
 	// Config
 	UPROPERTY(EditDefaultsOnly, Category="JRPG|Threat")

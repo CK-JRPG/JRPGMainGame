@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Combat/Skills/SkillTypes.h"
-#include "SkillDataAsset.generated.h"
+#include "Combat/Skills/JRPGSkillTypes.h"
+#include "JRPGSkillDataAsset.generated.h"
 
 /**
  * 스킬 정의(데이터 기반)
@@ -11,7 +11,7 @@
  * - DA는 비용/쿨/타겟팅/이펙트만 소유(확장 안전)
  */
 UCLASS()
-class JRPGCOMBAT_API USkillDataAsset : public UPrimaryDataAsset
+class JRPGCOMBAT_API UJRPGSkillDataAsset : public UPrimaryDataAsset
 {
 	GENERATED_BODY()
 public:

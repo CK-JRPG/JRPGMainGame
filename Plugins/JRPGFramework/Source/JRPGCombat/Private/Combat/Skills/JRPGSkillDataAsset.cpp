@@ -1,6 +1,6 @@
-﻿#include "Combat/Skills/SkillDataAsset.h"
+﻿#include "Combat/Skills/JRPGSkillDataAsset.h"
 
-bool USkillDataAsset::Validate(FJRPGReason& OutReason) const
+bool UJRPGSkillDataAsset::Validate(FJRPGReason& OutReason) const
 {
 	if (SkillId.IsNone())
 	{

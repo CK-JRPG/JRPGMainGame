@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "JRPGCoreApiTypes.h"
+#include "JRPGCore/Public/JRPGCoreApiTypes.h"
 #include "Combat/Core/CombatDamageTypes.h"
-#include "Combat/Movement/CombatMotionTypes.h"
-#include "SkillTypes.generated.h"
+#include "Combat/Movement/JRPGCombatMotionTypes.h"
+#include "JRPGSkillTypes.generated.h"
 
 /** 스킬 타겟팅 타입(기본전투/스킬 공통) */
 UENUM()

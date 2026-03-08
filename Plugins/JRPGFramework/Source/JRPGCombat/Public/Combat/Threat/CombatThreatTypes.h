@@ -1,8 +1,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "JRPGCoreApiTypes.h"
-#include "ThreatTypes.generated.h"
+#include "JRPGCore/Public/JRPGCoreApiTypes.h"
+#include "CombatThreatTypes.generated.h"
 
 
 /**

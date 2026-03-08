@@ -2,15 +2,15 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "JRPGCoreApiTypes.h"
+#include "JRPGCore/Public/JRPGCoreApiTypes.h"
 #include "Combat/Core/CombatDamageTypes.h"
-#include "HPComponent.generated.h"
+#include "CombatHPComponent.generated.h"
 
-class UCombatMotionComponent;
+class UJRPGCombatMotionComponent;
 class UStatusComponent;
 class UGroggyComponent;
-class UThreatComponent;
-class UBattleSessionSubsystem;
+class UCombatThreatComponent;
+class UCombatBattleSessionSubsystem;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHPChanged, float /*Current*/, float /*Max*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDamaged, const FCombatDamageSpec& /*Spec*/, const FCombatDamageResult& /*Result*/);
@@ -24,12 +24,12 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDied, AActor* /*Killer*/, FName /*Reason
  * - 전투 이동(HitMove), 상태이상, 그로기, 어그로, SP를 “옵션 연동” (존재하면 적용)
  */
 UCLASS(ClassGroup=(JRPG), meta=(BlueprintSpawnableComponent))
-class JRPGCOMBAT_API UHPComponent : public UActorComponent
+class JRPGCOMBAT_API UCombatHPComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UHPComponent();
+	UCombatHPComponent();
 
 	// Tunables
 	UPROPERTY(EditAnywhere, Category="JRPG|HP") float MaxHP = 100.f;
@@ -60,10 +60,10 @@ private:
 	bool bDead = false;
 
 	// cache components (optional)
-	UPROPERTY(Transient) TObjectPtr<UCombatMotionComponent> CombatMotion = nullptr;
+	UPROPERTY(Transient) TObjectPtr<UJRPGCombatMotionComponent> CombatMotion = nullptr;
 	UPROPERTY(Transient) TObjectPtr<UStatusComponent> Status = nullptr;
 	UPROPERTY(Transient) TObjectPtr<UGroggyComponent> Groggy = nullptr;
-	UPROPERTY(Transient) TObjectPtr<UThreatComponent> Threat = nullptr;
+	UPROPERTY(Transient) TObjectPtr<UCombatThreatComponent> Threat = nullptr;
 
 	void CacheOptionalComponents();
 

@@ -1,11 +1,11 @@
 ﻿#pragma once
 
-#include"CoreMinimal.h"
-#include"Components/ActorComponent.h"
-#include"GameplayTagContainer.h"
-#include"Combat/Groggy/GroggyTypes.h"
-#include"Combat/Groggy/GroggySettingsDataAsset.h"
-#include"GroggyComponent.generated.h"
+#include "CoreMinimal.h"
+#include "Components/ActorComponent.h"
+#include "GameplayTagContainer.h"
+#include "Combat/Groggy/GroggyTypes.h"
+#include "Combat/Groggy/GroggySettingsDataAsset.h"
+#include "CombatGroggyComponent.generated.h"
 
 /**
  * UGroggyComponent
@@ -13,12 +13,12 @@
  * - Stun/Rising은 Status로 관리하되(있으면), 없을 경우 내부 타이머로 동작(백업)
  */
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
-class JRPGCOMBAT_API UGroggyComponent : public UActorComponent
+class JRPGCOMBAT_API UCombatGroggyComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UGroggyComponent();
+	UCombatGroggyComponent();
 
 	// ===== Settings =====
 	UPROPERTY(EditAnywhere,Category="Groggy|Settings")

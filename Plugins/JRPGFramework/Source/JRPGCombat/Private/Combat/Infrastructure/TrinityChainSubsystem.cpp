@@ -2,13 +2,13 @@
 
 #include "Combat/Chain/ChainSettingsDataAsset.h"
 #include "Combat/Infrastructure/CombatTimeSubsystem.h"
-#include "Combat/Infrastructure/BattleSessionSubsystem.h"
-#include "Combat/Infrastructure/SynergyPointSubsystem.h"
-#include "Combat/Infrastructure/TacticalModeSubsystem.h"
+#include "Combat/Infrastructure/CombatBattleSessionSubsystem.h"
+#include "Combat/Infrastructure/CombatSynergyPointSubsystem.h"
+#include "Combat/Infrastructure/CombatTacticalModeSubsystem.h"
 
-#include "Combat/Skills/SkillComponent.h"
-#include "Combat/Skills/SkillDataAsset.h"
-#include "Combat/Stats/HPComponent.h"
+#include "Combat/Skills/JRPGSkillComponent.h"
+#include "Combat/Skills/JRPGSkillDataAsset.h"
+#include "Combat/Stats/CombatHPComponent.h"
 
 static double NowReal(const UWorld *W)
 {
@@ -20,19 +20,19 @@ UCombatTimeSubsystem* UTrinityChainSubsystem::GetTime() const
 	return GetWorld() ? GetWorld()->GetSubsystem<UCombatTimeSubsystem>() : nullptr;
 }
 
-UBattleSessionSubsystem* UTrinityChainSubsystem::GetSession() const
+UCombatBattleSessionSubsystem* UTrinityChainSubsystem::GetSession() const
 {
-	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	return GetWorld() ? GetWorld()->GetSubsystem<UCombatBattleSessionSubsystem>() : nullptr;
 }
 
-UTacticalModeSubsystem* UTrinityChainSubsystem::GetTactical() const
+UCombatTacticalModeSubsystem* UTrinityChainSubsystem::GetTactical() const
 {
-	return GetWorld() ? GetWorld()->GetSubsystem<UTacticalModeSubsystem>() : nullptr;
+	return GetWorld() ? GetWorld()->GetSubsystem<UCombatTacticalModeSubsystem>() : nullptr;
 }
 
-USynergyPointSubsystem* UTrinityChainSubsystem::GetSP() const
+UCombatSynergyPointSubsystem* UTrinityChainSubsystem::GetSP() const
 {
-	return GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
+	return GetWorld() ? GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>() : nullptr;
 }
 
 void UTrinityChainSubsystem::Initialize(FSubsystemCollectionBase &Collection)
@@ -69,7 +69,7 @@ void UTrinityChainSubsystem::TransitionTo(EChainState NewState)
 
 bool UTrinityChainSubsystem::GuardCanStart(AActor *PrimaryTarget, FJRPGReason &OutReason)const
 {
-	UBattleSessionSubsystem *Session = GetSession();
+	UCombatBattleSessionSubsystem *Session = GetSession();
 	if (!Session || !Session->IsCombatRunning())
 	{
 		OutReason = FJRPGReason::Make("SessionNotActive");
@@ -82,7 +82,7 @@ bool UTrinityChainSubsystem::GuardCanStart(AActor *PrimaryTarget, FJRPGReason &O
 		return false;
 	}
 
-	USynergyPointSubsystem *SP = GetSP();
+	UCombatSynergyPointSubsystem *SP = GetSP();
 	if (!SP || !SP->GetState().bChainReady)
 	{
 		OutReason = FJRPGReason::Make("Chain.NotReadySP");
@@ -96,7 +96,7 @@ bool UTrinityChainSubsystem::GuardCanStart(AActor *PrimaryTarget, FJRPGReason &O
 	}
 
 	// 타겟 살아있음(최소)
-	if (UHPComponent *HP = PrimaryTarget->FindComponentByClass<UHPComponent>())
+	if (UCombatHPComponent *HP = PrimaryTarget->FindComponentByClass<UCombatHPComponent>())
 	{
 		if (HP->IsDead())
 		{
@@ -110,7 +110,7 @@ bool UTrinityChainSubsystem::GuardCanStart(AActor *PrimaryTarget, FJRPGReason &O
 
 FJRPGOpResult UTrinityChainSubsystem::TryStartChain()
 {
-	if (UBattleSessionSubsystem *Session = GetSession())
+	if (UCombatBattleSessionSubsystem *Session = GetSession())
 	{
 		return TryStartChainWithTarget(Session->GetPrimaryTarget());
 	}
@@ -128,7 +128,7 @@ FJRPGOpResult UTrinityChainSubsystem::TryStartChainWithTarget(AActor *PrimaryTar
 	// 전술 모드 강제 종료 옵션
 	if (Settings.bExitTacticalOnStart)
 	{
-		if (UTacticalModeSubsystem *Tactical = GetTactical())
+		if (UCombatTacticalModeSubsystem *Tactical = GetTactical())
 		{
 			Tactical->TryExitTactical("Chain.Start");
 		}
@@ -140,7 +140,7 @@ FJRPGOpResult UTrinityChainSubsystem::TryStartChainWithTarget(AActor *PrimaryTar
 
 void UTrinityChainSubsystem::ApplyEntryGuards()
 {
-	UBattleSessionSubsystem *Session = GetSession();
+	UCombatBattleSessionSubsystem *Session = GetSession();
 	if (!Session)return;
 
 	// 입력 잠금(플레이어 입력만) :contentReference[oaicite:4]{index=4}
@@ -156,7 +156,7 @@ void UTrinityChainSubsystem::ApplyEntryGuards()
 
 void UTrinityChainSubsystem::ReleaseEntryGuards()
 {
-	UBattleSessionSubsystem*Session =GetSession();
+	UCombatBattleSessionSubsystem*Session =GetSession();
 	if (!Session)return;
 
 	Session->PopPlayerInputLock("Chain");
@@ -214,7 +214,7 @@ void UTrinityChainSubsystem::EnsurePartyActors()
 {
 	Ctx.PartyActors.Reset();
 
-	if (UBattleSessionSubsystem *Session = GetSession())
+	if (UCombatBattleSessionSubsystem *Session = GetSession())
 	{
 		TArray<AActor*> Party;
 		Session->GetPartyActors(Party);
@@ -259,7 +259,7 @@ bool UTrinityChainSubsystem::IsCasterPickable(AActor *Caster, FName &OutReasonTa
 		return false;
 	}
 
-	if (UHPComponent *HP = Caster->FindComponentByClass<UHPComponent>())
+	if (UCombatHPComponent *HP = Caster->FindComponentByClass<UCombatHPComponent>())
 	{
 		if (HP->IsDead())
 		{
@@ -278,10 +278,10 @@ bool UTrinityChainSubsystem::IsCasterPickable(AActor *Caster, FName &OutReasonTa
 	return true;
 }
 
-const USkillDataAsset* UTrinityChainSubsystem::FindSkillAsset(AActor *Caster, FName SkillId)const
+const UJRPGSkillDataAsset* UTrinityChainSubsystem::FindSkillAsset(AActor *Caster, FName SkillId)const
 {
 	if (!Caster) return nullptr;
-	const USkillComponent *SC = Caster->FindComponentByClass<USkillComponent>();
+	const UJRPGSkillComponent *SC = Caster->FindComponentByClass<UJRPGSkillComponent>();
 	if (!SC) return nullptr;
 	return SC->GetSkillAsset(SkillId);// (아래 “필수 패치”에서 추가)
 }
@@ -294,14 +294,14 @@ bool UTrinityChainSubsystem::IsSkillEligibleForChain(AActor*Caster, FName SkillI
 		return false;
 	}
 
-	const USkillComponent *SC = Caster ?Caster->FindComponentByClass<USkillComponent>() :nullptr;
+	const UJRPGSkillComponent *SC = Caster ?Caster->FindComponentByClass<UJRPGSkillComponent>() :nullptr;
 	if (!SC||!SC->HasSkill(SkillId))
 	{
 		OutReasonTag ="Pick.SkillNotOwned";
 		return false;
 	}
 
-	const USkillDataAsset *SA = FindSkillAsset(Caster, SkillId);
+	const UJRPGSkillDataAsset *SA = FindSkillAsset(Caster, SkillId);
 	if (!SA)
 	{
 		OutReasonTag ="Pick.SkillAssetMissing";
@@ -410,12 +410,12 @@ void UTrinityChainSubsystem::BuildExecuteQueueIfNeeded()
 		// fallback: 첫 번째 chain eligible
 		if (AutoSkill.IsNone())
 		{
-			const USkillComponent *SC = Caster->FindComponentByClass<USkillComponent>();
+			const UJRPGSkillComponent *SC = Caster->FindComponentByClass<UJRPGSkillComponent>();
 			if (SC)
 			{
 				for (const auto &It :SC->SkillDB)
 				{
-					const USkillDataAsset *SA = It.Value.Get();
+					const UJRPGSkillDataAsset *SA = It.Value.Get();
 					if (!SA) continue;
 					
 					if (Settings.EligibilityPolicy == EChainEligibilityPolicy::ChainOnlyEligible && !SA->bChainEligible)
@@ -527,8 +527,8 @@ void UTrinityChainSubsystem::ExecuteNextStep()
 		return;
 	}
 
-	const USkillComponent *SC_Const = Caster->FindComponentByClass<USkillComponent>();
-	USkillComponent *SC = const_cast<USkillComponent*>(SC_Const);
+	const UJRPGSkillComponent *SC_Const = Caster->FindComponentByClass<UJRPGSkillComponent>();
+	UJRPGSkillComponent *SC = const_cast<UJRPGSkillComponent*>(SC_Const);
 	if (!SC)
 	{
 		Step.bExecuted = true;
@@ -567,7 +567,7 @@ void UTrinityChainSubsystem::ExecuteNextStep()
 
 	if (Step.bSucceeded)
 	{
-		const USkillDataAsset *SA = FindSkillAsset(Caster,SkillId);
+		const UJRPGSkillDataAsset *SA = FindSkillAsset(Caster,SkillId);
 		Step.TPGained = ComputeTPForSkill(SA);
 		Ctx.TPTotal += Step.TPGained;
 	}
@@ -601,7 +601,7 @@ void UTrinityChainSubsystem::ExecuteFinisher()
 		return;
 	}
 
-	USkillComponent*SC =FinisherCaster->FindComponentByClass<USkillComponent>();
+	UJRPGSkillComponent*SC =FinisherCaster->FindComponentByClass<UJRPGSkillComponent>();
 	if (!SC)
 	{
 		EndChain(false,"Chain.FinisherNoSkillComponent");
@@ -654,7 +654,7 @@ void UTrinityChainSubsystem::EndChain(bool bAborted,FName ReasonTag)
 	}
 
 	// SP reset (체인 종료 시 0) :contentReference[oaicite:5]{index=5}
-	if (USynergyPointSubsystem *SP = GetSP())
+	if (UCombatSynergyPointSubsystem *SP = GetSP())
 	{
 		SP->ResetForChainEnd();
 	}
@@ -711,7 +711,7 @@ void UTrinityChainSubsystem::Tick(float DeltaTime)
 	if (!W)return;
 
 	// 세션 종료/타겟 소멸 등 → Abort (중요)
-	if (UBattleSessionSubsystem *Session =GetSession())
+	if (UCombatBattleSessionSubsystem *Session =GetSession())
 	{
 		if (!Session->IsCombatRunning() && IsChainActive())
 		{

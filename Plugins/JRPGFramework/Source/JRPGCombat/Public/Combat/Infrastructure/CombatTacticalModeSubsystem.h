@@ -2,19 +2,19 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "JRPGCoreApiTypes.h"
+#include "JRPGCore/Public/JRPGCoreApiTypes.h"
 #include "Combat/Tactical/TacticalSettingsDataAsset.h"
 #include "Combat/Tactical/TacticalTypes.h"
 #include "Combat/Time/CombatTimeTypes.h"
-#include "TacticalModeSubsystem.generated.h"
+#include "CombatTacticalModeSubsystem.generated.h"
 
 class UTacticalSettingsDataAsset;
 class UCombatTimeSubsystem;
-class UBattleSessionSubsystem;
-struct
+class UCombatBattleSessionSubsystem;
+
 
 UCLASS()
-class JRPGCOMBAT_API UTacticalModeSubsystem : public UTickableWorldSubsystem
+class JRPGCOMBAT_API UCombatTacticalModeSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -91,7 +91,7 @@ private:
 
 	// cached subsystems
 	UCombatTimeSubsystem* GetTimeSubsystem() const;
-	UBattleSessionSubsystem* GetBattleSession() const;
+	UCombatBattleSessionSubsystem* GetBattleSession() const;
 
 	// state helpers
 	void TransitionTo(ETacticalState NewState);

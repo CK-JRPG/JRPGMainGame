@@ -1,4 +1,4 @@
-﻿#include "Combat/Groggy/GroggyComponent.h"
+﻿#include "Combat/Groggy/CombatGroggyComponent.h"
 
 #include "Combat/Core/CombatTags.h"
 #include "GameFramework/Actor.h"
@@ -7,13 +7,13 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGroggy,Log,All);
 
-UGroggyComponent::UGroggyComponent()
+UCombatGroggyComponent::UCombatGroggyComponent()
 {
     PrimaryComponentTick.bCanEverTick = true;
     PrimaryComponentTick.bStartWithTickEnabled = true;
 }
 
-void UGroggyComponent::BeginPlay()
+void UCombatGroggyComponent::BeginPlay()
 {
     Super::BeginPlay();
       
@@ -48,12 +48,12 @@ void UGroggyComponent::BeginPlay()
     }
 }
 
-void UGroggyComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void UCombatGroggyComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
     Super::EndPlay(EndPlayReason);
 }
 
-double UGroggyComponent::NowReal()const
+double UCombatGroggyComponent::NowReal()const
 {
     if (const UWorld* W =GetWorld())
     {
@@ -62,7 +62,7 @@ double UGroggyComponent::NowReal()const
     return 0.0;
 }
 
-void UGroggyComponent::ResolveSettings()
+void UCombatGroggyComponent::ResolveSettings()
 {
     CachedSettings = FallbackSettings;
 
@@ -84,7 +84,7 @@ void UGroggyComponent::ResolveSettings()
     CachedSettings.BaseBreakResistFactor = FMath::Clamp(CachedSettings.BaseBreakResistFactor,0.f,1.f);
 }
 
-void UGroggyComponent::ResolveStatusAccess()
+void UCombatGroggyComponent::ResolveStatusAccess()
 {
     StatusAccess = nullptr;
 
@@ -105,7 +105,7 @@ void UGroggyComponent::ResolveStatusAccess()
     }
 }
 
-FGroggySnapshot UGroggyComponent::GetSnapshot()const
+FGroggySnapshot UCombatGroggyComponent::GetSnapshot()const
 {
 	FGroggySnapshot S;
 	S.Phase =Phase;
@@ -115,7 +115,7 @@ FGroggySnapshot UGroggyComponent::GetSnapshot()const
 	return S;
 }
 
-void UGroggyComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UCombatGroggyComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -135,7 +135,7 @@ void UGroggyComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActo
 	ApplyDecayIfNeeded(Now, DeltaTime);
 }
 
-void UGroggyComponent::ApplyDecayIfNeeded(double NowRealSeconds, float DeltaTime)
+void UCombatGroggyComponent::ApplyDecayIfNeeded(double NowRealSeconds, float DeltaTime)
 {
 	if (Phase != EGroggyPhase::Normal) return;
 	if (CachedSettings.DecayPerSec <= 0.f) return;
@@ -154,7 +154,7 @@ void UGroggyComponent::ApplyDecayIfNeeded(double NowRealSeconds, float DeltaTime
 	}
 }
 
-bool UGroggyComponent::AddBreak(AActor* SourceActor, float BreakAmountRaw, const FGameplayTagContainer& ContextTags)
+bool UCombatGroggyComponent::AddBreak(AActor* SourceActor, float BreakAmountRaw, const FGameplayTagContainer& ContextTags)
 {
 	if (!GetOwner()) return false;
 	if (BreakAmountRaw <= 0.f) return false;
@@ -241,7 +241,7 @@ bool UGroggyComponent::AddBreak(AActor* SourceActor, float BreakAmountRaw, const
 	return true;
 }
 
-void UGroggyComponent::SetPhase(EGroggyPhase NewPhase, const FGameplayTag& ReasonTag)
+void UCombatGroggyComponent::SetPhase(EGroggyPhase NewPhase, const FGameplayTag& ReasonTag)
 {
 	if (Phase == NewPhase)return;
 
@@ -257,7 +257,7 @@ void UGroggyComponent::SetPhase(EGroggyPhase NewPhase, const FGameplayTag& Reaso
 	// 텔레메트리: Combat.Groggy.PhaseChanged :contentReference[oaicite:36]{index=36}
 }
 
-void UGroggyComponent::EnterStun_Internal(const FGameplayTag& ReasonTag)
+void UCombatGroggyComponent::EnterStun_Internal(const FGameplayTag& ReasonTag)
 {
 	// 문서: EnterStun() 처리 - Phase=Stunned, BreakValue=0, Stun 상태 적용, 피해증폭 상태 적용 :contentReference[oaicite:37]{index=37}
 	SetPhase(EGroggyPhase::Stunned, ReasonTag);
@@ -291,7 +291,7 @@ void UGroggyComponent::EnterStun_Internal(const FGameplayTag& ReasonTag)
 	}
 }
 
-void UGroggyComponent::EnterRising_Internal(const FGameplayTag& ReasonTag)
+void UCombatGroggyComponent::EnterRising_Internal(const FGameplayTag& ReasonTag)
 {
 	// 문서: Stun 만료 후 Rising 진입, Rising은 State.Rising 태그로 제공 가능 :contentReference[oaicite:39]{index=39}
 	SetPhase(EGroggyPhase::Rising, ReasonTag);
@@ -309,7 +309,7 @@ void UGroggyComponent::EnterRising_Internal(const FGameplayTag& ReasonTag)
 	}
 }
 
-void UGroggyComponent::EnterNormal_Internal(const FGameplayTag& ReasonTag)
+void UCombatGroggyComponent::EnterNormal_Internal(const FGameplayTag& ReasonTag)
 {
 	SetPhase(EGroggyPhase::Normal, ReasonTag);
 
@@ -324,12 +324,12 @@ void UGroggyComponent::EnterNormal_Internal(const FGameplayTag& ReasonTag)
 	PhaseEndReal = 0.0;
 }
 
-void UGroggyComponent::ForceEnterStun()
+void UCombatGroggyComponent::ForceEnterStun()
 {
 	EnterStun_Internal(FCombatTags::Reason_BreakReached());
 }
 
-void UGroggyComponent::ForceExitToNormal()
+void UCombatGroggyComponent::ForceExitToNormal()
 {
 	EnterNormal_Internal(FCombatTags::Reason_RisingEnded());
 }

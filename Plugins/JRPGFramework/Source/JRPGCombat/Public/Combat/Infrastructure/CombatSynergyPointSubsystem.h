@@ -3,11 +3,11 @@
 #include "CoreMinimal.h"
 #include "Combat/SP/SynergyPointSettingsDataAsset.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "Combat/SP/SynergyPointTypes.h"
-#include "SynergyPointSubsystem.generated.h"
+#include "Combat/SP/JRPGSynergyPointTypes.h"
+#include "CombatSynergyPointSubsystem.generated.h"
 
 class USynergyPointSettingsDataAsset;
-class UBattleSessionSubsystem;
+class UCombatBattleSessionSubsystem;
 
 /**
  * - SP 저장/누적/Ready 판정의 단일 권위
@@ -17,7 +17,7 @@ class UBattleSessionSubsystem;
  * - 제한: SPMaxGainPerSec, SameEventCooldownSec
  */
 UCLASS()
-class JRPGCOMBAT_API USynergyPointSubsystem : public UTickableWorldSubsystem
+class JRPGCOMBAT_API UCombatSynergyPointSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 public:

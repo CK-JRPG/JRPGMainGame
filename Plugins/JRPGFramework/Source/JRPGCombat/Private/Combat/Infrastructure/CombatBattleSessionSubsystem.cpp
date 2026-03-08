@@ -1,7 +1,7 @@
-﻿#include "Combat/Infrastructure/BattleSessionSubsystem.h"
-#include "Combat/Infrastructure/SynergyPointSubsystem.h"
+﻿#include "Combat/Infrastructure/CombatBattleSessionSubsystem.h"
+#include "Combat/Infrastructure/CombatSynergyPointSubsystem.h"
 
-void UBattleSessionSubsystem::SetPhase(EJRPGCombatPhase NewPhase)
+void UCombatBattleSessionSubsystem::SetPhase(EJRPGCombatPhase NewPhase)
 {
 	if (Phase == NewPhase) return;
 	const EJRPGCombatPhase Prev =Phase;
@@ -9,7 +9,7 @@ void UBattleSessionSubsystem::SetPhase(EJRPGCombatPhase NewPhase)
 	OnCombatPhaseChanged.Broadcast(Prev,NewPhase);
 }
 
-void UBattleSessionSubsystem::EndBattle()
+void UCombatBattleSessionSubsystem::EndBattle()
 {
 	if (!IsCombatRunning())
 	{
@@ -18,13 +18,13 @@ void UBattleSessionSubsystem::EndBattle()
 
 	SetPhase(EJRPGCombatPhase::Ending);
 
-	if (USynergyPointSubsystem* SP = GetWorld()->GetSubsystem<USynergyPointSubsystem>())
+	if (UCombatSynergyPointSubsystem* SP = GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>())
 	{
 		SP->ResetForBattleEnd();
 	}
 }
 
-void UBattleSessionSubsystem::RegisterParticipant(AActor*Actor,bool bIsPlayerParty)
+void UCombatBattleSessionSubsystem::RegisterParticipant(AActor*Actor,bool bIsPlayerParty)
 {
 	if (!Actor) return;
 	
@@ -35,17 +35,17 @@ void UBattleSessionSubsystem::RegisterParticipant(AActor*Actor,bool bIsPlayerPar
 	}
 }
 
-bool UBattleSessionSubsystem::IsParticipant(AActor *Actor)const
+bool UCombatBattleSessionSubsystem::IsParticipant(AActor *Actor)const
 {
 	return Actor&&Participants.Contains(Actor);
 }
 
-void UBattleSessionSubsystem::SetPrimaryTarget(AActor*Target)
+void UCombatBattleSessionSubsystem::SetPrimaryTarget(AActor*Target)
 {
 	PrimaryTarget = Target;
 }
 
-void UBattleSessionSubsystem::GetPartyActors(TArray<AActor*>&OutParty)const
+void UCombatBattleSessionSubsystem::GetPartyActors(TArray<AActor*>&OutParty)const
 {
 	OutParty.Reset();
 	for (const TWeakObjectPtr<AActor> &W : PlayerParty)
@@ -57,13 +57,13 @@ void UBattleSessionSubsystem::GetPartyActors(TArray<AActor*>&OutParty)const
 	}
 }
 
-void UBattleSessionSubsystem::PushPlayerInputLock(FName OwnerTag)
+void UCombatBattleSessionSubsystem::PushPlayerInputLock(FName OwnerTag)
 {
 	if (OwnerTag.IsNone())return;
 	PlayerInputLockOwners.Add(OwnerTag);
 }
 
-void UBattleSessionSubsystem::PopPlayerInputLock(FName OwnerTag)
+void UCombatBattleSessionSubsystem::PopPlayerInputLock(FName OwnerTag)
 {
 	if (OwnerTag.IsNone())return;
 	for (int32 i =PlayerInputLockOwners.Num() - 1; i>=0; --i)
@@ -76,7 +76,7 @@ void UBattleSessionSubsystem::PopPlayerInputLock(FName OwnerTag)
 	}
 }
 
-void UBattleSessionSubsystem::RecomputeSuppressionScope()
+void UCombatBattleSessionSubsystem::RecomputeSuppressionScope()
 {
 	// 기본: 가장 강한 스코프로 수렴
 	// StopAndGate > StopOnly/GateOnly
@@ -98,7 +98,7 @@ void UBattleSessionSubsystem::RecomputeSuppressionScope()
 	CurrentSuppressionScope = Best;
 }
 
-void UBattleSessionSubsystem::PushEnemySuppression(FName OwnerTag,EEnemySuppressionScope Scope)
+void UCombatBattleSessionSubsystem::PushEnemySuppression(FName OwnerTag,EEnemySuppressionScope Scope)
 {
 	if (OwnerTag.IsNone()) return;
 
@@ -110,7 +110,7 @@ void UBattleSessionSubsystem::PushEnemySuppression(FName OwnerTag,EEnemySuppress
 	RecomputeSuppressionScope();
 }
 
-void UBattleSessionSubsystem::PopEnemySuppression(FName OwnerTag)
+void UCombatBattleSessionSubsystem::PopEnemySuppression(FName OwnerTag)
 {
 	if (OwnerTag.IsNone()) return;
 
@@ -125,7 +125,7 @@ void UBattleSessionSubsystem::PopEnemySuppression(FName OwnerTag)
 	RecomputeSuppressionScope();
 }
 
-bool UBattleSessionSubsystem::ShouldGateEnemyToAlly(AActor *Instigator, AActor *Victim) const
+bool UCombatBattleSessionSubsystem::ShouldGateEnemyToAlly(AActor *Instigator, AActor *Victim) const
 {
 	if (!IsEnemySuppressed()) return false;
 

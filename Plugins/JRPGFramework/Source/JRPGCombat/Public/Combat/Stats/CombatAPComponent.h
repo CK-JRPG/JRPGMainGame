@@ -2,8 +2,8 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "JRPGCoreApiTypes.h"
-#include "APComponent.generated.h"
+#include "JRPGCore/Public/JRPGCoreApiTypes.h"
+#include "CombatAPComponent.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAPChanged, int32 /*Current*/, int32 /*Max*/);
 
@@ -13,12 +13,12 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAPChanged, int32 /*Current*/, int32 /*Ma
  * - Tick regen은 옵션(RealTime 기반)
  */
 UCLASS(ClassGroup=(JRPG), meta=(BlueprintSpawnableComponent))
-class JRPGCOMBAT_API UAPComponent : public UActorComponent
+class JRPGCOMBAT_API UCombatAPComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UAPComponent();
+	UCombatAPComponent();
 
 	UPROPERTY(EditAnywhere, Category="JRPG|AP") int32 MaxAP = 100;
 	UPROPERTY(VisibleAnywhere, Category="JRPG|AP") int32 CurrentAP = 100;

@@ -1,22 +1,22 @@
-﻿#include "Combat/Infrastructure/TacticalModeSubsystem.h"
+﻿#include "Combat/Infrastructure/CombatTacticalModeSubsystem.h"
 
 #include "Combat/Tactical/TacticalSettingsDataAsset.h"
 #include "Combat/Infrastructure/CombatTimeSubsystem.h"
-#include "Combat/Skills/SkillComponent.h"
-#include "Combat/Stats/HPComponent.h"
-#include "Combat/Infrastructure/BattleSessionSubsystem.h"
+#include "Combat/Skills/JRPGSkillComponent.h"
+#include "Combat/Stats/CombatHPComponent.h"
+#include "Combat/Infrastructure/CombatBattleSessionSubsystem.h"
 
-UCombatTimeSubsystem* UTacticalModeSubsystem::GetTimeSubsystem() const
+UCombatTimeSubsystem* UCombatTacticalModeSubsystem::GetTimeSubsystem() const
 {
 	return GetWorld() ? GetWorld()->GetSubsystem<UCombatTimeSubsystem>() : nullptr;
 }
 
-UBattleSessionSubsystem* UTacticalModeSubsystem::GetBattleSession() const
+UCombatBattleSessionSubsystem* UCombatTacticalModeSubsystem::GetBattleSession() const
 {
-	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	return GetWorld() ? GetWorld()->GetSubsystem<UCombatBattleSessionSubsystem>() : nullptr;
 }
 
-void UTacticalModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void UCombatTacticalModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
@@ -37,7 +37,7 @@ void UTacticalModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	LastBroadcastRemaining = -1.f;
 }
 
-void UTacticalModeSubsystem::Deinitialize()
+void UCombatTacticalModeSubsystem::Deinitialize()
 {
 	if (TacticalTimeHandle.IsValid())
 	{
@@ -52,7 +52,7 @@ void UTacticalModeSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-void UTacticalModeSubsystem::TransitionTo(ETacticalState NewState)
+void UCombatTacticalModeSubsystem::TransitionTo(ETacticalState NewState)
 {
 	if (State == NewState) return;
 
@@ -64,9 +64,9 @@ void UTacticalModeSubsystem::TransitionTo(ETacticalState NewState)
 	OnTacticalTimerUpdated.Broadcast(GetElapsedRealSec(), GetRemainingRealSec(), GetNormalized01(), IsActive());
 }
 
-bool UTacticalModeSubsystem::GuardSessionActive(FJRPGReason& OutReason) const
+bool UCombatTacticalModeSubsystem::GuardSessionActive(FJRPGReason& OutReason) const
 {
-	UBattleSessionSubsystem* Battle = GetBattleSession();
+	UCombatBattleSessionSubsystem* Battle = GetBattleSession();
 	if (!Battle || !Battle->IsCombatRunning())
 	{
 		OutReason = FJRPGReason::Make("SessionNotActive");
@@ -75,7 +75,7 @@ bool UTacticalModeSubsystem::GuardSessionActive(FJRPGReason& OutReason) const
 	return true;
 }
 
-bool UTacticalModeSubsystem::GuardIdle(FJRPGReason& OutReason) const
+bool UCombatTacticalModeSubsystem::GuardIdle(FJRPGReason& OutReason) const
 {
 	if (State != ETacticalState::Idle)
 	{
@@ -85,7 +85,7 @@ bool UTacticalModeSubsystem::GuardIdle(FJRPGReason& OutReason) const
 	return true;
 }
 
-FJRPGOpResult UTacticalModeSubsystem::TryEnterTactical()
+FJRPGOpResult UCombatTacticalModeSubsystem::TryEnterTactical()
 {
 	FJRPGReason Reason;
 
@@ -134,7 +134,7 @@ FJRPGOpResult UTacticalModeSubsystem::TryEnterTactical()
 	return FJRPGOpResult::Ok();
 }
 
-FJRPGOpResult UTacticalModeSubsystem::TryExitTactical(FName ReasonTag)
+FJRPGOpResult UCombatTacticalModeSubsystem::TryExitTactical(FName ReasonTag)
 {
 	if (State == ETacticalState::Idle) return FJRPGOpResult::Ok();
 
@@ -158,7 +158,7 @@ FJRPGOpResult UTacticalModeSubsystem::TryExitTactical(FName ReasonTag)
 	return FJRPGOpResult::Ok();
 }
 
-bool UTacticalModeSubsystem::ValidateReservationActor(AActor* Actor, FJRPGReason& OutReason) const
+bool UCombatTacticalModeSubsystem::ValidateReservationActor(AActor* Actor, FJRPGReason& OutReason) const
 {
 	if (!Actor)
 	{
@@ -166,7 +166,7 @@ bool UTacticalModeSubsystem::ValidateReservationActor(AActor* Actor, FJRPGReason
 		return false;
 	}
 
-	if (UBattleSessionSubsystem* Battle = GetBattleSession())
+	if (UCombatBattleSessionSubsystem* Battle = GetBattleSession())
 	{
 		if (!Battle->IsParticipant(Actor))
 		{
@@ -178,7 +178,7 @@ bool UTacticalModeSubsystem::ValidateReservationActor(AActor* Actor, FJRPGReason
 	return true;
 }
 
-bool UTacticalModeSubsystem::ValidateReservationSkill(AActor* Actor, FName SkillId, FJRPGReason& OutReason) const
+bool UCombatTacticalModeSubsystem::ValidateReservationSkill(AActor* Actor, FName SkillId, FJRPGReason& OutReason) const
 {
 	if (SkillId.IsNone())
 	{
@@ -186,7 +186,7 @@ bool UTacticalModeSubsystem::ValidateReservationSkill(AActor* Actor, FName Skill
 		return false;
 	}
 
-	USkillComponent* Skill = Actor ? Actor->FindComponentByClass<USkillComponent>() : nullptr;
+	UJRPGSkillComponent* Skill = Actor ? Actor->FindComponentByClass<UJRPGSkillComponent>() : nullptr;
 	if (!Skill)
 	{
 		OutReason = FJRPGReason::Make("Tactical.NoSkillComponent");
@@ -202,7 +202,7 @@ bool UTacticalModeSubsystem::ValidateReservationSkill(AActor* Actor, FName Skill
 	return true;
 }
 
-FJRPGOpResult UTacticalModeSubsystem::SetReservation(AActor* Actor, FName SkillId, const FTacticalTargetSnapshot& Target)
+FJRPGOpResult UCombatTacticalModeSubsystem::SetReservation(AActor* Actor, FName SkillId, const FTacticalTargetSnapshot& Target)
 {
 	FJRPGReason Reason;
 
@@ -249,7 +249,7 @@ FJRPGOpResult UTacticalModeSubsystem::SetReservation(AActor* Actor, FName SkillI
 	return FJRPGOpResult::Ok();
 }
 
-FJRPGOpResult UTacticalModeSubsystem::ClearReservation(AActor* Actor, FName /*ReasonTag*/)
+FJRPGOpResult UCombatTacticalModeSubsystem::ClearReservation(AActor* Actor, FName /*ReasonTag*/)
 {
 	if (!Actor)
 		return FJRPGOpResult::Fail(EJRPGResultCode::Invalid, FJRPGReason::Make("Tactical.Clear.ActorNull"));
@@ -262,7 +262,7 @@ FJRPGOpResult UTacticalModeSubsystem::ClearReservation(AActor* Actor, FName /*Re
 	return FJRPGOpResult::Ok();
 }
 
-void UTacticalModeSubsystem::ClearAllReservations(FName /*ReasonTag*/)
+void UCombatTacticalModeSubsystem::ClearAllReservations(FName /*ReasonTag*/)
 {
 	for (const auto& It : Reservations)
 	{
@@ -275,7 +275,7 @@ void UTacticalModeSubsystem::ClearAllReservations(FName /*ReasonTag*/)
 	Reservations.Reset();
 }
 
-bool UTacticalModeSubsystem::GetReservation(AActor* Actor, FTacticalReservation& OutRes) const
+bool UCombatTacticalModeSubsystem::GetReservation(AActor* Actor, FTacticalReservation& OutRes) const
 {
 	if (!Actor) return false;
 
@@ -287,7 +287,7 @@ bool UTacticalModeSubsystem::GetReservation(AActor* Actor, FTacticalReservation&
 	return false;
 }
 
-void UTacticalModeSubsystem::SetReservationFlags(AActor* Actor, ETacticalReservationFlags Flags)
+void UCombatTacticalModeSubsystem::SetReservationFlags(AActor* Actor, ETacticalReservationFlags Flags)
 {
 	if (!Actor) return;
 
@@ -301,17 +301,17 @@ void UTacticalModeSubsystem::SetReservationFlags(AActor* Actor, ETacticalReserva
 	}
 }
 
-bool UTacticalModeSubsystem::IsReservationTargetInvalid(AActor* Target)
+bool UCombatTacticalModeSubsystem::IsReservationTargetInvalid(AActor* Target)
 {
 	if (!Target) return true;
-	if (UHPComponent* HP = Target->FindComponentByClass<UHPComponent>())
+	if (UCombatHPComponent* HP = Target->FindComponentByClass<UCombatHPComponent>())
 	{
 		return HP->IsDead();
 	}
 	return false;
 }
 
-void UTacticalModeSubsystem::TickDuration(double NowReal)
+void UCombatTacticalModeSubsystem::TickDuration(double NowReal)
 {
 	if (State != ETacticalState::Active) return;
 
@@ -322,9 +322,9 @@ void UTacticalModeSubsystem::TickDuration(double NowReal)
 	}
 }
 
-void UTacticalModeSubsystem::HandleBattlePhaseChanged()
+void UCombatTacticalModeSubsystem::HandleBattlePhaseChanged()
 {
-	UBattleSessionSubsystem* Battle = GetBattleSession();
+	UCombatBattleSessionSubsystem* Battle = GetBattleSession();
 	const bool bActive = Battle && Battle->IsCombatRunning();
 
 	if (WasBattleActiveLastTick && !bActive)
@@ -344,7 +344,7 @@ void UTacticalModeSubsystem::HandleBattlePhaseChanged()
 }
 
 // ---------- UI Query API ----------
-float UTacticalModeSubsystem::GetElapsedRealSec() const
+float UCombatTacticalModeSubsystem::GetElapsedRealSec() const
 {
 	if (!GetWorld()) return 0.f;
 	if (State != ETacticalState::Active) return 0.f;
@@ -353,7 +353,7 @@ float UTacticalModeSubsystem::GetElapsedRealSec() const
 	return (float)FMath::Max(0.0, Now - ActiveStartReal);
 }
 
-float UTacticalModeSubsystem::GetRemainingRealSec() const
+float UCombatTacticalModeSubsystem::GetRemainingRealSec() const
 {
 	if (!GetWorld()) return 0.f;
 	if (State != ETacticalState::Active) return 0.f;
@@ -362,14 +362,14 @@ float UTacticalModeSubsystem::GetRemainingRealSec() const
 	return FMath::Max(0.f, Settings.TacticalMaxDurationRealSec - Elapsed);
 }
 
-float UTacticalModeSubsystem::GetNormalized01() const
+float UCombatTacticalModeSubsystem::GetNormalized01() const
 {
 	if (State != ETacticalState::Active) return 0.f;
 	const float MaxD = FMath::Max(0.001f, Settings.TacticalMaxDurationRealSec);
 	return FMath::Clamp(GetElapsedRealSec() / MaxD, 0.f, 1.f);
 }
 
-bool UTacticalModeSubsystem::GetReservationView(AActor* Actor, FTacticalReservationView& Out) const
+bool UCombatTacticalModeSubsystem::GetReservationView(AActor* Actor, FTacticalReservationView& Out) const
 {
 	if (!Actor) return false;
 
@@ -390,7 +390,7 @@ bool UTacticalModeSubsystem::GetReservationView(AActor* Actor, FTacticalReservat
 	return true;
 }
 
-void UTacticalModeSubsystem::GetReservationsForUI(TArray<FTacticalReservationView>& Out) const
+void UCombatTacticalModeSubsystem::GetReservationsForUI(TArray<FTacticalReservationView>& Out) const
 {
 	Out.Reset();
 	Out.Reserve(Reservations.Num());
@@ -418,7 +418,7 @@ void UTacticalModeSubsystem::GetReservationsForUI(TArray<FTacticalReservationVie
 	});
 }
 
-void UTacticalModeSubsystem::Tick(float DeltaTime)
+void UCombatTacticalModeSubsystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 

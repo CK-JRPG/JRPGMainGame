@@ -1,12 +1,12 @@
-﻿#include "Combat/Stats/APComponent.h"
+﻿#include "Combat/Stats/CombatAPComponent.h"
 
-UAPComponent::UAPComponent()
+UCombatAPComponent::UCombatAPComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
-void UAPComponent::BeginPlay()
+void UCombatAPComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	CurrentAP = FMath::Clamp(CurrentAP, 0, MaxAP);
@@ -14,13 +14,13 @@ void UAPComponent::BeginPlay()
 	OnAPChanged.Broadcast(CurrentAP, MaxAP);
 }
 
-void UAPComponent::SetFullAP()
+void UCombatAPComponent::SetFullAP()
 {
 	CurrentAP = MaxAP;
 	OnAPChanged.Broadcast(CurrentAP, MaxAP);
 }
 
-FJRPGOpResult UAPComponent::Spend(int32 Cost, FName /*ReasonTag*/)
+FJRPGOpResult UCombatAPComponent::Spend(int32 Cost, FName /*ReasonTag*/)
 {
 	if (Cost <= 0) return FJRPGOpResult::Fail(EJRPGResultCode::Invalid, FJRPGReason::Make("AP.InvalidCost"));
 	if (CurrentAP < Cost) return FJRPGOpResult::Fail(EJRPGResultCode::Rejected, FJRPGReason::Make("AP.NotEnough"));
@@ -30,7 +30,7 @@ FJRPGOpResult UAPComponent::Spend(int32 Cost, FName /*ReasonTag*/)
 	return FJRPGOpResult::Ok();
 }
 
-FJRPGOpResult UAPComponent::Gain(int32 Amount, FName /*ReasonTag*/)
+FJRPGOpResult UCombatAPComponent::Gain(int32 Amount, FName /*ReasonTag*/)
 {
 	if (Amount <= 0) return FJRPGOpResult::Fail(EJRPGResultCode::Invalid, FJRPGReason::Make("AP.InvalidAmount"));
 
@@ -39,7 +39,7 @@ FJRPGOpResult UAPComponent::Gain(int32 Amount, FName /*ReasonTag*/)
 	return FJRPGOpResult::Ok();
 }
 
-void UAPComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UCombatAPComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 

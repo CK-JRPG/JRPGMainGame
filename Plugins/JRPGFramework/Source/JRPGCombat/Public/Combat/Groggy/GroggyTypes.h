@@ -1,16 +1,16 @@
 ﻿#pragma once
 
-#include"CoreMinimal.h"
-#include"Engine/DataAsset.h"
-#include"GameplayTagContainer.h"
-#include"GroggyTypes.generated.h"
+#include "CoreMinimal.h"
+#include "Engine/DataAsset.h"
+#include "GameplayTagContainer.h"
+#include "GroggyTypes.generated.h"
 
 UENUM(BlueprintType)
-enum class EGroggyPhase :uint8
+enum class EGroggyPhase : uint8
 {
-  Normal  UMETA(DisplayName="Normal"),
-  Stunned UMETA(DisplayName="Stunned"),
-  Rising  UMETA(DisplayName="Rising"),
+  Normal  UMETA(DisplayName ="Normal"),
+  Stunned UMETA(DisplayName ="Stunned"),
+  Rising  UMETA(DisplayName ="Rising"),
 };
 
 USTRUCT(BlueprintType)

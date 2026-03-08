@@ -1,21 +1,21 @@
-﻿#include "Combat/Stats/HPComponent.h"
+﻿#include "Combat/Stats/CombatHPComponent.h"
 
 #include "Combat/Core/CombatLog.h"
-#include "Combat/Infrastructure/BattleSessionSubsystem.h"
+#include "Combat/Infrastructure/CombatBattleSessionSubsystem.h"
 
-#include "Combat/Movement/CombatMotionComponent.h"
+#include "Combat/Movement/JRPGCombatMotionComponent.h"
 #include "Combat/Status/StatusComponent.h"
-#include "Combat/Groggy/GroggyComponent.h"
-#include "Combat/Threat/ThreatComponent.h"
+#include "Combat/Groggy/CombatGroggyComponent.h"
+#include "Combat/Threat/CombatThreatComponent.h"
 
 #include "Combat/SP/SPEventRouterSubsystem.h" // optional router
 
-UHPComponent::UHPComponent()
+UCombatHPComponent::UCombatHPComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UHPComponent::BeginPlay()
+void UCombatHPComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	CacheOptionalComponents();
@@ -24,24 +24,24 @@ void UHPComponent::BeginPlay()
 	OnHPChanged.Broadcast(CurrentHP, MaxHP);
 }
 
-void UHPComponent::CacheOptionalComponents()
+void UCombatHPComponent::CacheOptionalComponents()
 {
 	if (!GetOwner()) return;
 
-	CombatMotion = GetOwner()->FindComponentByClass<UCombatMotionComponent>();
+	CombatMotion = GetOwner()->FindComponentByClass<UJRPGCombatMotionComponent>();
 	Status = GetOwner()->FindComponentByClass<UStatusComponent>();
 	Groggy = GetOwner()->FindComponentByClass<UGroggyComponent>();
-	Threat = GetOwner()->FindComponentByClass<UThreatComponent>();
+	Threat = GetOwner()->FindComponentByClass<UCombatThreatComponent>();
 }
 
-void UHPComponent::SetFullHP()
+void UCombatHPComponent::SetFullHP()
 {
 	bDead = false;
 	CurrentHP = MaxHP;
 	OnHPChanged.Broadcast(CurrentHP, MaxHP);
 }
 
-void UHPComponent::SetHP(float NewHP)
+void UCombatHPComponent::SetHP(float NewHP)
 {
 	const float Old = CurrentHP;
 	const float MaxAllowed = bCanOverheal ? MaxHP * FMath::Max(1.f, OverhealMaxMultiplier) : MaxHP;
@@ -55,7 +55,7 @@ void UHPComponent::SetHP(float NewHP)
 	}
 }
 
-bool UHPComponent::CheckCombatActiveIfRequired(const FCombatDamageSpec& Spec, FJRPGReason& OutReason) const
+bool UCombatHPComponent::CheckCombatActiveIfRequired(const FCombatDamageSpec& Spec, FJRPGReason& OutReason) const
 {
 	if (!Spec.bRequireCombatActive) return true;
 
@@ -66,7 +66,7 @@ bool UHPComponent::CheckCombatActiveIfRequired(const FCombatDamageSpec& Spec, FJ
 		return false;
 	}
 
-	if (UBattleSessionSubsystem* Battle = W->GetSubsystem<UBattleSessionSubsystem>())
+	if (UCombatBattleSessionSubsystem* Battle = W->GetSubsystem<UCombatBattleSessionSubsystem>())
 	{
 		if (!Battle->IsCombatRunning())
 		{
@@ -81,9 +81,9 @@ bool UHPComponent::CheckCombatActiveIfRequired(const FCombatDamageSpec& Spec, FJ
 	return false;
 }
 
-FCombatDamageResult UHPComponent::ApplyDamageSpec(const FCombatDamageSpec& Spec)
+FCombatDamageResult UCombatHPComponent::ApplyDamageSpec(const FCombatDamageSpec& Spec)
 {
-	if (UBattleSessionSubsystem* Session = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+	if (UCombatBattleSessionSubsystem* Session = GetWorld()->GetSubsystem<UCombatBattleSessionSubsystem>())
 	{
 		if (Session->ShouldGateEnemyToAlly(Spec.Instigator, GetOwner()))
 		{
@@ -150,7 +150,7 @@ FCombatDamageResult UHPComponent::ApplyDamageSpec(const FCombatDamageSpec& Spec)
 	return Result;
 }
 
-FCombatDamageResult UHPComponent::ApplyDamageInternal(const FCombatDamageSpec& Spec)
+FCombatDamageResult UCombatHPComponent::ApplyDamageInternal(const FCombatDamageSpec& Spec)
 {
 	FCombatDamageResult R;
 	R.OldValue = CurrentHP;
@@ -172,7 +172,7 @@ FCombatDamageResult UHPComponent::ApplyDamageInternal(const FCombatDamageSpec& S
 	return R;
 }
 
-FCombatDamageResult UHPComponent::ApplyHealInternal(const FCombatDamageSpec& Spec)
+FCombatDamageResult UCombatHPComponent::ApplyHealInternal(const FCombatDamageSpec& Spec)
 {
 	FCombatDamageResult R;
 	R.OldValue = CurrentHP;
@@ -190,7 +190,7 @@ FCombatDamageResult UHPComponent::ApplyHealInternal(const FCombatDamageSpec& Spe
 	return R;
 }
 
-void UHPComponent::Kill(AActor* Killer, FName ReasonTag)
+void UCombatHPComponent::Kill(AActor* Killer, FName ReasonTag)
 {
 	bDead = true;
 	CurrentHP = 0.f;
@@ -204,7 +204,7 @@ void UHPComponent::Kill(AActor* Killer, FName ReasonTag)
 	OnDied.Broadcast(Killer, ReasonTag);
 }
 
-void UHPComponent::ApplyHitReactionIfNeeded(const FCombatDamageSpec& Spec)
+void UCombatHPComponent::ApplyHitReactionIfNeeded(const FCombatDamageSpec& Spec)
 {
 	if (!Spec.bRequestHitMotion) return;
 	if (!CombatMotion) return;
@@ -279,7 +279,7 @@ void UHPComponent::ApplyHitReactionIfNeeded(const FCombatDamageSpec& Spec)
 	CombatMotion->RequestCombatMotion(Req);
 }
 
-void UHPComponent::ApplyStatusIfNeeded(const FCombatDamageSpec& Spec)
+void UCombatHPComponent::ApplyStatusIfNeeded(const FCombatDamageSpec& Spec)
 {
 	if (!Spec.bApplyStatus) return;
 	if (!Status) return;
@@ -294,7 +294,7 @@ void UHPComponent::ApplyStatusIfNeeded(const FCombatDamageSpec& Spec)
 	Status->ApplyStatus(S);
 }
 
-void UHPComponent::ApplyGroggyIfNeeded(const FCombatDamageSpec& Spec)
+void UCombatHPComponent::ApplyGroggyIfNeeded(const FCombatDamageSpec& Spec)
 {
 	if (!Groggy) return;
 	if (Spec.BreakAmount <= 0.f) return;
@@ -302,7 +302,7 @@ void UHPComponent::ApplyGroggyIfNeeded(const FCombatDamageSpec& Spec)
 	Groggy->AddBreak(Spec.BreakAmount, Spec.SourceTag.IsNone() ? FName("Damage.Break") : Spec.SourceTag);
 }
 
-void UHPComponent::ApplyThreatIfNeeded(const FCombatDamageSpec& Spec)
+void UCombatHPComponent::ApplyThreatIfNeeded(const FCombatDamageSpec& Spec)
 {
 	if (!Threat) return;
 	if (!Spec.Instigator) return;
@@ -311,7 +311,7 @@ void UHPComponent::ApplyThreatIfNeeded(const FCombatDamageSpec& Spec)
 	Threat->AddThreat(Spec.Instigator, Spec.ThreatAmount, Spec.SourceTag.IsNone() ? FName("Threat.Damage") : Spec.SourceTag);
 }
 
-void UHPComponent::RouteSPEvents(const FCombatDamageSpec& Spec, const FCombatDamageResult& Result)
+void UCombatHPComponent::RouteSPEvents(const FCombatDamageSpec& Spec, const FCombatDamageResult& Result)
 {
 	// (1) 라우터 서브시스템이 있으면 그쪽으로
 	if (UWorld* W = GetWorld())

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "SynergyPointTypes.generated.h"
+#include "JRPGSynergyPointTypes.generated.h"
 
 /**
  * 문서 8.1 Core Structs (SSOT)

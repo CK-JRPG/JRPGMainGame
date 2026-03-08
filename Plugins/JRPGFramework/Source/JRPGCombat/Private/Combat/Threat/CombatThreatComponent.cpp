@@ -1,19 +1,19 @@
-#include "Combat/Threat/ThreatComponent.h"
+#include "Combat/Threat/CombatThreatComponent.h"
 
 #include "Combat/Threat/ThreatConfigDataAsset.h"
-#include "Combat/Stats/HPComponent.h"
+#include "Combat/Stats/CombatHPComponent.h"
 
 #include "Engine/World.h"
 #include "TimerManager.h"
-#include "Combat/Infrastructure/SynergyPointSubsystem.h"
+#include "Combat/Infrastructure/CombatSynergyPointSubsystem.h"
 
-UThreatComponent::UThreatComponent()
+UCombatThreatComponent::UCombatThreatComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
-void UThreatComponent::BeginPlay()
+void UCombatThreatComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
@@ -21,7 +21,7 @@ void UThreatComponent::BeginPlay()
 	RefreshEffectiveTarget("Threat.BeginPlay");
 }
 
-void UThreatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void UCombatThreatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (UWorld* W = GetWorld())
 	{
@@ -32,13 +32,13 @@ void UThreatComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-const FThreatTuning& UThreatComponent::GetTuning() const
+const FThreatTuning& UCombatThreatComponent::GetTuning() const
 {
 	static FThreatTuning Default;
 	return Config ? Config->Tuning : Default;
 }
 
-float UThreatComponent::ComputeThreatMultiplier(EThreatEventKind Kind) const
+float UCombatThreatComponent::ComputeThreatMultiplier(EThreatEventKind Kind) const
 {
 	const FThreatTuning& T = GetTuning();
 	switch (Kind)
@@ -51,7 +51,7 @@ float UThreatComponent::ComputeThreatMultiplier(EThreatEventKind Kind) const
 	}
 }
 
-FJRPGOpResult UThreatComponent::AddThreat(AActor* Source, float Amount, FName /*ReasonTag*/)
+FJRPGOpResult UCombatThreatComponent::AddThreat(AActor* Source, float Amount, FName /*ReasonTag*/)
 {
 	if (!Source || Amount <= 0.f)
 		return FJRPGOpResult::Fail(EJRPGResultCode::Invalid, FJRPGReason::Make("Threat.InvalidAdd"));
@@ -68,7 +68,7 @@ FJRPGOpResult UThreatComponent::AddThreat(AActor* Source, float Amount, FName /*
 	return FJRPGOpResult::Ok();
 }
 
-FJRPGOpResult UThreatComponent::ReportThreatEvent(const FThreatEvent& Ev)
+FJRPGOpResult UCombatThreatComponent::ReportThreatEvent(const FThreatEvent& Ev)
 {
 	if (!Ev.Source || Ev.BaseAmount <= 0.f)
 		return FJRPGOpResult::Fail(EJRPGResultCode::Invalid, FJRPGReason::Make("Threat.InvalidEvent"));
@@ -78,7 +78,7 @@ FJRPGOpResult UThreatComponent::ReportThreatEvent(const FThreatEvent& Ev)
 	return AddThreat(Ev.Source, Final, Ev.SourceTag);
 }
 
-FJRPGOpResult UThreatComponent::ClearThreat(AActor* Source, FName /*ReasonTag*/)
+FJRPGOpResult UCombatThreatComponent::ClearThreat(AActor* Source, FName /*ReasonTag*/)
 {
 	if (!Source)
 		return FJRPGOpResult::Fail(EJRPGResultCode::Invalid, FJRPGReason::Make("Threat.Clear.Invalid"));
@@ -92,14 +92,14 @@ FJRPGOpResult UThreatComponent::ClearThreat(AActor* Source, FName /*ReasonTag*/)
 	return FJRPGOpResult::Ok();
 }
 
-void UThreatComponent::ClearAllThreat(FName /*ReasonTag*/)
+void UCombatThreatComponent::ClearAllThreat(FName /*ReasonTag*/)
 {
 	ThreatTable.Reset();
 	OnThreatTableChanged.Broadcast(GetOwner());
 	SetCurrentTarget(nullptr, "Threat.ClearAll");
 }
 
-FJRPGOpResult UThreatComponent::ForceTarget(AActor* Target, float DurationSec, FName /*ReasonTag*/)
+FJRPGOpResult UCombatThreatComponent::ForceTarget(AActor* Target, float DurationSec, FName /*ReasonTag*/)
 {
 	if (!Target)
 		return FJRPGOpResult::Fail(EJRPGResultCode::Invalid, FJRPGReason::Make("Threat.Force.InvalidTarget"));
@@ -112,13 +112,13 @@ FJRPGOpResult UThreatComponent::ForceTarget(AActor* Target, float DurationSec, F
 		W->GetTimerManager().ClearTimer(ForcedTargetTimer);
 		if (DurationSec > 0.f)
 		{
-			W->GetTimerManager().SetTimer(ForcedTargetTimer, this, &UThreatComponent::OnForcedTargetExpired, DurationSec, false);
+			W->GetTimerManager().SetTimer(ForcedTargetTimer, this, &UCombatThreatComponent::OnForcedTargetExpired, DurationSec, false);
 		}
 	}
 	return FJRPGOpResult::Ok();
 }
 
-void UThreatComponent::ClearForcedTarget(FName /*ReasonTag*/)
+void UCombatThreatComponent::ClearForcedTarget(FName /*ReasonTag*/)
 {
 	if (UWorld* W = GetWorld())
 	{
@@ -129,7 +129,7 @@ void UThreatComponent::ClearForcedTarget(FName /*ReasonTag*/)
 	RecomputeTargetIfNeeded((float)FPlatformTime::Seconds());
 }
 
-FJRPGOpResult UThreatComponent::LockTarget(float DurationSec, FName /*ReasonTag*/)
+FJRPGOpResult UCombatThreatComponent::LockTarget(float DurationSec, FName /*ReasonTag*/)
 {
 	bTargetLocked = true;
 
@@ -138,13 +138,13 @@ FJRPGOpResult UThreatComponent::LockTarget(float DurationSec, FName /*ReasonTag*
 		W->GetTimerManager().ClearTimer(LockTimer);
 		if (DurationSec > 0.f)
 		{
-			W->GetTimerManager().SetTimer(LockTimer, this, &UThreatComponent::OnLockExpired, DurationSec, false);
+			W->GetTimerManager().SetTimer(LockTimer, this, &UCombatThreatComponent::OnLockExpired, DurationSec, false);
 		}
 	}
 	return FJRPGOpResult::Ok();
 }
 
-void UThreatComponent::ClearLock(FName /*ReasonTag*/)
+void UCombatThreatComponent::ClearLock(FName /*ReasonTag*/)
 {
 	if (UWorld* W = GetWorld())
 	{
@@ -155,17 +155,17 @@ void UThreatComponent::ClearLock(FName /*ReasonTag*/)
 	RecomputeTargetIfNeeded((float)FPlatformTime::Seconds());
 }
 
-void UThreatComponent::OnForcedTargetExpired()
+void UCombatThreatComponent::OnForcedTargetExpired()
 {
 	ClearForcedTarget("Threat.ForceExpired");
 }
 
-void UThreatComponent::OnLockExpired()
+void UCombatThreatComponent::OnLockExpired()
 {
 	ClearLock("Threat.LockExpired");
 }
 
-float UThreatComponent::GetThreat(AActor* Source) const
+float UCombatThreatComponent::GetThreat(AActor* Source) const
 {
 	if (!Source) return 0.f;
 	if (const FThreatEntryRuntime* E = ThreatTable.Find(Source))
@@ -173,7 +173,7 @@ float UThreatComponent::GetThreat(AActor* Source) const
 	return 0.f;
 }
 
-TArray<FThreatEntryRuntime> UThreatComponent::DebugGetThreatEntries(TArray<AActor*>& OutSources) const
+TArray<FThreatEntryRuntime> UCombatThreatComponent::DebugGetThreatEntries(TArray<AActor*>& OutSources) const
 {
 	OutSources.Reset();
 	TArray<FThreatEntryRuntime> Out;
@@ -189,17 +189,17 @@ TArray<FThreatEntryRuntime> UThreatComponent::DebugGetThreatEntries(TArray<AActo
 	return Out;
 }
 
-bool UThreatComponent::IsDeadActor(AActor* A) const
+bool UCombatThreatComponent::IsDeadActor(AActor* A) const
 {
 	if (!A) return true;
-	if (const UHPComponent* HP = A->FindComponentByClass<UHPComponent>())
+	if (const UCombatHPComponent* HP = A->FindComponentByClass<UCombatHPComponent>())
 	{
 		return HP->IsDead();
 	}
 	return false;
 }
 
-float UThreatComponent::DistanceMultiplier(AActor* Source) const
+float UCombatThreatComponent::DistanceMultiplier(AActor* Source) const
 {
 	const FThreatTuning& T = GetTuning();
 	if (!T.bUseDistanceWeight) return 1.f;
@@ -215,7 +215,7 @@ float UThreatComponent::DistanceMultiplier(AActor* Source) const
 	return FMath::Clamp(M, T.MinDistanceMultiplier, 1.f);
 }
 
-bool UThreatComponent::HasLineOfSightTo(AActor* Source) const
+bool UCombatThreatComponent::HasLineOfSightTo(AActor* Source) const
 {
 	const FThreatTuning& T = GetTuning();
 	if (!T.bUseLineOfSight) return true;
@@ -239,7 +239,7 @@ bool UThreatComponent::HasLineOfSightTo(AActor* Source) const
 	return false;
 }
 
-float UThreatComponent::ComputeScoreFor(AActor* Source) const
+float UCombatThreatComponent::ComputeScoreFor(AActor* Source) const
 {
 	const FThreatEntryRuntime* E = ThreatTable.Find(Source);
 	if (!E) return 0.f;
@@ -258,7 +258,7 @@ float UThreatComponent::ComputeScoreFor(AActor* Source) const
 	return Score;
 }
 
-void UThreatComponent::SetCurrentTarget(AActor* NewTarget, FName /*ReasonTag*/)
+void UCombatThreatComponent::SetCurrentTarget(AActor* NewTarget, FName /*ReasonTag*/)
 {
 	AActor* Old = CurrentTarget.Get();
 	if (Old == NewTarget) return;
@@ -268,7 +268,7 @@ void UThreatComponent::SetCurrentTarget(AActor* NewTarget, FName /*ReasonTag*/)
 	
 	if (UWorld*W =GetWorld())
 	{
-		if (USynergyPointSubsystem *SP =W->GetSubsystem<USynergyPointSubsystem>())
+		if (UCombatSynergyPointSubsystem *SP =W->GetSubsystem<UCombatSynergyPointSubsystem>())
 		{
 			SP->NotifyEnemyTargetChanged(GetOwner(),Old,NewTarget);
 		}
@@ -277,7 +277,7 @@ void UThreatComponent::SetCurrentTarget(AActor* NewTarget, FName /*ReasonTag*/)
 	RefreshEffectiveTarget("Threat.TargetChanged");
 }
 
-void UThreatComponent::RefreshEffectiveTarget(FName /*ReasonTag*/)
+void UCombatThreatComponent::RefreshEffectiveTarget(FName /*ReasonTag*/)
 {
 	// ForcedTarget 우선
 	if (ForcedTarget.IsValid() && !IsDeadActor(ForcedTarget.Get()))
@@ -288,7 +288,7 @@ void UThreatComponent::RefreshEffectiveTarget(FName /*ReasonTag*/)
 	EffectiveTarget = CurrentTarget;
 }
 
-void UThreatComponent::TickDecayAndCleanup(float RealDelta)
+void UCombatThreatComponent::TickDecayAndCleanup(float RealDelta)
 {
 	const FThreatTuning& T = GetTuning();
 
@@ -341,7 +341,7 @@ void UThreatComponent::TickDecayAndCleanup(float RealDelta)
 	}
 }
 
-void UThreatComponent::RecomputeTargetIfNeeded(float NowRealTime)
+void UCombatThreatComponent::RecomputeTargetIfNeeded(float NowRealTime)
 {
 	// ForcedTarget이 있으면 CurrentTarget은 참고용
 	if (ForcedTarget.IsValid())
@@ -410,7 +410,7 @@ void UThreatComponent::RecomputeTargetIfNeeded(float NowRealTime)
 	}
 }
 
-void UThreatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UCombatThreatComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 

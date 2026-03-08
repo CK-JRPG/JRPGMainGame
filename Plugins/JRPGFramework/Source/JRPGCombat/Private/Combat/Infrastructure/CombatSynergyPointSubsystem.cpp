@@ -1,12 +1,12 @@
-#include "Combat/Infrastructure/SynergyPointSubsystem.h"
+#include "Combat/Infrastructure/CombatSynergyPointSubsystem.h"
 
 #include "Combat/SP/SynergyPointSettingsDataAsset.h"
 #include "Combat/Core/CombatRoleComponent.h"
-#include "Combat/Infrastructure/BattleSessionSubsystem.h"
+#include "Combat/Infrastructure/CombatBattleSessionSubsystem.h"
 
 #include "Engine/World.h"
 
-void USynergyPointSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+void UCombatSynergyPointSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
@@ -27,7 +27,7 @@ void USynergyPointSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	DamageWindowByInstigator.Reset();
 }
 
-void USynergyPointSubsystem::Deinitialize()
+void UCombatSynergyPointSubsystem::Deinitialize()
 {
 	LastEventRealTimeByKey.Reset();
 	AggroHoldByEnemy.Reset();
@@ -36,11 +36,11 @@ void USynergyPointSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
-bool USynergyPointSubsystem::IsBattleActive() const
+bool UCombatSynergyPointSubsystem::IsBattleActive() const
 {
 	if (UWorld* W = GetWorld())
 	{
-		if (UBattleSessionSubsystem* Battle = W->GetSubsystem<UBattleSessionSubsystem>())
+		if (UCombatBattleSessionSubsystem* Battle = W->GetSubsystem<UCombatBattleSessionSubsystem>())
 		{
 			return Battle->IsCombatRunning();
 		}
@@ -48,7 +48,7 @@ bool USynergyPointSubsystem::IsBattleActive() const
 	return false;
 }
 
-int32 USynergyPointSubsystem::ComputeBaseGain(ESPEventType Type) const
+int32 UCombatSynergyPointSubsystem::ComputeBaseGain(ESPEventType Type) const
 {
 	switch (Type)
 	{
@@ -65,7 +65,7 @@ int32 USynergyPointSubsystem::ComputeBaseGain(ESPEventType Type) const
 	}
 }
 
-ECombatRole USynergyPointSubsystem::GetRoleOf(AActor* Actor) const
+ECombatRole UCombatSynergyPointSubsystem::GetRoleOf(AActor* Actor) const
 {
 	if (!Actor) return ECombatRole::Unknown;
 	if (const UCombatRoleComponent* R = Actor->FindComponentByClass<UCombatRoleComponent>())
@@ -79,7 +79,7 @@ ECombatRole USynergyPointSubsystem::GetRoleOf(AActor* Actor) const
 	return ECombatRole::Unknown;
 }
 
-FName USynergyPointSubsystem::MakeCooldownKey(const FSPGainEvent& E, FName ReasonTag) const
+FName UCombatSynergyPointSubsystem::MakeCooldownKey(const FSPGainEvent& E, FName ReasonTag) const
 {
 	// 동일 이벤트 억제: (Type + Role + Instigator) 기준
 	const FString Key = FString::Printf(TEXT("SPCD.%d.%d.%s.%s"),
@@ -90,7 +90,7 @@ FName USynergyPointSubsystem::MakeCooldownKey(const FSPGainEvent& E, FName Reaso
 	return FName(*Key);
 }
 
-bool USynergyPointSubsystem::PassSameEventCooldown(const FSPGainEvent& E, FName ReasonTag)
+bool UCombatSynergyPointSubsystem::PassSameEventCooldown(const FSPGainEvent& E, FName ReasonTag)
 {
 	// 반복 억제는 “RoleBonus가 큰 이벤트” 위주로 적용(문서 5.4 예: AggroHold 3초마다 1회)
 	const bool bCooldownType =
@@ -117,7 +117,7 @@ bool USynergyPointSubsystem::PassSameEventCooldown(const FSPGainEvent& E, FName 
 	return true;
 }
 
-int32 USynergyPointSubsystem::ApplyTacticalBonus(int32 RoleBonus, bool bFromTactical) const
+int32 UCombatSynergyPointSubsystem::ApplyTacticalBonus(int32 RoleBonus, bool bFromTactical) const
 {
 	if (!bFromTactical || RoleBonus <= 0) return 0;
 
@@ -129,7 +129,7 @@ int32 USynergyPointSubsystem::ApplyTacticalBonus(int32 RoleBonus, bool bFromTact
 	return Extra + Settings.TacticalFlatBonus;
 }
 
-int32 USynergyPointSubsystem::ApplyPerSecondCap(int32 ProposedGain, double NowReal)
+int32 UCombatSynergyPointSubsystem::ApplyPerSecondCap(int32 ProposedGain, double NowReal)
 {
 	// 문서 5.4: 초당 획득량 상한
 	if (Settings.SPMaxGainPerSec <= 0) return ProposedGain;
@@ -146,7 +146,7 @@ int32 USynergyPointSubsystem::ApplyPerSecondCap(int32 ProposedGain, double NowRe
 	return Clamped;
 }
 
-int32 USynergyPointSubsystem::ComputeRoleBonus(FSPGainEvent& InOutEvent)
+int32 UCombatSynergyPointSubsystem::ComputeRoleBonus(FSPGainEvent& InOutEvent)
 {
 	// Outcome 기반 판정(문서 5.2)
 	switch (InOutEvent.Role)
@@ -240,7 +240,7 @@ int32 USynergyPointSubsystem::ComputeRoleBonus(FSPGainEvent& InOutEvent)
 	}
 }
 
-void USynergyPointSubsystem::ApplyGainInternal(FSPGainEvent& Snapshot, int32 TotalGain, FName ReasonTag)
+void UCombatSynergyPointSubsystem::ApplyGainInternal(FSPGainEvent& Snapshot, int32 TotalGain, FName ReasonTag)
 {
 	const int32 Prev = State.CurrentSP;
 
@@ -261,7 +261,7 @@ void USynergyPointSubsystem::ApplyGainInternal(FSPGainEvent& Snapshot, int32 Tot
 	UpdateReady();
 }
 
-void USynergyPointSubsystem::UpdateReady()
+void UCombatSynergyPointSubsystem::UpdateReady()
 {
 	const bool bPrev = State.bChainReady;
 	State.bChainReady = (State.CurrentSP >= State.SPCap);
@@ -272,7 +272,7 @@ void USynergyPointSubsystem::UpdateReady()
 	}
 }
 
-bool USynergyPointSubsystem::SubmitGainEvent(const FSPGainEvent& InEvent, FName ReasonTag)
+bool UCombatSynergyPointSubsystem::SubmitGainEvent(const FSPGainEvent& InEvent, FName ReasonTag)
 {
 	// 문서 3.2: 세션 Active 에서만 획득
 	if (!IsBattleActive())
@@ -316,7 +316,7 @@ bool USynergyPointSubsystem::SubmitGainEvent(const FSPGainEvent& InEvent, FName 
 	return true;
 }
 
-void USynergyPointSubsystem::Reset(FName ReasonTag)
+void UCombatSynergyPointSubsystem::Reset(FName ReasonTag)
 {
 	const int32 Prev = State.CurrentSP;
 	State.CurrentSP = 0;
@@ -341,17 +341,17 @@ void USynergyPointSubsystem::Reset(FName ReasonTag)
 	DamageWindowByInstigator.Reset();
 }
 
-void USynergyPointSubsystem::ResetForChainEnd()
+void UCombatSynergyPointSubsystem::ResetForChainEnd()
 {
 	Reset("SP.Reset.ChainEnd");
 }
 
-void USynergyPointSubsystem::ResetForBattleEnd()
+void UCombatSynergyPointSubsystem::ResetForBattleEnd()
 {
 	Reset("SP.Reset.BattleEnd");
 }
 
-void USynergyPointSubsystem::NotifyEnemyTargetChanged(AActor* Enemy, AActor* OldTarget, AActor* NewTarget)
+void UCombatSynergyPointSubsystem::NotifyEnemyTargetChanged(AActor* Enemy, AActor* OldTarget, AActor* NewTarget)
 {
 	if (!Enemy || !NewTarget) return;
 
@@ -404,7 +404,7 @@ void USynergyPointSubsystem::NotifyEnemyTargetChanged(AActor* Enemy, AActor* Old
 	}
 }
 
-void USynergyPointSubsystem::NotifyVictimStunned(AActor* Victim)
+void UCombatSynergyPointSubsystem::NotifyVictimStunned(AActor* Victim)
 {
 	if (!Victim) return;
 
@@ -438,7 +438,7 @@ void USynergyPointSubsystem::NotifyVictimStunned(AActor* Victim)
 	}
 }
 
-void USynergyPointSubsystem::Tick(float DeltaTime)
+void UCombatSynergyPointSubsystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 

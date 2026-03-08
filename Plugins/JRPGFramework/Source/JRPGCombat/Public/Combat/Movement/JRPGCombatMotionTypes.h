@@ -1,10 +1,10 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "JRPGCoreApiTypes.h"
+#include "JRPGCore/Public/JRPGCoreApiTypes.h"
 #include "Curves/CurveFloat.h"
 #include "Animation/AnimMontage.h"
-#include "CombatMotionTypes.generated.h"
+#include "JRPGCombatMotionTypes.generated.h"
 
 // -------------------------
 // Motion Kind 

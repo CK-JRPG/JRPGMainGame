@@ -1,75 +1,75 @@
-﻿#include"Combat/Skills/SkillComponent.h"
+﻿#include"Combat/Skills/JRPGSkillComponent.h"
 
-#include"Combat/Skills/SkillDataAsset.h"
+#include"Combat/Skills/JRPGSkillDataAsset.h"
 #include"Combat/Skills/SkillExecutor.h"
 
 #include"Combat/Tactical/TacticalTypes.h"
-#include"Combat/Infrastructure/TacticalModeSubsystem.h"
-#include"Combat/Stats/APComponent.h"
-#include"Combat/Stats/HPComponent.h"
+#include"Combat/Infrastructure/CombatTacticalModeSubsystem.h"
+#include"Combat/Stats/CombatAPComponent.h"
+#include"Combat/Stats/CombatHPComponent.h"
 #include"Combat/Status/StatusComponent.h"
 
-USkillComponent::USkillComponent()
+UJRPGSkillComponent::UJRPGSkillComponent()
 {
 PrimaryComponentTick.bCanEverTick =true;
 PrimaryComponentTick.TickGroup =TG_PrePhysics;
 }
 
-const USkillDataAsset* USkillComponent::GetSkillAsset(FName SkillId) const
+const UJRPGSkillDataAsset* UJRPGSkillComponent::GetSkillAsset(FName SkillId) const
 {
 	return FindSkill(SkillId);
 }
 
-void USkillComponent::BeginPlay()
+void UJRPGSkillComponent::BeginPlay()
 {
 	Super::BeginPlay();
 LastRealTime = FPlatformTime::Seconds();
 }
 
-void USkillComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void UJRPGSkillComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 CooldownRemaining.Reset();
 GlobalCooldownRemaining =0.f;
 	Super::EndPlay(EndPlayReason);
 }
 
-const USkillDataAsset* USkillComponent::FindSkill(FName SkillId)const
+const UJRPGSkillDataAsset* UJRPGSkillComponent::FindSkill(FName SkillId)const
 {
-	if (const TObjectPtr<USkillDataAsset>*Found =SkillDB.Find(SkillId))
+	if (const TObjectPtr<UJRPGSkillDataAsset>*Found =SkillDB.Find(SkillId))
 		return Found->Get();
 	return nullptr;
 }
 
-bool USkillComponent::IsOnCooldown(FName SkillId)const
+bool UJRPGSkillComponent::IsOnCooldown(FName SkillId)const
 {
 	const float *Rem =CooldownRemaining.Find(SkillId);
 	return Rem && (*Rem>0.f);
 }
 
-float USkillComponent::GetCooldownRemaining(FName SkillId)const
+float UJRPGSkillComponent::GetCooldownRemaining(FName SkillId)const
 {
 	if (const float*Rem =CooldownRemaining.Find(SkillId))
 		return *Rem;
 	return 0.f;
 }
 
-void USkillComponent::StartCooldown(FName SkillId,float CooldownSec)
+void UJRPGSkillComponent::StartCooldown(FName SkillId,float CooldownSec)
 {
 	if (CooldownSec <= 0.f) return;
 	CooldownRemaining.Add(SkillId,CooldownSec);
 }
 
-void USkillComponent::StartGlobalCooldown(float Sec)
+void UJRPGSkillComponent::StartGlobalCooldown(float Sec)
 {
 	GlobalCooldownRemaining = FMath::Max(GlobalCooldownRemaining,Sec);
 }
 
-FJRPGSkillResult USkillComponent::RequestUseSkill(const FJRPGSkillRequest &Req)
+FJRPGSkillResult UJRPGSkillComponent::RequestUseSkill(const FJRPGSkillRequest &Req)
 {
 	FJRPGSkillResult Result;
 	Result.SkillId = Req.SkillId;
 
-	const USkillDataAsset *Skill = FindSkill(Req.SkillId);
+	const UJRPGSkillDataAsset *Skill = FindSkill(Req.SkillId);
 	if (!Skill)
 	{
 		Result.Op = FJRPGOpResult::Fail(EJRPGResultCode::NotFound, FJRPGReason::Make("Skill.NotFound"));
@@ -95,7 +95,7 @@ FJRPGSkillResult USkillComponent::RequestUseSkill(const FJRPGSkillRequest &Req)
 	return Result;
 }
 
-void USkillComponent::TickCooldowns(float RealDelta)
+void UJRPGSkillComponent::TickCooldowns(float RealDelta)
 {
 	TArray<FName>ToRemove;
 	for (auto&It :CooldownRemaining)
@@ -111,7 +111,7 @@ void USkillComponent::TickCooldowns(float RealDelta)
 		GlobalCooldownRemaining = FMath::Max(0.f,GlobalCooldownRemaining-RealDelta);
 }
 
-bool USkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReason)const
+bool UJRPGSkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReason)const
 {
 	// 문서: 예약 실행 시 CanUse(AP/쿨) 검사 :contentReference[oaicite:36]{index=36}
 	if (SkillId.IsNone())
@@ -120,7 +120,7 @@ bool USkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReason)co
 		return false;
 	}
 
-	const USkillDataAsset*Skill =FindSkill(SkillId);
+	const UJRPGSkillDataAsset*Skill =FindSkill(SkillId);
 	if (!Skill)
 	{
 		OutReason = FJRPGReason::Make("Tactical.SkillNotFound");
@@ -130,7 +130,7 @@ bool USkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReason)co
 	// caster dead
 	if (AActor*Owner =GetOwner())
 	{
-		if (UHPComponent*HP =Owner->FindComponentByClass<UHPComponent>())
+		if (UCombatHPComponent*HP =Owner->FindComponentByClass<UCombatHPComponent>())
 		{
 			if (HP->IsDead())
 			{
@@ -164,7 +164,7 @@ bool USkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReason)co
 		// AP
 		if (Skill->Cost.APCost>0)
 		{
-			if (UAPComponent*AP =Owner->FindComponentByClass<UAPComponent>())
+			if (UCombatAPComponent*AP =Owner->FindComponentByClass<UCombatAPComponent>())
 			{
 				if (!AP->CanSpend(Skill->Cost.APCost))
 				{
@@ -183,12 +183,12 @@ bool USkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReason)co
 	return true;
 }
 
-void USkillComponent::TickTacticalReservation(float RealDelta)
+void UJRPGSkillComponent::TickTacticalReservation(float RealDelta)
 {
 	UWorld *W =GetWorld();
 	if (!W) return;
 
-	UTacticalModeSubsystem *Tactical = W->GetSubsystem<UTacticalModeSubsystem>();
+	UCombatTacticalModeSubsystem *Tactical = W->GetSubsystem<UCombatTacticalModeSubsystem>();
 	if (!Tactical) return;
 
 	FTacticalReservation Res;
@@ -199,7 +199,7 @@ void USkillComponent::TickTacticalReservation(float RealDelta)
 	if (Res.Target.Kind == ETacticalTargetKind::Actor)
 	{
 		AActor*Tgt = Res.Target.TargetActor.Get();
-		if (!Tgt|| UTacticalModeSubsystem::IsReservationTargetInvalid(Tgt))
+		if (!Tgt|| UCombatTacticalModeSubsystem::IsReservationTargetInvalid(Tgt))
 		{
 			Tactical->ClearReservation(GetOwner(),"Tactical.TargetInvalid");
 			return;
@@ -244,7 +244,7 @@ void USkillComponent::TickTacticalReservation(float RealDelta)
 	// 실패면 유지(쿨/AP 충족될 때까지 유지가 핵심) :contentReference[oaicite:42]{index=42}
 }
 
-void USkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+void UJRPGSkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime,TickType,ThisTickFunction);
 

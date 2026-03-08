@@ -2,11 +2,11 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "JRPGCoreApiTypes.h"
-#include "Combat/Skills/SkillTypes.h"
-#include "SkillComponent.generated.h"
+#include "JRPGCore/Public/JRPGCoreApiTypes.h"
+#include "Combat/Skills/JRPGSkillTypes.h"
+#include "JRPGSkillComponent.generated.h"
 
-class USkillDataAsset;
+class UJRPGSkillDataAsset;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSkillExecuted, const FJRPGSkillRequest& /*Req*/, const FJRPGSkillResult& /*Result*/);
 
@@ -16,18 +16,18 @@ DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSkillExecuted, const FJRPGSkillRequest& 
  * - 쿨다운/글로벌 쿨다운 저장소
  */
 UCLASS(ClassGroup=(JRPG), meta=(BlueprintSpawnableComponent))
-class JRPGCOMBAT_API USkillComponent : public UActorComponent
+class JRPGCOMBAT_API UJRPGSkillComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	USkillComponent();
+	UJRPGSkillComponent();
 
 	/** 스킬 DB(간단 버전): SkillId -> DataAsset */
 	UPROPERTY(EditDefaultsOnly, Category="JRPG|Skill")
-	TMap<FName, TObjectPtr<USkillDataAsset>> SkillDB;
+	TMap<FName, TObjectPtr<UJRPGSkillDataAsset>> SkillDB;
 
-	const USkillDataAsset *GetSkillAsset(FName SkillId) const;
+	const UJRPGSkillDataAsset *GetSkillAsset(FName SkillId) const;
 	/** 이벤트 */
 	FOnSkillExecuted OnSkillExecuted;
 
@@ -62,7 +62,7 @@ private:
 	UPROPERTY(Transient)
 	float GlobalCooldownRemaining = 0.f;
 
-	const USkillDataAsset* FindSkill(FName SkillId) const;
+	const UJRPGSkillDataAsset* FindSkill(FName SkillId) const;
 
 	void TickCooldowns(float RealDelta);
 };

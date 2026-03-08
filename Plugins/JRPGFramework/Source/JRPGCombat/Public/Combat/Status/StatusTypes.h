@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "JRPGCoreApiTypes.h"
+#include "JRPGCore/Public/JRPGCoreApiTypes.h"
 #include "StatusTypes.generated.h"
 
 UENUM()

@@ -1,10 +1,10 @@
 ﻿#include "Combat/Integration/CombatMotionEffectBridgeComponent.h"
 
-#include "Combat/Movement/CombatMotionComponent.h"
+#include "Combat/Movement/JRPGCombatMotionComponent.h"
 #include "Combat/Status/StatusComponent.h"
-#include "Combat/Groggy/GroggyComponent.h"
-#include "Combat/Threat/ThreatComponent.h"
-#include "Combat/Infrastructure/SynergyPointSubsystem.h"
+#include "Combat/Groggy/CombatGroggyComponent.h"
+#include "Combat/Threat/CombatThreatComponent.h"
+#include "Combat/Infrastructure/CombatSynergyPointSubsystem.h"
 #include "Combat/Integration/CombatMotionImpactConfigDataAsset.h"
 #include "Combat/SP/SPTypes.h"
 
@@ -17,10 +17,10 @@ void UCombatMotionEffectBridgeComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	Motion = GetOwner() ? GetOwner()->FindComponentByClass<UCombatMotionComponent>() : nullptr;
+	Motion = GetOwner() ? GetOwner()->FindComponentByClass<UJRPGCombatMotionComponent>() : nullptr;
 	Status = GetOwner() ? GetOwner()->FindComponentByClass<UStatusComponent>() : nullptr;
 	Groggy = GetOwner() ? GetOwner()->FindComponentByClass<UGroggyComponent>() : nullptr;
-	Threat = GetOwner() ? GetOwner()->FindComponentByClass<UThreatComponent>() : nullptr;
+	Threat = GetOwner() ? GetOwner()->FindComponentByClass<UCombatThreatComponent>() : nullptr;
 
 	Bind();
 }
@@ -173,7 +173,7 @@ void UCombatMotionEffectBridgeComponent::ApplyImpactRule(ECombatMotionArchetype 
 	{
 		if (UWorld* W = GetWorld())
 		{
-			if (USynergyPointSubsystem* SP = W->GetSubsystem<USynergyPointSubsystem>())
+			if (UCombatSynergyPointSubsystem* SP = W->GetSubsystem<UCombatSynergyPointSubsystem>())
 			{
 				FJRPGSPGainEvent Ev;
 				Ev.Amount = Rule.SPAmount;

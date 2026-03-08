@@ -1,4 +1,4 @@
-﻿#include "Combat/Movement/CombatMotionComponent.h"
+﻿#include "Combat/Movement/JRPGCombatMotionComponent.h"
 
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -8,19 +8,19 @@
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Session/CombatZoneActor.h"
 
-UCombatMotionComponent::UCombatMotionComponent()
+UJRPGCombatMotionComponent::UJRPGCombatMotionComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
-void UCombatMotionComponent::BeginPlay()
+void UJRPGCombatMotionComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	CacheOwnerRefs();
 }
 
-void UCombatMotionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+void UJRPGCombatMotionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	PendingQueue.Reset();
 	DetachOwnerFromTargetIfNeeded();
@@ -30,7 +30,7 @@ void UCombatMotionComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 }
 
-void UCombatMotionComponent::CacheOwnerRefs()
+void UJRPGCombatMotionComponent::CacheOwnerRefs()
 {
 	OwnerCharacter = Cast<ACharacter>(GetOwner());
 	if (!OwnerCharacter)
@@ -48,7 +48,7 @@ void UCombatMotionComponent::CacheOwnerRefs()
 	Locomotion = OwnerCharacter->FindComponentByClass<ULocomotionComponent>();
 }
 
-int32 UCombatMotionComponent::ResolvePriority(const FCombatMotionRequest& Req) const
+int32 UJRPGCombatMotionComponent::ResolvePriority(const FCombatMotionRequest& Req) const
 {
 	if (Req.Priority >= 0) return Req.Priority;
 
@@ -61,25 +61,25 @@ int32 UCombatMotionComponent::ResolvePriority(const FCombatMotionRequest& Req) c
 	}
 }
 
-bool UCombatMotionComponent::IsCCActive() const
+bool UJRPGCombatMotionComponent::IsCCActive() const
 {
 	// 완전 구현(임시): ActorTag 기반
 	return OwnerCharacter && OwnerCharacter->ActorHasTag(TEXT("CC"));
 }
 
-bool UCombatMotionComponent::IsGroggyStunned() const
+bool UJRPGCombatMotionComponent::IsGroggyStunned() const
 {
 	return OwnerCharacter && OwnerCharacter->ActorHasTag(TEXT("Groggy_Stunned"));
 }
 
-bool UCombatMotionComponent::CanRequestDuringCC(const FCombatMotionRequest& Req) const
+bool UJRPGCombatMotionComponent::CanRequestDuringCC(const FCombatMotionRequest& Req) const
 {
 	if (!IsCCActive()) return true;
 	// 기획서: CC 중 SkillMove는 거부, Hit/Grapple은 허용
 	return (Req.Type != ECombatMotionType::SkillMove);
 }
 
-bool UCombatMotionComponent::ValidateRequest(const FCombatMotionRequest& Req, FJRPGReason& OutReason) const
+bool UJRPGCombatMotionComponent::ValidateRequest(const FCombatMotionRequest& Req, FJRPGReason& OutReason) const
 {
 	if (!OwnerCharacter || !CharMove)
 	{
@@ -152,7 +152,7 @@ bool UCombatMotionComponent::ValidateRequest(const FCombatMotionRequest& Req, FJ
 	}
 }
 
-bool UCombatMotionComponent::ShouldReplaceActive(const FCombatMotionRequest& NewReq, int32 NewPriority) const
+bool UJRPGCombatMotionComponent::ShouldReplaceActive(const FCombatMotionRequest& NewReq, int32 NewPriority) const
 {
 	if (!State.ActiveHandle.IsValid()) return true;
 
@@ -177,13 +177,13 @@ bool UCombatMotionComponent::ShouldReplaceActive(const FCombatMotionRequest& New
 	return false;
 }
 
-bool UCombatMotionComponent::ShouldQueueInsteadOfReject(const FCombatMotionRequest& Req) const
+bool UJRPGCombatMotionComponent::ShouldQueueInsteadOfReject(const FCombatMotionRequest& Req) const
 {
 	// SkillMove만 큐잉(기획서 Queued 결과)
 	return Req.Type == ECombatMotionType::SkillMove;
 }
 
-FCombatMotionHandle UCombatMotionComponent::MakeHandle(const FCombatMotionRequest& Req)
+FCombatMotionHandle UJRPGCombatMotionComponent::MakeHandle(const FCombatMotionRequest& Req)
 {
 	FCombatMotionHandle H;
 	H.OwnerTag = Req.OwnerTag.IsNone()
@@ -199,7 +199,7 @@ FCombatMotionHandle UCombatMotionComponent::MakeHandle(const FCombatMotionReques
 // ----------------------------------
 // Public API
 // ----------------------------------
-FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatMotionRequest& Req)
+FCombatMotionResponse UJRPGCombatMotionComponent::RequestCombatMotion(const FCombatMotionRequest& Req)
 {
 	FJRPGReason Reason;
 	if (!ValidateRequest(Req, Reason))
@@ -235,7 +235,7 @@ FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatM
 	return FCombatMotionResponse::Make(ECombatMotionResult::Accepted, H, FJRPGReason::None());
 }
 
-FJRPGOpResult UCombatMotionComponent::CancelCombatMotion(const FCombatMotionHandle& Handle, FName ReasonTag)
+FJRPGOpResult UJRPGCombatMotionComponent::CancelCombatMotion(const FCombatMotionHandle& Handle, FName ReasonTag)
 {
 	if (!Handle.IsValid())
 	{
@@ -264,7 +264,7 @@ FJRPGOpResult UCombatMotionComponent::CancelCombatMotion(const FCombatMotionHand
 	return FJRPGOpResult::Fail(EJRPGResultCode::NotFound, FJRPGReason::Make("Cancel.NotFound"));
 }
 
-FJRPGOpResult UCombatMotionComponent::CancelAllByOwner(FName OwnerTag)
+FJRPGOpResult UJRPGCombatMotionComponent::CancelAllByOwner(FName OwnerTag)
 {
 	if (OwnerTag.IsNone())
 	{
@@ -283,7 +283,7 @@ FJRPGOpResult UCombatMotionComponent::CancelAllByOwner(FName OwnerTag)
 // ----------------------------------
 // CancelPolicy Auto Triggers
 // ----------------------------------
-void UCombatMotionComponent::NotifyExternalHit(FName HitTag)
+void UJRPGCombatMotionComponent::NotifyExternalHit(FName HitTag)
 {
 	if (!State.ActiveHandle.IsValid()) return;
 
@@ -297,7 +297,7 @@ void UCombatMotionComponent::NotifyExternalHit(FName HitTag)
 	}
 }
 
-void UCombatMotionComponent::NotifyExternalCCStateChanged(bool bNowCC)
+void UJRPGCombatMotionComponent::NotifyExternalCCStateChanged(bool bNowCC)
 {
 	if (!State.ActiveHandle.IsValid()) return;
 
@@ -313,7 +313,7 @@ void UCombatMotionComponent::NotifyExternalCCStateChanged(bool bNowCC)
 // ----------------------------------
 // Movement param save/restore
 // ----------------------------------
-void UCombatMotionComponent::SaveMovementParamsIfNeeded()
+void UJRPGCombatMotionComponent::SaveMovementParamsIfNeeded()
 {
 	if (!CharMove || State.bHasSavedMovementParams) return;
 
@@ -323,7 +323,7 @@ void UCombatMotionComponent::SaveMovementParamsIfNeeded()
 	State.bHasSavedMovementParams = true;
 }
 
-void UCombatMotionComponent::RestoreMovementParamsIfNeeded()
+void UJRPGCombatMotionComponent::RestoreMovementParamsIfNeeded()
 {
 	if (!CharMove || !State.bHasSavedMovementParams) return;
 
@@ -337,7 +337,7 @@ void UCombatMotionComponent::RestoreMovementParamsIfNeeded()
 // ----------------------------------
 // Locomotion Lock
 // ----------------------------------
-void UCombatMotionComponent::EnsureLocomotionLocked()
+void UJRPGCombatMotionComponent::EnsureLocomotionLocked()
 {
 	if (!Locomotion) return;
 	if (LocomotionLockHandle.IsValid()) return;
@@ -349,7 +349,7 @@ void UCombatMotionComponent::EnsureLocomotionLocked()
 	}
 }
 
-void UCombatMotionComponent::EnsureLocomotionUnlocked()
+void UJRPGCombatMotionComponent::EnsureLocomotionUnlocked()
 {
 	if (!Locomotion) return;
 	if (!LocomotionLockHandle.IsValid()) return;
@@ -361,7 +361,7 @@ void UCombatMotionComponent::EnsureLocomotionUnlocked()
 // ----------------------------------
 // Grapple Attach
 // ----------------------------------
-bool UCombatMotionComponent::TryAttachOwnerToTarget(AActor* Target, const FName Socket, const FVector& OffsetInTargetSpace)
+bool UJRPGCombatMotionComponent::TryAttachOwnerToTarget(AActor* Target, const FName Socket, const FVector& OffsetInTargetSpace)
 {
 	if (!OwnerCharacter || !Target) return false;
 
@@ -390,7 +390,7 @@ bool UCombatMotionComponent::TryAttachOwnerToTarget(AActor* Target, const FName 
 	return true;
 }
 
-void UCombatMotionComponent::DetachOwnerFromTargetIfNeeded()
+void UJRPGCombatMotionComponent::DetachOwnerFromTargetIfNeeded()
 {
 	if (!OwnerCharacter) return;
 	if (!State.bOwnerAttachedToTarget) return;
@@ -405,7 +405,7 @@ void UCombatMotionComponent::DetachOwnerFromTargetIfNeeded()
 // ----------------------------------
 // Lifecycle
 // ----------------------------------
-void UCombatMotionComponent::StartMotion_Internal(const FCombatMotionRequest& Req, const FCombatMotionHandle& Handle)
+void UJRPGCombatMotionComponent::StartMotion_Internal(const FCombatMotionRequest& Req, const FCombatMotionHandle& Handle)
 {
 	State = FCombatMotionRuntimeState();
 	State.ActiveHandle = Handle;
@@ -470,7 +470,7 @@ void UCombatMotionComponent::StartMotion_Internal(const FCombatMotionRequest& Re
 	OnMotionStarted.Broadcast(Handle, Req);
 }
 
-void UCombatMotionComponent::EndMotion_Internal(FName EndReasonTag)
+void UJRPGCombatMotionComponent::EndMotion_Internal(FName EndReasonTag)
 {
 	const FCombatMotionHandle Ended = State.ActiveHandle;
 
@@ -484,7 +484,7 @@ void UCombatMotionComponent::EndMotion_Internal(FName EndReasonTag)
 	TryDequeueAndStart();
 }
 
-void UCombatMotionComponent::CancelMotion_Internal(FName CancelReasonTag)
+void UJRPGCombatMotionComponent::CancelMotion_Internal(FName CancelReasonTag)
 {
 	const FCombatMotionHandle Cancelled = State.ActiveHandle;
 
@@ -507,7 +507,7 @@ void UCombatMotionComponent::CancelMotion_Internal(FName CancelReasonTag)
 // ----------------------------------
 // Tick
 // ----------------------------------
-void UCombatMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
+void UJRPGCombatMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
@@ -527,7 +527,7 @@ void UCombatMotionComponent::TickComponent(float DeltaTime, ELevelTick TickType,
 	}
 }
 
-void UCombatMotionComponent::TickActiveMotion(float DeltaTime)
+void UJRPGCombatMotionComponent::TickActiveMotion(float DeltaTime)
 {
 	State.Elapsed += DeltaTime;
 
@@ -545,7 +545,7 @@ void UCombatMotionComponent::TickActiveMotion(float DeltaTime)
 	}
 }
 
-void UCombatMotionComponent::Tick_GrappleSync(float DeltaTime)
+void UJRPGCombatMotionComponent::Tick_GrappleSync(float DeltaTime)
 {
 	const FCombatMotionRequest& Req = State.ActiveRequest;
 	if (Req.Type != ECombatMotionType::GrappleMove) return;
@@ -563,7 +563,7 @@ void UCombatMotionComponent::Tick_GrappleSync(float DeltaTime)
 	}
 }
 
-void UCombatMotionComponent::ApplyDragTargetToOwner(float DeltaTime)
+void UJRPGCombatMotionComponent::ApplyDragTargetToOwner(float DeltaTime)
 {
 	const FCombatMotionRequest& Req = State.ActiveRequest;
 	if (!Req.bAffectTargetIfCharacter) return;
@@ -597,7 +597,7 @@ void UCombatMotionComponent::ApplyDragTargetToOwner(float DeltaTime)
 	// Target가 벽에 막히면 그냥 유지(추가 처리 가능)
 }
 
-void UCombatMotionComponent::ApplyMeetAtMidpoint(float DeltaTime)
+void UJRPGCombatMotionComponent::ApplyMeetAtMidpoint(float DeltaTime)
 {
 	const FCombatMotionRequest& Req = State.ActiveRequest;
 	if (!Req.bAffectTargetIfCharacter) return;
@@ -643,7 +643,7 @@ void UCombatMotionComponent::ApplyMeetAtMidpoint(float DeltaTime)
 	}
 }
 
-void UCombatMotionComponent::FaceDirectionIfNeeded(const FVector& MoveDir, float DeltaTime)
+void UJRPGCombatMotionComponent::FaceDirectionIfNeeded(const FVector& MoveDir, float DeltaTime)
 {
 	if (!OwnerCharacter) return;
 	if (!State.ActiveRequest.bFaceMoveDirection) return;
@@ -659,7 +659,7 @@ void UCombatMotionComponent::FaceDirectionIfNeeded(const FVector& MoveDir, float
 	OwnerCharacter->SetActorRotation(FRotator(0.f, NewRot.Yaw, 0.f));
 }
 
-bool UCombatMotionComponent::SafeMoveStep(const FVector& Delta, bool bRespectCollision, FHitResult& OutHit)
+bool UJRPGCombatMotionComponent::SafeMoveStep(const FVector& Delta, bool bRespectCollision, FHitResult& OutHit)
 {
 	if (!CharMove) return false;
 	OutHit = FHitResult();
@@ -667,7 +667,7 @@ bool UCombatMotionComponent::SafeMoveStep(const FVector& Delta, bool bRespectCol
 	return !OutHit.IsValidBlockingHit();
 }
 
-void UCombatMotionComponent::Tick_DistanceReached(float DeltaTime)
+void UJRPGCombatMotionComponent::Tick_DistanceReached(float DeltaTime)
 {
 	FCombatMotionRequest& Req = State.ActiveRequest;
 
@@ -729,7 +729,7 @@ void UCombatMotionComponent::Tick_DistanceReached(float DeltaTime)
 	}
 }
 
-void UCombatMotionComponent::Tick_TimeElapsed(float DeltaTime)
+void UJRPGCombatMotionComponent::Tick_TimeElapsed(float DeltaTime)
 {
 	const FCombatMotionRequest& Req = State.ActiveRequest;
 
@@ -768,7 +768,7 @@ void UCombatMotionComponent::Tick_TimeElapsed(float DeltaTime)
 	}
 }
 
-void UCombatMotionComponent::Tick_VelocityCurve(float DeltaTime)
+void UJRPGCombatMotionComponent::Tick_VelocityCurve(float DeltaTime)
 {
 	const FCombatMotionRequest& Req = State.ActiveRequest;
 
@@ -810,7 +810,7 @@ void UCombatMotionComponent::Tick_VelocityCurve(float DeltaTime)
 	}
 }
 
-void UCombatMotionComponent::Tick_RootMotion(float DeltaTime)
+void UJRPGCombatMotionComponent::Tick_RootMotion(float DeltaTime)
 {
 	const FCombatMotionRequest& Req = State.ActiveRequest;
 
@@ -827,12 +827,12 @@ void UCombatMotionComponent::Tick_RootMotion(float DeltaTime)
 	}
 }
 
-bool UCombatMotionComponent::IsGrounded() const
+bool UJRPGCombatMotionComponent::IsGrounded() const
 {
 	return CharMove && CharMove->IsMovingOnGround();
 }
 
-void UCombatMotionComponent::Tick_Launch(float DeltaTime)
+void UJRPGCombatMotionComponent::Tick_Launch(float DeltaTime)
 {
 	const FCombatMotionRequest& Req = State.ActiveRequest;
 
@@ -854,13 +854,13 @@ void UCombatMotionComponent::Tick_Launch(float DeltaTime)
 	}
 }
 
-void UCombatMotionComponent::Exec_Teleport()
+void UJRPGCombatMotionComponent::Exec_Teleport()
 {
 	const FCombatMotionRequest& Req = State.ActiveRequest;
 	OwnerCharacter->SetActorLocation(Req.TeleportDest, false, nullptr, ETeleportType::TeleportPhysics);
 }
 
-void UCombatMotionComponent::ApplyZoneClampIfAvailable()
+void UJRPGCombatMotionComponent::ApplyZoneClampIfAvailable()
 {
 	if (!OwnerCharacter) return;
 
@@ -896,7 +896,7 @@ void UCombatMotionComponent::ApplyZoneClampIfAvailable()
 	}
 }
 
-bool UCombatMotionComponent::TryDequeueAndStart()
+bool UJRPGCombatMotionComponent::TryDequeueAndStart()
 {
 	if (State.ActiveHandle.IsValid()) return false;
 	if (PendingQueue.Num() == 0) return false;

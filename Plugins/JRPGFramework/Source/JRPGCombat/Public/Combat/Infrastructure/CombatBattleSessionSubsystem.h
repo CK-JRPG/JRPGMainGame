@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Combat/Chain/ChainTypes.h"
-#include "BattleSessionSubsystem.generated.h"
+#include "CombatBattleSessionSubsystem.generated.h"
 
 UENUM()
 enum class EJRPGCombatPhase :uint8
@@ -17,7 +17,7 @@ enum class EJRPGCombatPhase :uint8
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCombatPhaseChanged, EJRPGCombatPhase/*Prev*/, EJRPGCombatPhase/*New*/ );
 
 UCLASS()
-class JRPGCOMBAT_API UBattleSessionSubsystem :public UWorldSubsystem
+class JRPGCOMBAT_API UCombatBattleSessionSubsystem :public UWorldSubsystem
 {
 	GENERATED_BODY()
 

@@ -2,9 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "JRPGCoreApiTypes.h"
-#include "CombatMotionTypes.h"
-#include "CombatMotionComponent.generated.h"
+#include "JRPGCore/Public/JRPGCoreApiTypes.h"
+#include "JRPGCombatMotionTypes.h"
+#include "JRPGCombatMotionComponent.generated.h"
 
 class ACharacter;
 class UCharacterMovementComponent;
@@ -12,12 +12,12 @@ class ULocomotionComponent;
 class ACombatZoneActor;
 
 UCLASS(ClassGroup=(JRPG), meta=(BlueprintSpawnableComponent))
-class JRPGCOMBAT_API UCombatMotionComponent : public UActorComponent
+class JRPGCOMBAT_API UJRPGCombatMotionComponent : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
-	UCombatMotionComponent();
+	UJRPGCombatMotionComponent();
 
 	// -------- Public API --------
 	FCombatMotionResponse RequestCombatMotion(const FCombatMotionRequest& Req);

@@ -4,7 +4,7 @@
 #include "Subsystems/WorldSubsystem.h"
 
 #include "Combat/Core/CombatDamageTypes.h"
-#include "Combat/SP/SynergyPointTypes.h"
+#include "Combat/SP/JRPGSynergyPointTypes.h"
 #include "SPEventRouterSubsystem.generated.h"
 
 /**
