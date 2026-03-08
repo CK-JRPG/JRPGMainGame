@@ -22,7 +22,7 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	FText DisplayName;
-	UPROPERTY(EditAnywhere, Multiline)
+	UPROPERTY(EditAnywhere, meta=(MultiLine="true"))
 	FText Description;
 
 	UPROPERTY(EditAnywhere)

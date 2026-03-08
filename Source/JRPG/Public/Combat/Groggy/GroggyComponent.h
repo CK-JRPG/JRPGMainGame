@@ -5,6 +5,10 @@
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnGroggyStateChanged,bool/*bGroggy*/);
 
+UCLASS()
+class UGroggyModSourceObject : public UObject { GENERATED_BODY() };
+
+
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class JRPG_API UGroggyComponent : public UActorComponent
 {
@@ -33,9 +37,6 @@ protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 private:
-	UCLASS()
-	class UGroggyModSourceObject : public UObject { GENERATED_BODY() };
-
 	UPROPERTY() float RemainingGroggy = 0.f;
 	UPROPERTY() TObjectPtr<UGroggyModSourceObject> ModSource = nullptr;
 

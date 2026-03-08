@@ -48,7 +48,7 @@ public:
 	UPROPERTY(EditAnywhere)
 	FText UIName;
 	
-	UPROPERTY(EditAnywhere, Multiline)
+	UPROPERTY(EditAnywhere, meta=(MultiLine="true"))
 	FText UIDescription;
 	
 	UPROPERTY(EditAnywhere)
