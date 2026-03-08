@@ -369,7 +369,7 @@ bool UJRPGCombatMotionComponent::TryAttachOwnerToTarget(AActor* Target, const FN
 	if (!TargetRoot) return false;
 
 	// 저장(원복)
-	State.PrevAttachParent = OwnerCharacter->GetAttachParentComponent();
+	State.PrevAttachParent = OwnerCharacter->GetRootComponent()->GetAttachParent();
 	State.PrevAttachSocket = OwnerCharacter->GetAttachParentSocketName();
 
 	// Attach

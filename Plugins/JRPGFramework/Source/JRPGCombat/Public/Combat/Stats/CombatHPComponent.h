@@ -8,7 +8,7 @@
 
 class UJRPGCombatMotionComponent;
 class UStatusComponent;
-class UGroggyComponent;
+class UCombatGroggyComponent;
 class UCombatThreatComponent;
 class UCombatBattleSessionSubsystem;
 
@@ -62,7 +62,7 @@ private:
 	// cache components (optional)
 	UPROPERTY(Transient) TObjectPtr<UJRPGCombatMotionComponent> CombatMotion = nullptr;
 	UPROPERTY(Transient) TObjectPtr<UStatusComponent> Status = nullptr;
-	UPROPERTY(Transient) TObjectPtr<UGroggyComponent> Groggy = nullptr;
+	UPROPERTY(Transient) TObjectPtr<UCombatGroggyComponent> Groggy = nullptr;
 	UPROPERTY(Transient) TObjectPtr<UCombatThreatComponent> Threat = nullptr;
 
 	void CacheOptionalComponents();

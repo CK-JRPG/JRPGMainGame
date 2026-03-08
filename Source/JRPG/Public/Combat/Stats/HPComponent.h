@@ -6,12 +6,13 @@
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnHPChanged, float, float, FName);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDeath, AActor*, FName);
 
-UCLASS(ClassGroup=(Combat), meta = (BlueprintSpawnableComponent))
-class JRPG_API UHPComponent :public UActorComponent
+UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
+class JRPG_API UHPComponent : public UActorComponent
 {
 	GENERATED_BODY()
 	
 public:
+	
 	UHPComponent();
 
 	UPROPERTY(EditAnywhere) float MaxHP = 100.f;

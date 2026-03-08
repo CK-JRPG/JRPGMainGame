@@ -82,8 +82,8 @@ void UCombatAIContext::RefreshPartySnapshot()
 
 		if (UHPComponent *AllyHP = Ally->FindComponentByClass<UHPComponent>())
 		{
-			const floatHp01 = AllyHP->GetHpRatio01();
-			const floatCritThr = PresetAsset.IsValid() ? PresetAsset->Thresholds.PartyDangerHp01 : 0.30f;
+			const float Hp01 = AllyHP->GetHpRatio01();
+			const float CritThr = PresetAsset.IsValid() ? PresetAsset->Thresholds.PartyDangerHp01 : 0.30f;
 			if (!AllyHP->IsDead() && Hp01<CritThr)
 			{
 				bAnyAllyCritical = true;

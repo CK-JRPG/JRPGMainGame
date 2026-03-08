@@ -7,9 +7,11 @@
 #include "Combat/Stats/CombatHPComponent.h"
 #include "Combat/Status/StatusComponent.h"
 #include "Combat/Groggy/CombatGroggyComponent.h"
+#include "Combat/Infrastructure/CombatSynergyPointSubsystem.h"
 #include "Combat/Threat/CombatThreatComponent.h"
 #include "Combat/Movement/JRPGCombatMotionComponent.h"
 #include "Combat/SP/SPEventRouterSubsystem.h"
+#include "Combat/SP/SPTypes.h"
 
 static AActor* ResolveCaster(UJRPGSkillComponent& SkillComp, const FJRPGSkillRequest& Req)
 {
@@ -374,7 +376,7 @@ void FSkillExecutor::AddGroggy(AActor* Target, const FJRPGSkillEffectEntry& E, F
 {
 	if (!Target) return;
 
-	UGroggyComponent* Groggy = Target->FindComponentByClass<UGroggyComponent>();
+	UCombatGroggyComponent* Groggy = Target->FindComponentByClass<UCombatGroggyComponent>();
 	if (!Groggy) return;
 
 	Groggy->AddBreak(E.Groggy.BreakAmount, "Skill.Groggy");
@@ -469,7 +471,7 @@ void FSkillExecutor::GrantSP(AActor* Caster, const UJRPGSkillDataAsset& Skill, c
 
 	// 직접 적용(현재 구현된 SPSubsystem API 기준)
 	// (추후 Router에 RouteDirectSP 추가하면 여기만 바꾸면 됨)
-	if (USynergyPointSubsystem* SP = W->GetSubsystem<USynergyPointSubsystem>())
+	if (UCombatSynergyPointSubsystem* SP = W->GetSubsystem<UCombatSynergyPointSubsystem>())
 	{
 		FJRPGSPGainEvent Ev;
 		Ev.Amount = E.SP.Amount;

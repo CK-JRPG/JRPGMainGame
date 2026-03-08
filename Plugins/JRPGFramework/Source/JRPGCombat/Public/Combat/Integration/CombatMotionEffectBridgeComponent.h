@@ -7,7 +7,7 @@
 
 class UJRPGCombatMotionComponent;
 class UStatusComponent;
-class UGroggyComponent;
+class UCombatGroggyComponent;
 class UCombatThreatComponent;
 class UCombatMotionImpactConfigDataAsset;
 
@@ -35,7 +35,7 @@ protected:
 private:
 	UPROPERTY(Transient) TObjectPtr<UJRPGCombatMotionComponent> Motion = nullptr;
 	UPROPERTY(Transient) TObjectPtr<UStatusComponent> Status = nullptr;
-	UPROPERTY(Transient) TObjectPtr<UGroggyComponent> Groggy = nullptr;
+	UPROPERTY(Transient) TObjectPtr<UCombatGroggyComponent> Groggy = nullptr;
 	UPROPERTY(Transient) TObjectPtr<UCombatThreatComponent> Threat = nullptr;
 
 	// Handle -> Request 캐시(Ended/Cancelled 때 archetype 확인용)

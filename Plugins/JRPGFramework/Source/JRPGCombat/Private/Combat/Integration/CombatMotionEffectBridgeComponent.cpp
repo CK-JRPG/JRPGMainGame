@@ -19,7 +19,7 @@ void UCombatMotionEffectBridgeComponent::BeginPlay()
 
 	Motion = GetOwner() ? GetOwner()->FindComponentByClass<UJRPGCombatMotionComponent>() : nullptr;
 	Status = GetOwner() ? GetOwner()->FindComponentByClass<UStatusComponent>() : nullptr;
-	Groggy = GetOwner() ? GetOwner()->FindComponentByClass<UGroggyComponent>() : nullptr;
+	Groggy = GetOwner() ? GetOwner()->FindComponentByClass<UCombatGroggyComponent>() : nullptr;
 	Threat = GetOwner() ? GetOwner()->FindComponentByClass<UCombatThreatComponent>() : nullptr;
 
 	Bind();

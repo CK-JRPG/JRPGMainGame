@@ -27,7 +27,7 @@ FJRPGOpResult UStatusComponent::ApplyStatus(const FStatusSpec& Spec)
 	{
 		if (Session->ShouldGateEnemyToAlly(Spec.Instigator.Get(),GetOwner()))
 		{
-			return; // 적→아군 디버프/상태이상 적용 금지
+			return FJRPGOpResult::Fail(EJRPGResultCode::Invalid, FJRPGReason::Make("Status.InvalidId")); // 적→아군 디버프/상태이상 적용 금지
 		}
 	}
 	

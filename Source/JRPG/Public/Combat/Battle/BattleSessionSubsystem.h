@@ -4,12 +4,12 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 
-#include "Combat/Battle/BattleSessionTypes.h"
-#include "Combat/Battle/BasicCombatTypes.h"
+#include "JRPG/Public/Combat/Battle/BattleSessionTypes.h"
+#include "JRPG/Public/Combat/Battle/BasicCombatTypes.h"
 #include "Combat/Skills/SkillTypes.h"
 #include "Combat/Items/CombatItemTypes.h"
 
-#include"BattleSessionSubsystem.generated.h"
+#include "BattleSessionSubsystem.generated.h"
 
 class UBasicCombatSubsystem;
 

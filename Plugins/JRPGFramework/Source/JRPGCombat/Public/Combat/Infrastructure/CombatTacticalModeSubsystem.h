@@ -26,7 +26,7 @@ public:
 	FOnTacticalReservationChanged OnTacticalReservationChanged;
 	FOnTacticalReservationFlagsChanged OnTacticalReservationFlagsChanged;
 
-	// ✅ UI timer event (optional)
+	// UI timer event (optional)
 	FOnTacticalTimerUpdated OnTacticalTimerUpdated;
 
 	ETacticalState GetState() const { return State; }
@@ -46,7 +46,7 @@ public:
 
 	static bool IsReservationTargetInvalid(AActor* Target);
 
-	// ---------- ✅ UI Query API ----------
+	// ---------- UI Query API ----------
 	float GetMaxDurationRealSec() const { return Settings.TacticalMaxDurationRealSec; }
 
 	/** Active일 때만 의미 있음. Idle이면 0 */
@@ -111,7 +111,7 @@ private:
 	// duration check
 	void TickDuration(double NowReal);
 
-	// ✅ UI timer event throttling
+	// UI timer event throttling
 	double LastTimerBroadcastReal = -1e9;
 	float LastBroadcastRemaining = -1.f;
 };

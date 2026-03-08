@@ -30,7 +30,7 @@ void UCombatHPComponent::CacheOptionalComponents()
 
 	CombatMotion = GetOwner()->FindComponentByClass<UJRPGCombatMotionComponent>();
 	Status = GetOwner()->FindComponentByClass<UStatusComponent>();
-	Groggy = GetOwner()->FindComponentByClass<UGroggyComponent>();
+	Groggy = GetOwner()->FindComponentByClass<UCombatGroggyComponent>();
 	Threat = GetOwner()->FindComponentByClass<UCombatThreatComponent>();
 }
 
@@ -87,12 +87,12 @@ FCombatDamageResult UCombatHPComponent::ApplyDamageSpec(const FCombatDamageSpec&
 	{
 		if (Session->ShouldGateEnemyToAlly(Spec.Instigator, GetOwner()))
 		{
-			FCombatDamageResultR;
+			FCombatDamageResult R;
 			R.Op = FJRPGOpResult::Ok(); // “무시”가 아니라 “게이트로 0 처리” (연출은 선택)
 			R.AppliedAmount =0;
 			R.OldValue =CurrentHP;
 			R.NewValue =CurrentHP;
-			returnR;
+			return R;
 		}
 	}
 	

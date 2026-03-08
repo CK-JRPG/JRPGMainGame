@@ -11,8 +11,8 @@
 
 UJRPGSkillComponent::UJRPGSkillComponent()
 {
-PrimaryComponentTick.bCanEverTick =true;
-PrimaryComponentTick.TickGroup =TG_PrePhysics;
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickGroup = TG_PrePhysics;
 }
 
 const UJRPGSkillDataAsset* UJRPGSkillComponent::GetSkillAsset(FName SkillId) const
@@ -23,17 +23,17 @@ const UJRPGSkillDataAsset* UJRPGSkillComponent::GetSkillAsset(FName SkillId) con
 void UJRPGSkillComponent::BeginPlay()
 {
 	Super::BeginPlay();
-LastRealTime = FPlatformTime::Seconds();
+	LastRealTime = FPlatformTime::Seconds();
 }
 
 void UJRPGSkillComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-CooldownRemaining.Reset();
-GlobalCooldownRemaining =0.f;
+	CooldownRemaining.Reset();
+	GlobalCooldownRemaining = 0.f;
 	Super::EndPlay(EndPlayReason);
 }
 
-const UJRPGSkillDataAsset* UJRPGSkillComponent::FindSkill(FName SkillId)const
+const UJRPGSkillDataAsset* UJRPGSkillComponent::FindSkill(FName SkillId) const
 {
 	if (const TObjectPtr<UJRPGSkillDataAsset>*Found =SkillDB.Find(SkillId))
 		return Found->Get();
@@ -42,13 +42,13 @@ const UJRPGSkillDataAsset* UJRPGSkillComponent::FindSkill(FName SkillId)const
 
 bool UJRPGSkillComponent::IsOnCooldown(FName SkillId)const
 {
-	const float *Rem =CooldownRemaining.Find(SkillId);
+	const float *Rem = CooldownRemaining.Find(SkillId);
 	return Rem && (*Rem>0.f);
 }
 
 float UJRPGSkillComponent::GetCooldownRemaining(FName SkillId)const
 {
-	if (const float*Rem =CooldownRemaining.Find(SkillId))
+	if (const float *Rem = CooldownRemaining.Find(SkillId))
 		return *Rem;
 	return 0.f;
 }
@@ -97,21 +97,21 @@ FJRPGSkillResult UJRPGSkillComponent::RequestUseSkill(const FJRPGSkillRequest &R
 
 void UJRPGSkillComponent::TickCooldowns(float RealDelta)
 {
-	TArray<FName>ToRemove;
+	TArray<FName> ToRemove;
 	for (auto&It :CooldownRemaining)
 	{
-		It.Value-=RealDelta;
-		if (It.Value<=0.f)
+		It.Value -= RealDelta;
+		if (It.Value <= 0.f)
 			ToRemove.Add(It.Key);
 	}
-	for (const FName&K :ToRemove)
+	for (const FName&K : ToRemove)
 		CooldownRemaining.Remove(K);
 
-	if (GlobalCooldownRemaining>0.f)
-		GlobalCooldownRemaining = FMath::Max(0.f,GlobalCooldownRemaining-RealDelta);
+	if (GlobalCooldownRemaining > 0.f)
+		GlobalCooldownRemaining = FMath::Max(0.f,GlobalCooldownRemaining - RealDelta);
 }
 
-bool UJRPGSkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReason)const
+bool UJRPGSkillComponent::CanUseReservedSkill(FName SkillId, FJRPGReason &OutReason)const
 {
 	// 문서: 예약 실행 시 CanUse(AP/쿨) 검사 :contentReference[oaicite:36]{index=36}
 	if (SkillId.IsNone())
@@ -120,7 +120,7 @@ bool UJRPGSkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReaso
 		return false;
 	}
 
-	const UJRPGSkillDataAsset*Skill =FindSkill(SkillId);
+	const UJRPGSkillDataAsset *Skill = FindSkill(SkillId);
 	if (!Skill)
 	{
 		OutReason = FJRPGReason::Make("Tactical.SkillNotFound");
@@ -128,9 +128,9 @@ bool UJRPGSkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReaso
 	}
 
 	// caster dead
-	if (AActor*Owner =GetOwner())
+	if (AActor* Owner =GetOwner())
 	{
-		if (UCombatHPComponent*HP =Owner->FindComponentByClass<UCombatHPComponent>())
+		if (UCombatHPComponent* HP = Owner->FindComponentByClass<UCombatHPComponent>())
 		{
 			if (HP->IsDead())
 			{
@@ -140,7 +140,7 @@ bool UJRPGSkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReaso
 		}
 
 		// CC면 실행 불가(스킬 문서의 기본 규칙과 일치)
-		if (UStatusComponent*Status =Owner->FindComponentByClass<UStatusComponent>())
+		if (UStatusComponent* Status = Owner->FindComponentByClass<UStatusComponent>())
 		{
 			if (Status->IsCrowdControlled())
 			{
@@ -164,7 +164,7 @@ bool UJRPGSkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReaso
 		// AP
 		if (Skill->Cost.APCost>0)
 		{
-			if (UCombatAPComponent*AP =Owner->FindComponentByClass<UCombatAPComponent>())
+			if (UCombatAPComponent* AP = Owner->FindComponentByClass<UCombatAPComponent>())
 			{
 				if (!AP->CanSpend(Skill->Cost.APCost))
 				{
@@ -185,11 +185,13 @@ bool UJRPGSkillComponent::CanUseReservedSkill(FName SkillId,FJRPGReason&OutReaso
 
 void UJRPGSkillComponent::TickTacticalReservation(float RealDelta)
 {
-	UWorld *W =GetWorld();
-	if (!W) return;
+	UWorld *W = GetWorld();
+	if (!W) 
+		return;
 
 	UCombatTacticalModeSubsystem *Tactical = W->GetSubsystem<UCombatTacticalModeSubsystem>();
-	if (!Tactical) return;
+	if (!Tactical) 
+		return;
 
 	FTacticalReservation Res;
 	if (!Tactical->GetReservation(GetOwner(),Res))
@@ -198,8 +200,8 @@ void UJRPGSkillComponent::TickTacticalReservation(float RealDelta)
 	// 타겟 무효(사망/삭제)면 기록 후 예약 해제 :contentReference[oaicite:37]{index=37}
 	if (Res.Target.Kind == ETacticalTargetKind::Actor)
 	{
-		AActor*Tgt = Res.Target.TargetActor.Get();
-		if (!Tgt|| UCombatTacticalModeSubsystem::IsReservationTargetInvalid(Tgt))
+		AActor* Tgt = Res.Target.TargetActor.Get();
+		if (!Tgt || UCombatTacticalModeSubsystem::IsReservationTargetInvalid(Tgt))
 		{
 			Tactical->ClearReservation(GetOwner(),"Tactical.TargetInvalid");
 			return;

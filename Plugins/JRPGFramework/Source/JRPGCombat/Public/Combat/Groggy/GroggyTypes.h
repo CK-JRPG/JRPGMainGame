@@ -64,18 +64,18 @@ class UCombatStatusAccess :public UInterface
 
 class ICombatStatusAccess
 {
-GENERATED_BODY()
+  GENERATED_BODY()
 
 public:
-// 태그/면역 체크 (예: Immune.Break) :contentReference[oaicite:14]{index=14}
-virtual bool HasTag(const FGameplayTag& Tag) const = 0;
+  // 태그/면역 체크 (예: Immune.Break) :contentReference[oaicite:14]{index=14}
+  virtual bool HasTag(const FGameplayTag& Tag) const = 0;
 
-// 디버프의 "증폭/저항" 값을 합산해서 제공 (BreakVulnFactor, BreakResistFactor) :contentReference[oaicite:15]{index=15}
-virtual float GetTotalMagnitudeByTag(const FGameplayTag& Tag) const = 0;
+  // 디버프의 "증폭/저항" 값을 합산해서 제공 (BreakVulnFactor, BreakResistFactor) :contentReference[oaicite:15]{index=15}
+  virtual float GetTotalMagnitudeByTag(const FGameplayTag& Tag) const = 0;
 
-// Status 적용(예: CC.Stun, State.Rising, Debuff.GroggyVulnerable 등)
-virtual bool ApplyStatusById(const FName& StatusId, float DurationSec, float Magnitude, int32 Stacks, const FGameplayTagContainer& Tags) = 0;
+  // Status 적용(예: CC.Stun, State.Rising, Debuff.GroggyVulnerable 등)
+  virtual bool ApplyStatusById(const FName& StatusId, float DurationSec, float Magnitude, int32 Stacks, const FGameplayTagContainer& Tags) = 0;
 
-// Status 제거/만료 이벤트 구독: OnStatusRemoved(Reason=Expired/Dispel/Death/SessionEnd) :contentReference[oaicite:16]{index=16}
-virtual FSimpleMulticastDelegate& OnAnyStatusChanged() = 0;// 단순화(프로젝트 StatusComponent에 맞게 교체 가능)
+  // Status 제거/만료 이벤트 구독: OnStatusRemoved(Reason=Expired/Dispel/Death/SessionEnd) :contentReference[oaicite:16]{index=16}
+  virtual FSimpleMulticastDelegate& OnAnyStatusChanged() = 0;// 단순화(프로젝트 StatusComponent에 맞게 교체 가능)
 };

@@ -324,14 +324,14 @@ FJRPGOpResult UTrinityChainSubsystem::SubmitStepPick(AActor*Caster,FName SkillId
 
 	FName Cant;
 	if (!IsCasterPickable(Caster,Cant))
-		return FJRPGOpResult::Fail(EJRPGResultCode::Rejected, FJRPGReason::Make(Cant.ToString()));
+		return FJRPGOpResult::Fail(EJRPGResultCode::Rejected, FJRPGReason::Make(FName(Cant.ToString())));
 
 	if (!Ctx.PrimaryTarget.IsValid())
 		return FJRPGOpResult::Fail(EJRPGResultCode::Rejected, FJRPGReason::Make("Chain.PrimaryTargetInvalid"));
 
 	FName SkillCant;
 	if (!IsSkillEligibleForChain(Caster, SkillId, SkillCant))
-		return FJRPGOpResult::Fail(EJRPGResultCode::Rejected, FJRPGReason::Make(SkillCant.ToString()));
+		return FJRPGOpResult::Fail(EJRPGResultCode::Rejected, FJRPGReason::Make(FName(Cant.ToString())));
 
 	// Toggle/Replace
 	int32 Slot =INDEX_NONE;
@@ -452,7 +452,7 @@ FJRPGOpResult UTrinityChainSubsystem::ConfirmSelection()
 	return FJRPGOpResult::Ok();
 }
 
-int32 UTrinityChainSubsystem::ComputeTPForSkill(constUSkillDataAsset*SkillAsset)const
+int32 UTrinityChainSubsystem::ComputeTPForSkill(const UJRPGSkillDataAsset *SkillAsset)const
 {
 	if (!SkillAsset) return 0;
 	return FMath::Max(0,SkillAsset->ChainTPBase);
@@ -634,7 +634,7 @@ FJRPGOpResult UTrinityChainSubsystem::AbortChain(FName ReasonTag)
 	return FJRPGOpResult::Ok();
 }
 
-void UTrinityChainSubsystem::EndChain(bool bAborted,FName ReasonTag)
+void UTrinityChainSubsystem::EndChain(bool bAborted, FName ReasonTag)
 {
 	TransitionTo(bAborted ? EChainState::Aborted : EChainState::Recover);
 
@@ -707,11 +707,11 @@ void UTrinityChainSubsystem::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	UWorld *W =GetWorld();
+	UWorld *W = GetWorld();
 	if (!W)return;
 
 	// 세션 종료/타겟 소멸 등 → Abort (중요)
-	if (UCombatBattleSessionSubsystem *Session =GetSession())
+	if (UCombatBattleSessionSubsystem *Session = GetSession())
 	{
 		if (!Session->IsCombatRunning() && IsChainActive())
 		{
@@ -720,7 +720,7 @@ void UTrinityChainSubsystem::Tick(float DeltaTime)
 		}
 	}
 
-	if (IsChainActive()&&!Ctx.PrimaryTarget.IsValid())
+	if (IsChainActive() && !Ctx.PrimaryTarget.IsValid())
 	{
 		AbortChain("Chain.Abort.TargetGone");
 		return;

@@ -1,9 +1,9 @@
 ﻿// Source/JRPGCombat/Public/Combat/Battle/BattleSessionTypes.h
 #pragma once
 
-#include"CoreMinimal.h"
-#include"Combat/Characters/CombatTeamTypes.h"
-#include"BattleSessionTypes.generated.h"
+#include "CoreMinimal.h"
+#include "Combat/Characters/CombatTeamTypes.h"
+#include "BattleSessionTypes.generated.h"
 
 UENUM()
 enum class EBattlePhase :uint8

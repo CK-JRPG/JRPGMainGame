@@ -43,14 +43,14 @@ public:
 	// --- Player input lock (Tactical/Chain 등) ---
 	void PushPlayerInputLock(FName OwnerTag);
 	void PopPlayerInputLock(FName OwnerTag);
-	bool IsPlayerInputLocked()const {return PlayerInputLockOwners.Num()>0; }
+	bool IsPlayerInputLocked()const {return PlayerInputLockOwners.Num() > 0; }
 
 	// --- Enemy suppression (Chain 등) ---
-	void PushEnemySuppression(FName OwnerTag,EEnemySuppressionScope Scope);
+	void PushEnemySuppression(FName OwnerTag, EEnemySuppressionScope Scope);
 	void PopEnemySuppression(FName OwnerTag);
 
-	bool IsEnemySuppressed() const {return EnemySuppressionOwners.Num()>0; }
-	EEnemySuppressionScope GetCurrentSuppressionScope() const {return CurrentSuppressionScope; }
+	bool IsEnemySuppressed() const { return EnemySuppressionOwners.Num() > 0; }
+	EEnemySuppressionScope GetCurrentSuppressionScope() const { return CurrentSuppressionScope; }
 
 	// AI gate
 	bool CanEnemyStartAttack() const

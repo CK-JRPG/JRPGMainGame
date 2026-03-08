@@ -133,7 +133,7 @@ bool UCombatBattleSessionSubsystem::ShouldGateEnemyToAlly(AActor *Instigator, AA
 	if (!(CurrentSuppressionScope == EEnemySuppressionScope::GateOnly || CurrentSuppressionScope == EEnemySuppressionScope::StopAndGate))
 		return false;
 
-	if (!Instigator||!Victim)return false;
+	if (!Instigator||!Victim) return false;
 
 	const bool bInstigatorEnemy = IsEnemyActor(Instigator);
 	const bool bVictimPlayer = IsPlayerActor(Victim);

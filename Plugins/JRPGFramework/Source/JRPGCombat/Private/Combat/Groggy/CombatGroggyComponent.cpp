@@ -16,7 +16,7 @@ UCombatGroggyComponent::UCombatGroggyComponent()
 void UCombatGroggyComponent::BeginPlay()
 {
     Super::BeginPlay();
-      
+	
     ResolveSettings();
     ResolveStatusAccess();
 

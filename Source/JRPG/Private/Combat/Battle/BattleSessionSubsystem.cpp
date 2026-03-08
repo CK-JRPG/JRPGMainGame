@@ -217,13 +217,13 @@ bool UBattleSessionSubsystem::GetCombatClamp(FVector &OutCenter, float &OutRadiu
 
 bool UBattleSessionSubsystem::EnterExclusiveMode(FName ModeTag)
 {
-	if (!bBattleActive || Snapshot.Phase!= EBattlePhase::Active)
+	if (!bBattleActive || Snapshot.Phase != EBattlePhase::Active)
 		return false;
 	
 	if (ModeTag.IsNone())
 		return false;
 
-	const bool bAdded =ExclusiveModeOwners.Add(ModeTag) > 0;
+	const bool bAdded = ExclusiveModeOwners.Add(ModeTag) > 0;
 	if (bAdded)
 	{
 		Snapshot.bExclusiveMode = true;
@@ -238,7 +238,7 @@ void UBattleSessionSubsystem::ExitExclusiveMode(FName ModeTag)
 	if (ModeTag.IsNone())
 		return;
 
-	const bool bRemoved =ExclusiveModeOwners.Remove(ModeTag) > 0;
+	const bool bRemoved = ExclusiveModeOwners.Remove(ModeTag) > 0;
 	if (!bRemoved)
 		return;
 

@@ -8,7 +8,7 @@ class UJRPGSkillComponent;
 class UCombatAPComponent;
 class UCombatHPComponent;
 class UStatusComponent;
-class UGroggyComponent;
+class UCombatGroggyComponent;
 class UCombatThreatComponent;
 class UJRPGCombatMotionComponent;
 
