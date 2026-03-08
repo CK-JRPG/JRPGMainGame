@@ -4,7 +4,7 @@
 #include "CoreMinimal.h"
 #include "Engine/PrimaryDataAsset.h"
 #include "GameplayTagContainer.h"
-#include "Combat/Skills/JRPGSkillTypes.h"
+#include "Combat/Skills/SkillTypes.h"
 #include "CombatUsableItemDataAsset.generated.h"
 
 class UStatusEffectDataAsset;

@@ -1,23 +1,23 @@
 ﻿#include "Combat/Skills/SkillExecutor.h"
 
-#include "Combat/Skills/JRPGSkillComponent.h"
-#include "Combat/Skills/JRPGSkillDataAsset.h"
+#include "Combat/Skills/SkillComponent.h"
+#include "Combat/Skills/SkillDataAsset.h"
 
-#include "Combat/Stats/CombatAPComponent.h"
-#include "Combat/Stats/CombatHPComponent.h"
+#include "Combat/Stats/APComponent.h"
+#include "Combat/Stats/HPComponent.h"
 #include "Combat/Status/StatusComponent.h"
-#include "Combat/Groggy/CombatGroggyComponent.h"
-#include "Combat/Threat/CombatThreatComponent.h"
-#include "Combat/Movement/JRPGCombatMotionComponent.h"
+#include "Combat/Groggy/GroggyComponent.h"
+#include "Combat/Threat/ThreatComponent.h"
+#include "Combat/Movement/CombatMotionComponent.h"
 #include "Combat/SP/SPEventRouterSubsystem.h"
 
-static AActor* ResolveCaster(UJRPGSkillComponent& SkillComp, const FJRPGSkillRequest& Req)
+static AActor* ResolveCaster(USkillComponent& SkillComp, const FJRPGSkillRequest& Req)
 {
 	if (Req.Instigator) return Req.Instigator;
 	return SkillComp.GetOwner();
 }
 
-FJRPGSkillResult FSkillExecutor::Execute(UJRPGSkillComponent& SkillComp, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req)
+FJRPGSkillResult FSkillExecutor::Execute(USkillComponent& SkillComp, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req)
 {
 	FJRPGSkillResult R;
 	R.SkillId = Skill.SkillId;
@@ -51,7 +51,7 @@ FJRPGSkillResult FSkillExecutor::Execute(UJRPGSkillComponent& SkillComp, const U
 	return R;
 }
 
-bool FSkillExecutor::ValidateRequest(UJRPGSkillComponent& SkillComp, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, FJRPGReason& OutReason, int32& OutAPCost)
+bool FSkillExecutor::ValidateRequest(USkillComponent& SkillComp, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, FJRPGReason& OutReason, int32& OutAPCost)
 {
 	FJRPGReason VReason;
 	if (!Skill.Validate(VReason))
@@ -68,7 +68,7 @@ bool FSkillExecutor::ValidateRequest(UJRPGSkillComponent& SkillComp, const UJRPG
 	}
 
 	// 죽음 체크
-	if (UCombatHPComponent* HP = Caster->FindComponentByClass<UCombatHPComponent>())
+	if (UHPComponent* HP = Caster->FindComponentByClass<UHPComponent>())
 	{
 		if (HP->IsDead())
 		{
@@ -136,7 +136,7 @@ bool FSkillExecutor::ValidateRequest(UJRPGSkillComponent& SkillComp, const UJRPG
 	OutAPCost = Req.bIgnoreCost ? 0 : Skill.Cost.APCost;
 	if (OutAPCost > 0)
 	{
-		if (UCombatAPComponent* AP = Caster->FindComponentByClass<UCombatAPComponent>())
+		if (UAPComponent* AP = Caster->FindComponentByClass<UAPComponent>())
 		{
 			if (!AP->CanSpend(OutAPCost))
 			{
@@ -154,7 +154,7 @@ bool FSkillExecutor::ValidateRequest(UJRPGSkillComponent& SkillComp, const UJRPG
 	return true;
 }
 
-bool FSkillExecutor::CommitCosts(UJRPGSkillComponent& SkillComp, int32 APCost, const FJRPGSkillRequest& Req, FJRPGReason& OutReason)
+bool FSkillExecutor::CommitCosts(USkillComponent& SkillComp, int32 APCost, const FJRPGSkillRequest& Req, FJRPGReason& OutReason)
 {
 	AActor* Caster = ResolveCaster(SkillComp, Req);
 	if (!Caster)
@@ -166,7 +166,7 @@ bool FSkillExecutor::CommitCosts(UJRPGSkillComponent& SkillComp, int32 APCost, c
 	// AP 소비
 	if (APCost > 0)
 	{
-		UCombatAPComponent* AP = Caster->FindComponentByClass<UCombatAPComponent>();
+		UAPComponent* AP = Caster->FindComponentByClass<UAPComponent>();
 		if (!AP)
 		{
 			OutReason = FJRPGReason::Make("Skill.NoAPComponent");
@@ -184,7 +184,7 @@ bool FSkillExecutor::CommitCosts(UJRPGSkillComponent& SkillComp, int32 APCost, c
 	return true;
 }
 
-void FSkillExecutor::BuildTargetList(const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, TArray<AActor*>& OutTargets)
+void FSkillExecutor::BuildTargetList(const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, TArray<AActor*>& OutTargets)
 {
 	OutTargets.Reset();
 
@@ -209,7 +209,7 @@ void FSkillExecutor::BuildTargetList(const UJRPGSkillDataAsset& Skill, const FJR
 	}
 }
 
-void FSkillExecutor::ApplyEffects(UJRPGSkillComponent& SkillComp, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, FJRPGSkillResult& InOutResult)
+void FSkillExecutor::ApplyEffects(USkillComponent& SkillComp, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, FJRPGSkillResult& InOutResult)
 {
 	AActor* Caster = ResolveCaster(SkillComp, Req);
 	AActor* Primary = Req.PrimaryTarget;
@@ -299,11 +299,11 @@ void FSkillExecutor::ApplyEffects(UJRPGSkillComponent& SkillComp, const UJRPGSki
 	}
 }
 
-void FSkillExecutor::ApplyDamageOrHeal(AActor* Caster, AActor* Target, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, bool bHeal, FJRPGSkillResult& InOutResult)
+void FSkillExecutor::ApplyDamageOrHeal(AActor* Caster, AActor* Target, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, bool bHeal, FJRPGSkillResult& InOutResult)
 {
 	if (!Target) return;
 
-	UCombatHPComponent* HP = Target->FindComponentByClass<UCombatHPComponent>();
+	UHPComponent* HP = Target->FindComponentByClass<UHPComponent>();
 	if (!HP) return;
 
 	FCombatDamageSpec Spec;
@@ -343,7 +343,7 @@ void FSkillExecutor::ApplyDamageOrHeal(AActor* Caster, AActor* Target, const UJR
 	}
 }
 
-void FSkillExecutor::ApplyStatus(AActor* Caster, AActor* Target, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult)
+void FSkillExecutor::ApplyStatus(AActor* Caster, AActor* Target, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult)
 {
 	if (!Target) return;
 
@@ -384,7 +384,7 @@ void FSkillExecutor::AddThreat(AActor* Target, AActor* Caster, const FJRPGSkillE
 {
 	if (!Target || !Caster) return;
 
-	UCombatThreatComponent* Threat = Target->FindComponentByClass<UCombatThreatComponent>();
+	UThreatComponent* Threat = Target->FindComponentByClass<UThreatComponent>();
 	if (!Threat) return;
 
 	Threat->AddThreat(Caster, E.Threat.ThreatAmount, "Skill.Threat");
@@ -421,11 +421,11 @@ FVector FSkillExecutor::ResolveMotionDirection(AActor* Caster, AActor* PrimaryTa
 	}
 }
 
-void FSkillExecutor::RequestMotion(AActor* Caster, AActor* PrimaryTarget, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult)
+void FSkillExecutor::RequestMotion(AActor* Caster, AActor* PrimaryTarget, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult)
 {
 	if (!Caster) return;
 
-	UJRPGCombatMotionComponent* MotionComp = Caster->FindComponentByClass<UJRPGCombatMotionComponent>();
+	UCombatMotionComponent* MotionComp = Caster->FindComponentByClass<UCombatMotionComponent>();
 	if (!MotionComp) return;
 
 	FCombatMotionRequest M;
@@ -451,7 +451,7 @@ void FSkillExecutor::RequestMotion(AActor* Caster, AActor* PrimaryTarget, const 
 	MotionComp->RequestCombatMotion(M);
 }
 
-void FSkillExecutor::GrantSP(AActor* Caster, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult)
+void FSkillExecutor::GrantSP(AActor* Caster, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult)
 {
 	if (!Caster) return;
 	UWorld* W = Caster->GetWorld();

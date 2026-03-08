@@ -5,7 +5,7 @@
 #include "Animation/AnimMontage.h"
 
 #include "Combat/Presentation/CombatPresentationTypes.h"
-#include "Combat/Skills/JRPGSkillTypes.h"
+#include "Combat/Skills/SkillTypes.h"
 #include "Combat/Items/CombatItemTypes.h"
 #include "Combat/Motion/CombatMotionTypes.h"
 
@@ -13,10 +13,10 @@
 
 #include "CombatPresentationComponent.generated.h"
 
-class UJRPGSkillComponent;
+class USkillComponent;
 class UCombatCharacterComponent;
-class UCombatTacticalModeSubsystem;
-class UCombatBattleSessionSubsystem;
+class UTacticalModeSubsystem;
+class UBattleSessionSubsystem;
 
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class JRPG_API UCombatPresentationComponent : public UActorComponent
@@ -68,11 +68,11 @@ private:
 
 	FActivePresentationState Active;
 
-	TWeakObjectPtr<UJRPGSkillComponent> SkillComp;
+	TWeakObjectPtr<USkillComponent> SkillComp;
 	TWeakObjectPtr<UCombatCharacterComponent> CharacterComp;
 
-	UCombatBattleSessionSubsystem* GetBattle()const;
-	UCombatTacticalModeSubsystem* GetTactical()const;
+	UBattleSessionSubsystem* GetBattle()const;
+	UTacticalModeSubsystem* GetTactical()const;
 
 	void PlayActiveMontageOrResolve();
 	void ClearActiveState();
@@ -80,6 +80,6 @@ private:
 	void TryConsumeTacticalReservation();
 	
 	bool TryStartMotionForBasicAttack();
-	bool TryStartMotionForSkill(UJRPGSkillDataAsset* SkillDef);
+	bool TryStartMotionForSkill(USkillDataAsset* SkillDef);
 	void CancelActiveMotionIfNeeded();
 };

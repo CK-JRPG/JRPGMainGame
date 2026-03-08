@@ -4,9 +4,9 @@
 #include"GameFramework/Pawn.h"
 #include"Engine/World.h"
 
-#include"Combat/Stats/CombatHPComponent.h"
-#include"Combat/Threat/CombatThreatComponent.h"
-#include"Combat/Skills/JRPGSkillComponent.h"
+#include"Combat/Stats/HPComponent.h"
+#include"Combat/Threat/ThreatComponent.h"
+#include"Combat/Skills/SkillComponent.h"
 
 void UCombatAIContext::Initialize(AActor*InOwner,EPartyRole InRole,UCombatAIPresetAsset*InPresetAsset)
 {
@@ -16,9 +16,9 @@ void UCombatAIContext::Initialize(AActor*InOwner,EPartyRole InRole,UCombatAIPres
 	Role = InRole;
 	PresetAsset = InPresetAsset;
 
-	SkillComp = InOwner ? InOwner->FindComponentByClass<UJRPGSkillComponent>() : nullptr;
-	HPComp = InOwner ? InOwner->FindComponentByClass<UCombatHPComponent>() : nullptr;
-	ThreatComp = InOwner ? InOwner->FindComponentByClass<UCombatThreatComponent>() : nullptr;
+	SkillComp = InOwner ? InOwner->FindComponentByClass<USkillComponent>() : nullptr;
+	HPComp = InOwner ? InOwner->FindComponentByClass<UHPComponent>() : nullptr;
+	ThreatComp = InOwner ? InOwner->FindComponentByClass<UThreatComponent>() : nullptr;
 }
 
 void UCombatAIContext::Refresh()
@@ -80,7 +80,7 @@ void UCombatAIContext::RefreshPartySnapshot()
 		if (!Ally.IsValid() || Ally.Get() == Owner.Get())
 			continue;
 
-		if (UCombatHPComponent *AllyHP = Ally->FindComponentByClass<UCombatHPComponent>())
+		if (UHPComponent *AllyHP = Ally->FindComponentByClass<UHPComponent>())
 		{
 			const floatHp01 = AllyHP->GetHpRatio01();
 			const floatCritThr = PresetAsset.IsValid() ? PresetAsset->Thresholds.PartyDangerHp01 : 0.30f;

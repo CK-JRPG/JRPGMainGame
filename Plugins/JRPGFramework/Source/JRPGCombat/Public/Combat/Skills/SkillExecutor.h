@@ -1,16 +1,16 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "Combat/Skills/JRPGSkillTypes.h"
+#include "Combat/Skills/SkillTypes.h"
 
-class UJRPGSkillDataAsset;
-class UJRPGSkillComponent;
-class UCombatAPComponent;
-class UCombatHPComponent;
+class USkillDataAsset;
+class USkillComponent;
+class UAPComponent;
+class UHPComponent;
 class UStatusComponent;
 class UGroggyComponent;
-class UCombatThreatComponent;
-class UJRPGCombatMotionComponent;
+class UThreatComponent;
+class UCombatMotionComponent;
 
 
 /**
@@ -22,28 +22,28 @@ class UJRPGCombatMotionComponent;
 class JRPGCOMBAT_API FSkillExecutor
 {
 public:
-	static FJRPGSkillResult Execute(UJRPGSkillComponent& SkillComp, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req);
+	static FJRPGSkillResult Execute(USkillComponent& SkillComp, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req);
 
 private:
 	
 	// 유효성 검사 요청
-	static bool ValidateRequest(UJRPGSkillComponent& SkillComp, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, FJRPGReason& OutReason, int32& OutAPCost);
+	static bool ValidateRequest(USkillComponent& SkillComp, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, FJRPGReason& OutReason, int32& OutAPCost);
 
 	// 비용(AP) 검사
-	static bool CommitCosts(UJRPGSkillComponent& SkillComp, int32 APCost, const FJRPGSkillRequest& Req, FJRPGReason& OutReason);
+	static bool CommitCosts(USkillComponent& SkillComp, int32 APCost, const FJRPGSkillRequest& Req, FJRPGReason& OutReason);
 	
-	static void ApplyEffects(UJRPGSkillComponent& SkillComp, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, FJRPGSkillResult& InOutResult);
+	static void ApplyEffects(USkillComponent& SkillComp, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, FJRPGSkillResult& InOutResult);
 
-	static void BuildTargetList(const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, TArray<AActor*>& OutTargets);
+	static void BuildTargetList(const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, TArray<AActor*>& OutTargets);
 
 	// effect handlers
-	static void ApplyDamageOrHeal(AActor* Caster, AActor* Target, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, bool bHeal, FJRPGSkillResult& InOutResult);
-	static void ApplyStatus(AActor* Caster, AActor* Target, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult);
+	static void ApplyDamageOrHeal(AActor* Caster, AActor* Target, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, bool bHeal, FJRPGSkillResult& InOutResult);
+	static void ApplyStatus(AActor* Caster, AActor* Target, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult);
 	static void RemoveStatus(AActor* Target, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult);
 	static void AddGroggy(AActor* Target, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult);
 	static void AddThreat(AActor* Target, AActor* Caster, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult);
-	static void RequestMotion(AActor* Caster, AActor* PrimaryTarget, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult);
-	static void GrantSP(AActor* Caster, const UJRPGSkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult);
+	static void RequestMotion(AActor* Caster, AActor* PrimaryTarget, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult);
+	static void GrantSP(AActor* Caster, const USkillDataAsset& Skill, const FJRPGSkillRequest& Req, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult);
 
 	static FVector ResolveMotionDirection(AActor* Caster, AActor* PrimaryTarget, const FJRPGSkillMotionEffect& Motion);
 

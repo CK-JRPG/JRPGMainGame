@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "JRPGCore/Public/JRPGCoreApiTypes.h"
+#include "JRPGCoreApiTypes.h"
 #include "LocomotionComponent.generated.h"
 
 class ACharacter;

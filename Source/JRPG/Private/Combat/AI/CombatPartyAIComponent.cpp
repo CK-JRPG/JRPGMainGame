@@ -4,7 +4,7 @@
 #include "Combat/AI/CombatAIContext.h"
 #include "Combat/AI/CombatAIScorer.h"
 
-#include "Combat/Skills/JRPGSkillComponent.h"
+#include "Combat/Skills/SkillComponent.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
 
@@ -154,7 +154,7 @@ void UCombatPartyAIComponent::ExecuteAction(const FCombatAIAction &Action)
 	}
 }
 
-bool UCombatPartyAIComponent::ResolveSkillMeta(UJRPGSkillComponent *SkillComp, FName SkillId, FSkillAIMeta &OutMeta) const
+bool UCombatPartyAIComponent::ResolveSkillMeta(USkillComponent *SkillComp, FName SkillId, FSkillAIMeta &OutMeta) const
 {
 	OutMeta = FSkillAIMeta();
 

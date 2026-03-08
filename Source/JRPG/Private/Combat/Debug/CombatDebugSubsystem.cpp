@@ -1,10 +1,10 @@
 ﻿#include "Combat/Debug/CombatDebugSubsystem.h"
 
-#include "Combat/Battle/CombatBattleSessionSubsystem.h"
+#include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Battle/BasicCombatSubsystem.h"
-#include "Combat/Tactical/CombatTacticalModeSubsystem.h"
+#include "Combat/Tactical/TacticalModeSubsystem.h"
 #include "Combat/Chain/ChainAttackSubsystem.h"
-#include "Combat/SP/CombatSynergyPointSubsystem.h"
+#include "Combat/SP/SynergyPointSubsystem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCombatDebugStream, Log, All);
 
@@ -47,7 +47,7 @@ void UCombatDebugSubsystem::BindGlobalEvents()
 {
 	if (!GetWorld()) return;
 
-	if (UCombatBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UCombatBattleSessionSubsystem>())
+	if (UBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
 	{
 		Battle->OnBattleStarted.AddUObject(this, &UCombatDebugSubsystem::HandleBattleStarted);
 		Battle->OnBattleEnded.AddUObject(this, &UCombatDebugSubsystem::HandleBattleEnded);
@@ -62,7 +62,7 @@ void UCombatDebugSubsystem::BindGlobalEvents()
 		Basic->OnCombatantDefeated.AddUObject(this, &UCombatDebugSubsystem::HandleCombatantDefeated);
 	}
 
-	if (UCombatTacticalModeSubsystem* Tactical = GetWorld()->GetSubsystem<UCombatTacticalModeSubsystem>())
+	if (UTacticalModeSubsystem* Tactical = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
 	{
 		Tactical->OnTacticalModeEntered.AddUObject(this, &UCombatDebugSubsystem::HandleTacticalEntered);
 		Tactical->OnTacticalModeExited.AddUObject(this, &UCombatDebugSubsystem::HandleTacticalExited);
@@ -76,7 +76,7 @@ void UCombatDebugSubsystem::BindGlobalEvents()
 		Chain->OnChainAttackEnded.AddUObject(this, &UCombatDebugSubsystem::HandleChainEnded);
 	}
 
-	if (UCombatSynergyPointSubsystem* SP = GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>())
+	if (USynergyPointSubsystem* SP = GetWorld()->GetSubsystem<USynergyPointSubsystem>())
 	{
 		SP->OnSynergyPointChanged.AddUObject(this, &UCombatDebugSubsystem::HandleSPChanged);
 		SP->OnSynergyReadyChanged.AddUObject(this, &UCombatDebugSubsystem::HandleSPReadyChanged);

@@ -7,8 +7,8 @@
 #include "Combat/AI/CombatAIActionTypes.h"
 #include "EnemyAIController.generated.h"
 
-class UCombatThreatComponent;
-class UJRPGSkillComponent;
+class UThreatComponent;
+class USkillComponent;
 class UCombatAIPresetAsset;
 
 UCLASS()
@@ -26,8 +26,8 @@ public:
 
 private:
 	UPROPERTY() TObjectPtr<APawn> ControlledPawn;
-	UPROPERTY() TObjectPtr<UCombatThreatComponent> ThreatComp;
-	UPROPERTY() TObjectPtr<UJRPGSkillComponent> SkillComp;
+	UPROPERTY() TObjectPtr<UThreatComponent> ThreatComp;
+	UPROPERTY() TObjectPtr<USkillComponent> SkillComp;
 
 	UPROPERTY() EEnemyCombatState State = EEnemyCombatState::Idle;
 

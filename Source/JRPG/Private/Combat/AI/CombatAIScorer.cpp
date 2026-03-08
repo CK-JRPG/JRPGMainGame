@@ -1,7 +1,7 @@
 ﻿// Source/JRPGCombat/Private/Combat/AI/CombatAIScorer.cpp
 
 #include "Combat/AI/CombatAIScorer.h"
-#include "Combat/Skills/JRPGSkillComponent.h"
+#include "Combat/Skills/SkillComponent.h"
 
 void UCombatAIScorer::Initialize(FGetSkillAIMetaDelegate InMetaResolver)
 {

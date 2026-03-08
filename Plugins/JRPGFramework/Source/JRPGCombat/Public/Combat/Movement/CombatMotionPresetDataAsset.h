@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "JRPGCombatMotionTypes.h"
+#include "CombatMotionTypes.h"
 #include "CombatMotionPresetDataAsset.generated.h"
 
 UCLASS()

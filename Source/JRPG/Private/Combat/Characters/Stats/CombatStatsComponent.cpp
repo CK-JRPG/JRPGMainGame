@@ -2,8 +2,8 @@
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 
-#include "Combat/Stats/CombatHPComponent.h"
-#include "Combat/Stats/CombatAPComponent.h"
+#include "Combat/Stats/HPComponent.h"
+#include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
 
 #if __has_include("Combat/Progression/Leveling/LevelingSubsystem.h")
@@ -19,8 +19,8 @@ void UCombatStatsComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	CharacterComp = GetOwner() ? GetOwner()->FindComponentByClass<UCombatCharacterComponent>() : nullptr;
-	HP = GetOwner() ? GetOwner()->FindComponentByClass<UCombatHPComponent>() : nullptr;
-	AP = GetOwner() ? GetOwner()->FindComponentByClass<UCombatAPComponent>() : nullptr;
+	HP = GetOwner() ? GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
+	AP = GetOwner() ? GetOwner()->FindComponentByClass<UAPComponent>() : nullptr;
 	SP = GetOwner() ? GetOwner()->FindComponentByClass<USPComponent>() : nullptr;
 	RecomputeStats("Init");
 }

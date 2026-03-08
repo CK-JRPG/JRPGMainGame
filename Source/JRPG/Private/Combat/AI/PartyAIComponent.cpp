@@ -11,8 +11,8 @@
 #include "Combat/AI/CombatAIScorer.h"
 #include "Combat/AI/CombatAIPresetAsset.h"
 
-#include "Combat/Skills/JRPGSkillComponent.h"
-#include "Combat/Infrastructure/CombatBattleSessionSubsystem.h"
+#include "Combat/Skills/SkillComponent.h"
+#include "Combat/Infrastructure/BattleSessionSubsystem.h"
 
 UPartyAIComponent::UPartyAIComponent()
 {
@@ -87,7 +87,7 @@ void UPartyAIComponent::ThinkOnce()
 
 	const FCombatAIAction Action = FCombatAIScorer::ChoosePartyAction(*CtxObj, *PresetAsset, Role, Preset);
 
-	UJRPGSkillComponent*Skill = CtxObj->Skill;
+	USkillComponent*Skill = CtxObj->Skill;
 	if (!Skill) return;
 
 	switch (Action.Type)

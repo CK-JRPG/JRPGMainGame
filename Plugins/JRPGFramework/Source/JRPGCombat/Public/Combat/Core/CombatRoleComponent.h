@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Combat/SP/JRPGSynergyPointTypes.h"
+#include "Combat/SP/SynergyPointTypes.h"
 #include "CombatRoleComponent.generated.h"
 
 /**

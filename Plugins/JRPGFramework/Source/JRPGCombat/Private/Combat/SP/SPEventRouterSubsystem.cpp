@@ -1,14 +1,14 @@
 #include "Combat/SP/SPEventRouterSubsystem.h"
 
-#include "Combat/Infrastructure/CombatSynergyPointSubsystem.h"
-#include "Combat/Stats/CombatHPComponent.h"
+#include "Combat/Infrastructure/SynergyPointSubsystem.h"
+#include "Combat/Stats/HPComponent.h"
 
 void USPEventRouterSubsystem::RouteDamageOrHeal(const FCombatDamageSpec& Spec, const FCombatDamageResult& Result, AActor* Victim)
 {
 	if (!Result.Op.bOk) return;
 	if (!Spec.Instigator) return;
 
-	UCombatSynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>() : nullptr;
+	USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
 	if (!SP) return;
 
 	// Damage / Heal 이벤트
@@ -49,7 +49,7 @@ void USPEventRouterSubsystem::RouteDamageOrHeal(const FCombatDamageSpec& Spec, c
 
 		if (Victim)
 		{
-			if (UCombatHPComponent* HP = Victim->FindComponentByClass<UCombatHPComponent>())
+			if (UHPComponent* HP = Victim->FindComponentByClass<UHPComponent>())
 			{
 				const float MaxHP = FMath::Max(1.f, HP->MaxHP);
 				Ev.TargetHPBeforeRatio = (float)(Result.OldValue / MaxHP);
@@ -64,7 +64,7 @@ void USPEventRouterSubsystem::RouteStatusApplied(AActor* Instigator, AActor* Tar
 {
 	if (!Instigator) return;
 
-	UCombatSynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>() : nullptr;
+	USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
 	if (!SP) return;
 
 	FSPGainEvent Ev;
@@ -82,7 +82,7 @@ void USPEventRouterSubsystem::RouteStatusCleansed(AActor* Instigator, AActor* Ta
 {
 	if (!Instigator) return;
 
-	UCombatSynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>() : nullptr;
+	USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
 	if (!SP) return;
 
 	FSPGainEvent Ev;
@@ -100,7 +100,7 @@ void USPEventRouterSubsystem::RouteSupporterBuffUptime(AActor* Supporter, AActor
 {
 	if (!Supporter) return;
 
-	UCombatSynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>() : nullptr;
+	USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
 	if (!SP) return;
 
 	FSPGainEvent Ev;

@@ -3,7 +3,7 @@
 #include "Combat/Battle/BasicCombatSubsystem.h"
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
-#include "Combat/Skills/JRPGSkillComponent.h"
+#include "Combat/Skills/SkillComponent.h"
 
 UCombatActionComponent::UCombatActionComponent()
 {
@@ -14,7 +14,7 @@ void UCombatActionComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	CharacterComp = GetOwner() ? GetOwner()->FindComponentByClass<UCombatCharacterComponent>() : nullptr;
-	SkillComp = GetOwner() ? GetOwner()->FindComponentByClass<UJRPGSkillComponent>() : nullptr;
+	SkillComp = GetOwner() ? GetOwner()->FindComponentByClass<USkillComponent>() : nullptr;
 }
 
 UBasicCombatSubsystem* UCombatActionComponent::GetCombatSubsystem() const

@@ -9,9 +9,9 @@
 #include "CombatAIContext.generated.h"
 
 class UCombatAIPresetAsset;
-class UJRPGSkillComponent;
-class UCombatHPComponent;
-class UCombatThreatComponent;
+class USkillComponent;
+class UHPComponent;
+class UThreatComponent;
 
 UCLASS()
 class JRPG_API UCombatAIContext : public UObject
@@ -32,9 +32,9 @@ public:
 	UPROPERTY() TWeakObjectPtr<UCombatAIPresetAsset> PresetAsset;
 
 	// ---- Components
-	UPROPERTY() TWeakObjectPtr<UJRPGSkillComponent> SkillComp;
-	UPROPERTY() TWeakObjectPtr<UCombatHPComponent> HPComp;
-	UPROPERTY() TWeakObjectPtr<UCombatThreatComponent> ThreatComp;
+	UPROPERTY() TWeakObjectPtr<USkillComponent> SkillComp;
+	UPROPERTY() TWeakObjectPtr<UHPComponent> HPComp;
+	UPROPERTY() TWeakObjectPtr<UThreatComponent> ThreatComp;
 
 	// ---- Targets/Party
 	UPROPERTY() TWeakObjectPtr<AActor> PrimaryTarget;

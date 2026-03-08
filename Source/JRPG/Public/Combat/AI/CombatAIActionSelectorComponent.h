@@ -4,10 +4,10 @@
 #include "Components/ActorComponent.h"
 #include "CombatAIActionSelectorComponent.generated.h"
 
-class UCombatBattleSessionSubsystem;
+class UBattleSessionSubsystem;
 class UCombatTargetingSubsystem;
-class UJRPGSkillComponent;
-class UJRPGSkillDataAsset;
+class USkillComponent;
+class USkillDataAsset;
 class UCombatPresentationComponent;
 
 UCLASS(ClassGroup=(Combat),meta=(BlueprintSpawnableComponent))
@@ -31,17 +31,17 @@ protected:
 private:
 	float ThinkAccumulator = 0.f;
 
-	TWeakObjectPtr<UJRPGSkillComponent> SkillComp;
+	TWeakObjectPtr<USkillComponent> SkillComp;
 	TWeakObjectPtr<UCombatPresentationComponent> PresentationComp;
 
-	UCombatBattleSessionSubsystem* GetBattle() const;
+	UBattleSessionSubsystem* GetBattle() const;
 	UCombatTargetingSubsystem* GetTargeting() const;
 
 	float GetHPRatio(AActor* Actor) const;
-	bool CanAffordSkill(const UJRPGSkillDataAsset &Skill) const;
+	bool CanAffordSkill(const USkillDataAsset &Skill) const;
 
-	UJRPGSkillDataAsset* PickBestHealSkill(TArray<AActor*> &OutTargets) const;
-	UJRPGSkillDataAsset* PickBestOffensiveSkill(TArray<AActor*> &OutTargets) const;
+	USkillDataAsset* PickBestHealSkill(TArray<AActor*> &OutTargets) const;
+	USkillDataAsset* PickBestOffensiveSkill(TArray<AActor*> &OutTargets) const;
 
 	void ThinkAndAct();
 };

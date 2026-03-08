@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
-#include "JRPGCore/Public/JRPGCoreApiTypes.h"
+#include "JRPGCoreApiTypes.h"
 #include "Combat/Chain/ChainSettingsDataAsset.h"
 
 #include "Combat/Chain/ChainTypes.h"
@@ -10,11 +10,11 @@
 
 class UChainSettingsDataAsset;
 class UCombatTimeSubsystem;
-class UCombatBattleSessionSubsystem;
-class UCombatTacticalModeSubsystem;
-class UCombatSynergyPointSubsystem;
-class UJRPGSkillComponent;
-class UJRPGSkillDataAsset;
+class UBattleSessionSubsystem;
+class UTacticalModeSubsystem;
+class USynergyPointSubsystem;
+class USkillComponent;
+class USkillDataAsset;
 
 UCLASS()
 class JRPGCOMBAT_API UTrinityChainSubsystem :public UTickableWorldSubsystem
@@ -70,9 +70,9 @@ private:
 
 	// cached subsystems
 	UCombatTimeSubsystem* GetTime() const;
-	UCombatBattleSessionSubsystem* GetSession() const;
-	UCombatTacticalModeSubsystem* GetTactical() const;
-	UCombatSynergyPointSubsystem* GetSP() const;
+	UBattleSessionSubsystem* GetSession() const;
+	UTacticalModeSubsystem* GetTactical() const;
+	USynergyPointSubsystem* GetSP() const;
 
 	// internals
 	void TransitionTo(EChainState NewState);
@@ -86,7 +86,7 @@ private:
 	bool IsCasterPickable(AActor *Caster, FName &OutReasonTag) const;
 	bool IsSkillEligibleForChain(AActor *Caster, FName SkillId, FName &OutReasonTag) const;
 
-	const UJRPGSkillDataAsset* FindSkillAsset(AActor *Caster,FName SkillId) const;
+	const USkillDataAsset* FindSkillAsset(AActor *Caster,FName SkillId) const;
 
 	void BuildExecuteQueueIfNeeded();
 	void ExecuteNextStep();
@@ -101,7 +101,7 @@ private:
 	void TickChainInsideGroggy();
 
 	// TP
-	int32 ComputeTPForSkill(const UJRPGSkillDataAsset *SkillAsset) const;
+	int32 ComputeTPForSkill(const USkillDataAsset *SkillAsset) const;
 	float ComputeDamageScalarForStep() const;
 	float ComputeFinisherDamageScalar() const;
 };

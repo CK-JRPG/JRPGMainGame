@@ -2,13 +2,13 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
-#include "Combat/Movement/JRPGCombatMotionTypes.h"
+#include "Combat/Movement/CombatMotionTypes.h"
 #include "CombatMotionEffectBridgeComponent.generated.h"
 
-class UJRPGCombatMotionComponent;
+class UCombatMotionComponent;
 class UStatusComponent;
 class UGroggyComponent;
-class UCombatThreatComponent;
+class UThreatComponent;
 class UCombatMotionImpactConfigDataAsset;
 
 /**
@@ -33,10 +33,10 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
-	UPROPERTY(Transient) TObjectPtr<UJRPGCombatMotionComponent> Motion = nullptr;
+	UPROPERTY(Transient) TObjectPtr<UCombatMotionComponent> Motion = nullptr;
 	UPROPERTY(Transient) TObjectPtr<UStatusComponent> Status = nullptr;
 	UPROPERTY(Transient) TObjectPtr<UGroggyComponent> Groggy = nullptr;
-	UPROPERTY(Transient) TObjectPtr<UCombatThreatComponent> Threat = nullptr;
+	UPROPERTY(Transient) TObjectPtr<UThreatComponent> Threat = nullptr;
 
 	// Handle -> Request 캐시(Ended/Cancelled 때 archetype 확인용)
 	UPROPERTY(Transient) TMap<uint64, FCombatMotionRequest> RequestById;

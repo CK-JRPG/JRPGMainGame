@@ -1,9 +1,9 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "JRPGCore/Public/JRPGCoreApiTypes.h"
-#include "Combat/Movement/JRPGCombatMotionTypes.h"  // HitMove archetype 연동
-#include "CombatDamageTypes.generated.h"
+#include "JRPGCoreApiTypes.h"
+#include "Combat/Movement/CombatMotionTypes.h"  // HitMove archetype 연동
+#include "Combat/Core/CombatDamageTypes.generated.h"
 
 // 전투에서 “피해/회복”은 스킬/아이템/환경이 모두 호출 가능.
 // Skill 시스템은 나중에 여기 Spec을 만들어 HPComponent에 전달하면 된다.

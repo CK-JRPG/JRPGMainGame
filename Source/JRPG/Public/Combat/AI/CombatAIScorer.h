@@ -22,7 +22,7 @@ struct FSkillAIMeta
 };
 
 // NOTE: 이 부분은 프로젝트의 SkillDataAsset/SkillComponent 구현에 맞춰 채우면 됨.
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FGetSkillAIMetaDelegate, class UJRPGSkillComponent* /*SkillComp*/, FName /*SkillId*/);
+DECLARE_DELEGATE_RetVal_TwoParams(bool, FGetSkillAIMetaDelegate, class USkillComponent* /*SkillComp*/, FName /*SkillId*/);
 
 UCLASS()
 class JRPG_API UCombatAIScorer :public UObject

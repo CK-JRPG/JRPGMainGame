@@ -1,14 +1,14 @@
 ﻿// Source/JRPGCombat/Private/Combat/Battle/CombatTargetingSubsystem.cpp
 #include "Combat/Battle/CombatTargetingSubsystem.h"
 
-#include "Combat/Battle/CombatBattleSessionSubsystem.h"
+#include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
-#include "Combat/Stats/CombatHPComponent.h"
-#include "Combat/Threat/CombatThreatComponent.h"
+#include "Combat/Stats/HPComponent.h"
+#include "Combat/Threat/ThreatComponent.h"
 
-UCombatBattleSessionSubsystem* UCombatTargetingSubsystem :: GetBattle()const
+UBattleSessionSubsystem* UCombatTargetingSubsystem :: GetBattle()const
 {
-	return GetWorld() ? GetWorld()->GetSubsystem<UCombatBattleSessionSubsystem>() : nullptr;
+	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
 }
 
 bool UCombatTargetingSubsystem::IsAliveCombatant(AActor *Actor)const
@@ -18,7 +18,7 @@ bool UCombatTargetingSubsystem::IsAliveCombatant(AActor *Actor)const
 
 	if (ICombatParticipantInterface *P =Cast<ICombatParticipantInterface>(Actor))
 	{
-		if (UCombatHPComponent *HP = P->GetHP())
+		if (UHPComponent *HP = P->GetHP())
 			return !HP->IsDead();
 	}
 	return false;
@@ -68,7 +68,7 @@ float UCombatTargetingSubsystem::GetHPRatio(AActor *Actor) const
 
 	if (ICombatParticipantInterface *P = Cast<ICombatParticipantInterface>(Actor))
 	{
-		if (UCombatHPComponent *HP = P->GetHP())
+		if (UHPComponent *HP = P->GetHP())
 		{
 			const float Max = FMath::Max(1.f,HP->GetMaxHP());
 			return HP->GetHP() / Max;
@@ -82,7 +82,7 @@ AActor* UCombatTargetingSubsystem::PickTopThreatTarget(AActor *Requester, const 
 	if (!Requester) 
 		return nullptr;
 
-	if (UCombatThreatComponent *Threat = Requester->FindComponentByClass<UCombatThreatComponent>())
+	if (UThreatComponent *Threat = Requester->FindComponentByClass<UThreatComponent>())
 	{
 		if (AActor *Top = Threat->GetTopThreatSource())
 		{
@@ -128,7 +128,7 @@ void UCombatTargetingSubsystem::GetAlliesIncludingSelf(AActor *Requester,TArray<
 	if (!Requester)
 		return;
 
-	if (UCombatBattleSessionSubsystem *Battle = GetBattle())
+	if (UBattleSessionSubsystem *Battle = GetBattle())
 	{
 		Battle->GetAlliesFor(Requester,Out);
 	}
@@ -158,7 +158,7 @@ FTargetValidationResult UCombatTargetingSubsystem::ValidateBasicAttackTarget(AAc
 	return FTargetValidationResult::Ok();
 }
 
-FTargetValidationResult UCombatTargetingSubsystem::ValidateSkillTargets(AActor *Requester,const UJRPGSkillDataAsset *Skill,const TArray<AActor*> &Targets) const
+FTargetValidationResult UCombatTargetingSubsystem::ValidateSkillTargets(AActor *Requester,const USkillDataAsset *Skill,const TArray<AActor*> &Targets) const
 {
 	if (!Requester||!Skill)
 		return FTargetValidationResult::Fail("Reject.InvalidSkill");
@@ -215,7 +215,7 @@ FTargetingResult UCombatTargetingSubsystem::ResolvePreferredBasicAttackTarget(AA
 	if (!Requester)
 		return FTargetingResult::Fail("Reject.InvalidTarget");
 
-	UCombatBattleSessionSubsystem *Battle = GetBattle();
+	UBattleSessionSubsystem *Battle = GetBattle();
 	if (!Battle||!Battle->IsBattleActive())
 		return FTargetingResult::Fail("Reject.NoBattle");
 
@@ -236,12 +236,12 @@ FTargetingResult UCombatTargetingSubsystem::ResolvePreferredBasicAttackTarget(AA
 	return FTargetingResult::Ok(One);
 }
 
-FTargetingResult UCombatTargetingSubsystem::ResolvePreferredTargetsForSkill(AActor *Requester,const UJRPGSkillDataAsset *Skill) const
+FTargetingResult UCombatTargetingSubsystem::ResolvePreferredTargetsForSkill(AActor *Requester,const USkillDataAsset *Skill) const
 {
 	if (!Requester||!Skill)
 		return FTargetingResult::Fail("Reject.InvalidSkill");
 
-	UCombatBattleSessionSubsystem *Battle =GetBattle();
+	UBattleSessionSubsystem *Battle =GetBattle();
 	if (!Battle||!Battle->IsBattleActive())
 		return FTargetingResult::Fail("Reject.NoBattle");
 

@@ -4,13 +4,13 @@
 #include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Characters/Stats/CombatStatsComponent.h"
 
-#include "Combat/Stats/CombatHPComponent.h"
-#include "Combat/Stats/CombatAPComponent.h"
+#include "Combat/Stats/HPComponent.h"
+#include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
-#include "Combat/SP/CombatSynergyPointSubsystem.h"
+#include "Combat/SP/SynergyPointSubsystem.h"
 
-#include "Combat/Threat/CombatThreatComponent.h"
-#include "Combat/Groggy/CombatGroggyComponent.h"
+#include "Combat/Threat/ThreatComponent.h"
+#include "Combat/Groggy/GroggyComponent.h"
 
 bool UBasicCombatSubsystem::IsFriendlyTarget(AActor* Attacker, AActor* Target) const
 {
@@ -36,14 +36,14 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 	if (Attacker == Target) return FCombatActionResult::Fail("Reject.InvalidTarget");
 	if (IsFriendlyTarget(Attacker, Target)) return FCombatActionResult::Fail("Reject.FriendlyTarget");
 
-	UCombatHPComponent* AttackerHP = Attacker->FindComponentByClass<UCombatHPComponent>();
-	UCombatAPComponent* AttackerAP = Attacker->FindComponentByClass<UCombatAPComponent>();
+	UHPComponent* AttackerHP = Attacker->FindComponentByClass<UHPComponent>();
+	UAPComponent* AttackerAP = Attacker->FindComponentByClass<UAPComponent>();
 	USPComponent* AttackerSP = Attacker->FindComponentByClass<USPComponent>();
 	UCombatStatsComponent* AttackerStats = Attacker->FindComponentByClass<UCombatStatsComponent>();
 
-	UCombatHPComponent* TargetHP = Target->FindComponentByClass<UCombatHPComponent>();
+	UHPComponent* TargetHP = Target->FindComponentByClass<UHPComponent>();
 	UCombatStatsComponent* TargetStats = Target->FindComponentByClass<UCombatStatsComponent>();
-	UCombatThreatComponent* TargetThreat = Target->FindComponentByClass<UCombatThreatComponent>();
+	UThreatComponent* TargetThreat = Target->FindComponentByClass<UThreatComponent>();
 	UGroggyComponent* TargetGroggy = Target->FindComponentByClass<UGroggyComponent>();
 
 	if (!AttackerHP || !TargetHP) return FCombatActionResult::Fail("Reject.MissingHP");
@@ -87,7 +87,7 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 		TargetGroggy->AddGroggyDamage(Out.Breakdown.GroggyDamage, Attacker, Req.ReasonTag);
 	}
 	
-	if (UCombatSynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>() : nullptr)
+	if (USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr)
 	{
 		if (Out.Breakdown.FinalDamage > 0.f)
 		{

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "JRPGCore/Public/JRPGCoreApiTypes.h"
+#include "JRPGCoreApiTypes.h"
 #include "TacticalTypes.generated.h"
 
 UENUM()

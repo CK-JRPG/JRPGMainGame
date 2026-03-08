@@ -1,14 +1,14 @@
 ﻿#include "Combat/AI/CombatAIActionSelectorComponent.h"
 
-#include "Combat/Battle/CombatBattleSessionSubsystem.h"
+#include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Battle/CombatTargetingSubsystem.h"
 
 #include "Combat/Presentation/CombatPresentationComponent.h"
-#include "Combat/Skills/JRPGSkillComponent.h"
-#include "JRPG/Public/Combat/Skills/JRPGSkillDataAsset.h"
+#include "Combat/Skills/SkillComponent.h"
+#include "JRPG/Public/Combat/Skills/SkillDataAsset.h"
 
-#include "JRPG/Public/Combat/Stats/CombatHPComponent.h"
-#include "JRPG/Public/Combat/Stats/CombatAPComponent.h"
+#include "JRPG/Public/Combat/Stats/HPComponent.h"
+#include "JRPG/Public/Combat/Stats/APComponent.h"
 #include "JRPG/Public/Combat/SP/SPComponent.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 
@@ -22,7 +22,7 @@ void UCombatAIActionSelectorComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SkillComp = GetOwner() ? GetOwner()->FindComponentByClass<UJRPGSkillComponent>() : nullptr;
+	SkillComp = GetOwner() ? GetOwner()->FindComponentByClass<USkillComponent>() : nullptr;
 	PresentationComp = GetOwner() ? GetOwner()->FindComponentByClass<UCombatPresentationComponent>() : nullptr;
 }
 
@@ -37,7 +37,7 @@ void UCombatAIActionSelectorComponent::TickComponent(float DeltaTime, ELevelTick
 	
 	ThinkAccumulator = 0.f;
 
-	UCombatBattleSessionSubsystem* Battle = GetBattle();
+	UBattleSessionSubsystem* Battle = GetBattle();
 	
 	if (!Battle || !Battle->IsBattleActive()) return;
 	if (Battle->GetPhase() != EBattlePhase::Active) return;
@@ -49,9 +49,9 @@ void UCombatAIActionSelectorComponent::TickComponent(float DeltaTime, ELevelTick
 	ThinkAndAct();
 }
 
-UCombatBattleSessionSubsystem* UCombatAIActionSelectorComponent::GetBattle() const
+UBattleSessionSubsystem* UCombatAIActionSelectorComponent::GetBattle() const
 {
-	return GetWorld() ? GetWorld()->GetSubsystem<UCombatBattleSessionSubsystem>() : nullptr;
+	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
 }
 
 UCombatTargetingSubsystem* UCombatAIActionSelectorComponent::GetTargeting() const
@@ -66,7 +66,7 @@ float UCombatAIActionSelectorComponent::GetHPRatio(AActor* Actor)const
 
 	if (ICombatParticipantInterface* P = Cast<ICombatParticipantInterface>(Actor))
 	{
-		if (UCombatHPComponent* HP = P->GetHP())
+		if (UHPComponent* HP = P->GetHP())
 		{
 			const float Max = FMath::Max(1.f,HP->GetMaxHP());
 			return HP->GetHP() / Max;
@@ -75,12 +75,12 @@ float UCombatAIActionSelectorComponent::GetHPRatio(AActor* Actor)const
 	return 1.f;
 }
 
-bool UCombatAIActionSelectorComponent::CanAffordSkill(const UJRPGSkillDataAsset &Skill) const
+bool UCombatAIActionSelectorComponent::CanAffordSkill(const USkillDataAsset &Skill) const
 {
 	if (!GetOwner())
 		return false;
 
-	UCombatAPComponent*AP =GetOwner()->FindComponentByClass<UCombatAPComponent>();
+	UAPComponent*AP =GetOwner()->FindComponentByClass<UAPComponent>();
 	USPComponent*SP =GetOwner()->FindComponentByClass<USPComponent>();
 	
 	if (!AP || !SP) 
@@ -100,14 +100,14 @@ bool UCombatAIActionSelectorComponent::CanAffordSkill(const UJRPGSkillDataAsset 
 
 void UCombatAIActionSelectorComponent::ThinkAndAct()
 {
-	UCombatBattleSessionSubsystem* Battle = GetBattle();
+	UBattleSessionSubsystem* Battle = GetBattle();
 	UCombatTargetingSubsystem* Targeting = GetTargeting();
 	
 	if (!Battle || !Targeting || !PresentationComp.IsValid()) 
 		return;
 
 	TArray<AActor*> HealTargets;
-	if (UJRPGSkillDataAsset* HealSkill = PickBestHealSkill(HealTargets))
+	if (USkillDataAsset* HealSkill = PickBestHealSkill(HealTargets))
 	{
 		const FSkillCastResult R = PresentationComp->TryPresentSkill(HealSkill->SkillId,HealTargets,false);
 		if (R.bOk)
@@ -115,7 +115,7 @@ void UCombatAIActionSelectorComponent::ThinkAndAct()
 	}
 
 	TArray<AActor*> OffensiveTargets;
-	if (UJRPGSkillDataAsset* OffensiveSkill = PickBestOffensiveSkill(OffensiveTargets))
+	if (USkillDataAsset* OffensiveSkill = PickBestOffensiveSkill(OffensiveTargets))
 	{
 		const FSkillCastResult R =PresentationComp->TryPresentSkill(OffensiveSkill->SkillId,OffensiveTargets,false);
 		if (R.bOk) 
