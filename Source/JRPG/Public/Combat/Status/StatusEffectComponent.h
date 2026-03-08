@@ -7,6 +7,28 @@
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnStatusApplied, FName /*EffectId*/, int32 /*Stacks*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnStatusRemoved, FName /*EffectId*/);
 
+UCLASS()
+class UStatusModSourceObject : public UObject
+{
+	GENERATED_BODY()
+		
+public:
+	UPROPERTY() 
+	FName EffectId = NAME_None;
+};
+
+struct FActiveStatus
+{
+	TObjectPtr<UStatusEffectDataAsset> Def = nullptr;
+	TObjectPtr<UStatusModSourceObject> ModSource = nullptr;
+	TWeakObjectPtr<AActor> Applier;
+
+	int32 Stacks = 1;
+	float Remaining = 0.f;
+	float NextTick = 0.f;
+};
+
+
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class JRPG_API UStatusEffectComponent :public UActorComponent
 {
@@ -28,26 +50,6 @@ protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType,FActorComponentTickFunction *ThisTickFunction) override;
 
 private:
-	UCLASS()
-	class UStatusModSourceObject : public UObject
-	{
-		GENERATED_BODY()
-		
-	public:
-		UPROPERTY() 
-		FName EffectId = NAME_None;
-	};
-
-	struct FActiveStatus
-	{
-		TObjectPtr<UStatusEffectDataAsset> Def = nullptr;
-		TObjectPtr<UStatusModSourceObject> ModSource = nullptr;
-		TWeakObjectPtr<AActor> Applier;
-
-		int32 Stacks = 1;
-		float Remaining = 0.f;
-		float NextTick = 0.f;
-	};
 
 	UPROPERTY() 
 	TArray<FActiveStatus> Active;

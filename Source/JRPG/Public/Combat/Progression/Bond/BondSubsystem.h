@@ -17,21 +17,16 @@ struct FBondAddRequest
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	EBondSource Source = EBondSource::Walk;
-	UPROPERTY()
-	TArray<FName> Participants;
-	UPROPERTY()
-	int32 BaseAmount = 0;
+	UPROPERTY() EBondSource Source = EBondSource::Walk;
+	UPROPERTY() TArray<FName> Participants;
+	UPROPERTY() int32 BaseAmount = 0;
 
 	// Context(문서의 Context) + 텔레메트리 sourceTag
-	UPROPERTY()
-	FName Context = NAME_None;
-	UPROPERTY()
-	FName SourceTag = "Bond.BP.Gained";
+	UPROPERTY() FName Context = NAME_None;
+	UPROPERTY() FName SourceTag = "Bond.BP.Gained";
 
 	// 텔레메트리 location
-	UPROPERTY()
+	UPROPERTY() 
 	FVector WorldLocation = FVector::ZeroVector;
 };
 
@@ -44,6 +39,7 @@ public:
 	// ---- Data ----
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<UBondSettingsDataAsset> Settings = nullptr;
+	
 	UPROPERTY(EditAnywhere)
 	TArray<TObjectPtr<UBondDialogueNodeDataAsset>> DialogueNodes;
 
@@ -86,27 +82,20 @@ protected:
 
 private:
 	// 저장 상태
-	UPROPERTY()
-	TMap<FBondPairId, FBondState> PairStates;
-	UPROPERTY()
-	TMap<FBondTrioId, FBondState> TrioStates;
+	UPROPERTY() TMap<FBondPairId, FBondState> PairStates;
+	UPROPERTY() TMap<FBondTrioId, FBondState> TrioStates;
 
-	UPROPERTY()
-	TSet<FName> UnlockedDialogueNodes;
-	UPROPERTY()
-	TSet<FName> CompletedDialogueNodes;
-
-	UPROPERTY()
-	TArray<FName> CurrentPartyIds; // size=3
+	UPROPERTY() TSet<FName> UnlockedDialogueNodes;
+	UPROPERTY() TSet<FName> CompletedDialogueNodes;
+	
+	UPROPERTY() TArray<FName> CurrentPartyIds; // size=3
 
 	UPROPERTY()
 	double LastSignificantProgressReal = 0.0;
 
 	// 캐시(파티 기준)
-	UPROPERTY()
-	int32 CachedTrioLevel = 1;
-	UPROPERTY()
-	float CachedExpBonusMultiplier = 1.0f;
+	UPROPERTY() int32 CachedTrioLevel = 1;
+	UPROPERTY() float CachedExpBonusMultiplier = 1.0f;
 
 	// helpers
 	class UBondSaveGameSubsystem* GetSaveSys() const;

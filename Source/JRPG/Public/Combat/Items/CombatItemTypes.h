@@ -9,40 +9,30 @@ struct FCombatItemApplyBreakdown
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	float TotalHealedHP = 0.f;
-	UPROPERTY()
-	int32 TotalRestoredAP = 0;
-	UPROPERTY()
-	int32 TotalGrantedSP = 0;
+	UPROPERTY() float TotalHealedHP = 0.f;
+	UPROPERTY() int32 TotalRestoredAP = 0;
+	UPROPERTY() int32 TotalGrantedSP = 0;
 
-	UPROPERTY()
-	float TotalDealtDamage = 0.f;
-	UPROPERTY()
-	float TotalGroggyDamage = 0.f;
-	UPROPERTY()
-	float TotalThreatAdded = 0.f;
+	UPROPERTY() float TotalDealtDamage = 0.f;
+	UPROPERTY() float TotalGroggyDamage = 0.f;
+	UPROPERTY() float TotalThreatAdded = 0.f;
 
-	UPROPERTY()
-	int32 StatusAppliedCount = 0;
-	UPROPERTY()
-	int32 StatusRemovedCount = 0;
+	UPROPERTY() int32 StatusAppliedCount = 0;
+	UPROPERTY() int32 StatusRemovedCount = 0;
 };
 
 USTRUCT()
 struct FCombatItemUseRequest
 {
 	GENERATED_BODY()
-
-	UPROPERTY()
-	TWeakObjectPtr<AActor> User;
-	UPROPERTY()
-	FName ItemId = NAME_None;
-	UPROPERTY()
-	TArray<TWeakObjectPtr<AActor>> Targets;
+	
+	UPROPERTY() TArray<TWeakObjectPtr<AActor>> Targets;
+	UPROPERTY() TWeakObjectPtr<AActor> User;
+	UPROPERTY() FName ItemId = NAME_None;
 
 	UPROPERTY(EditAnywhere)
 	bool bFromTacticalReservation = false;
+	
 	UPROPERTY(EditAnywhere)
 	FName ReasonTag = "Combat.UseItem";
 };
@@ -54,15 +44,11 @@ struct FCombatItemUseResult
 
 	UPROPERTY()
 	bool bOk = false;
-	UPROPERTY()
-	FName ReasonTag = NAME_None;
-
-	UPROPERTY()
-	TWeakObjectPtr<AActor> User;
-	UPROPERTY()
-	FName ItemId = NAME_None;
-	UPROPERTY()
-	TArray<TWeakObjectPtr<AActor>> Targets;
+	
+	UPROPERTY() FName ItemId = NAME_None;
+	UPROPERTY() FName ReasonTag = NAME_None;
+	UPROPERTY() TWeakObjectPtr<AActor> User;
+	UPROPERTY() TArray<TWeakObjectPtr<AActor>> Targets;
 
 	UPROPERTY()
 	FCombatItemApplyBreakdown Breakdown;

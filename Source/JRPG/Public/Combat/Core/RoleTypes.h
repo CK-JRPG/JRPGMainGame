@@ -8,5 +8,5 @@
 UENUM()
 enum class EPartyRole : uint8
 {
-	Attacker, Defender, Support, Healer
+	Attacker, Defender, Supporter, Healer
 };

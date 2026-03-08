@@ -14,8 +14,12 @@ public:
 
 	float GetCapPct(FName CapGroup,float DefaultIfMissing = 9999.f) const
 	{
-		if (CapGroup.IsNone()) return DefaultIfMissing;
-		if (const float* V =CapByGroupPct.Find(CapGroup)) return *V;
+		if (CapGroup.IsNone()) 
+			return DefaultIfMissing;
+		
+		if (const float* V =CapByGroupPct.Find(CapGroup)) 
+			return *V;
+		
 		return DefaultIfMissing;
 	}
 };

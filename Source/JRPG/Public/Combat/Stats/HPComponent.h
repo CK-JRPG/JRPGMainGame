@@ -28,6 +28,6 @@ public:
 	float GetHP() const {return CurrentHP;}
 	bool IsDead() const {return CurrentHP <= 0.f;}
 
-	void ApplyDamage(float Amount,AActor *Instigator,FName ReasonTag);
+	void ApplyDamage(float Amount, AActor *Instigator, FName ReasonTag);
 	void Heal(float Amount, AActor *Instigator, FName ReasonTag);
 };

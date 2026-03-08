@@ -87,4 +87,4 @@ struct FSynergyPointTuning
 
 DECLARE_MULTICAST_DELEGATE_FourParams(FOnSynergyPointChanged, int32/*CurrentSP*/, int32/*Delta*/, ESPEventType/*Type*/, FName/*ReasonTag*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSynergyReadyChanged,bool/*bReady*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnSynergyGainApplied,constFSPGainEvent&/*Event*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSynergyGainApplied,const FSPGainEvent& /*Event*/);

@@ -24,7 +24,7 @@ public:
 	int32 GetMaxAP() const { return MaxAP; }
 	int32 GetAP() const { return CurrentAP; }
 
-	bool CanConsume(int32 Amount) const { return Amount >=0 && CurrentAP >= Amount; }
+	bool CanConsume(int32 Amount) const { return Amount >= 0 && CurrentAP >= Amount; }
 
 	bool Consume(int32 Amount, FName ReasonTag);
 	void Restore(int32 Amount, FName ReasonTag);

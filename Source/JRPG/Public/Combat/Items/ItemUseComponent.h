@@ -20,7 +20,7 @@ class UItemDataAsset;
 class UHPComponent;
 class UAPComponent;
 
-DECLARE_MULTICAST_DELEGATE_FiveParams(FOnItemConsumed,AActor*/*User*/,AActor*/*Target*/,FName/*ItemId*/,FGuid/*InstanceId*/,FName/*ReasonTag*/);
+DECLARE_MULTICAST_DELEGATE_FiveParams(FOnItemConsumed, AActor* /*User*/, AActor* /*Target*/, FName /*ItemId*/, FGuid /*InstanceId*/, FName /*ReasonTag*/);
 
 // 상태 시스템 붙일 연결점
 UINTERFACE(MinimalAPI)

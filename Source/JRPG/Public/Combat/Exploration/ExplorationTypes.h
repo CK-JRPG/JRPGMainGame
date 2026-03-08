@@ -106,6 +106,7 @@ struct FExplorationLockCondition
 	// QuestState용(추후 확장)
 	UPROPERTY(EditAnywhere)
 	FName QuestId = NAME_None;
+	
 	UPROPERTY(EditAnywhere)
 	int32 RequiredQuestState = 0;
 };
@@ -117,8 +118,10 @@ struct FDiscoveryRecord
 
 	UPROPERTY()
 	bool bDiscovered = false;
+	
 	UPROPERTY()
 	double DiscoveredAtRealTime = 0.0;
+	
 	UPROPERTY()
 	bool bOptionalRewardGranted = false;
 };

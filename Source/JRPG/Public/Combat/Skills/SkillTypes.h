@@ -23,15 +23,17 @@ struct FSkillCastResult
 	static FSkillCastResult Ok()
 	{
 		FSkillCastResult R; 
-		R.bOk=true; 
+		R.bOk = true; 
+		
 		return R;
 	}
 	
 	static FSkillCastResult Fail (FName Reason)
 	{
 		FSkillCastResult R; 
-		R.bOk=false; 
-		R.ReasonTag=Reason; 
+		R.bOk = false; 
+		R.ReasonTag = Reason; 
+		
 		return R;
 	}
 };

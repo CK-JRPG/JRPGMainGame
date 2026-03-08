@@ -12,15 +12,12 @@ class JRPG_API UBondSaveGame : public USaveGame
 	GENERATED_BODY()
 
 public:
-	UPROPERTY()
-	TMap<FBondPairId, FBondState> PairStates;
-	UPROPERTY()
-	TMap<FBondTrioId, FBondState> TrioStates;
+	
+	UPROPERTY() TMap<FBondPairId, FBondState> PairStates;
+	UPROPERTY() TMap<FBondTrioId, FBondState> TrioStates;
 
-	UPROPERTY()
-	TSet<FName> UnlockedDialogueNodes;
-	UPROPERTY()
-	TSet<FName> CompletedDialogueNodes;
+	UPROPERTY() TSet<FName> UnlockedDialogueNodes;
+	UPROPERTY() TSet<FName> CompletedDialogueNodes;
 
 	// 현재 파티(3인 고정) :contentReference[oaicite:24]{index=24}
 	UPROPERTY()
@@ -31,8 +28,6 @@ public:
 	double LastSignificantProgressReal = 0.0;
 
 	// 캐시
-	UPROPERTY()
-	int32 CachedTrioLevelForParty = 1;
-	UPROPERTY()
-	float CachedExpBonusMultiplier = 1.0f;
+	UPROPERTY() int32 CachedTrioLevelForParty = 1;
+	UPROPERTY() float CachedExpBonusMultiplier = 1.0f;
 };

@@ -28,19 +28,11 @@ public:
 	TSet<uint64> UniqueRewardClaims;
 
 	// Unlock/Collect/Flags
-	UPROPERTY()
-	TSet<FName> MapReveals;
-	UPROPERTY()
-	TSet<FName> FastTravelNodes;
-	UPROPERTY()
-	TSet<FName> TraversalUnlocks;
-	UPROPERTY()
-	TSet<FName> Collectibles;
-	UPROPERTY()
-	TSet<FName> LoreEntries;
-	UPROPERTY()
-	TSet<FName> BestiaryEntries;
-
-	UPROPERTY()
-	TSet<FName> WorldFlags; // 상점 오픈/퍼즐 클리어 등
+	UPROPERTY() TSet<FName> MapReveals;
+	UPROPERTY() TSet<FName> FastTravelNodes;
+	UPROPERTY() TSet<FName> TraversalUnlocks;
+	UPROPERTY() TSet<FName> Collectibles;
+	UPROPERTY() TSet<FName> LoreEntries;
+	UPROPERTY() TSet<FName> BestiaryEntries;
+	UPROPERTY() TSet<FName> WorldFlags; // 상점 오픈/퍼즐 클리어 등
 };

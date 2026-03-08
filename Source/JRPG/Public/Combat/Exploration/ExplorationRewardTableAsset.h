@@ -13,6 +13,7 @@ class JRPG_API UExplorationRewardTableAsset : public UDataAsset
 public:
 	UPROPERTY(EditAnywhere)
 	FName RewardTableId = NAME_None;
+	
 	UPROPERTY(EditAnywhere)
 	TArray<FRewardEntry> Entries;
 };

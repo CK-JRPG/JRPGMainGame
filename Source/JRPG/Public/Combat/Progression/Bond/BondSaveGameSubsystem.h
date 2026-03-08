@@ -14,8 +14,10 @@ class JRPG_API UBondSaveGameSubsystem : public UGameInstanceSubsystem
 public:
 	UPROPERTY(EditAnywhere)
 	FString SlotName = TEXT("JRPG_Bond");
+	
 	UPROPERTY(EditAnywhere)
 	int32 UserIndex = 0;
+	
 	UPROPERTY(EditAnywhere)
 	bool bAutoSaveOnChange = true;
 
@@ -31,5 +33,6 @@ public:
 private:
 	UPROPERTY()
 	TObjectPtr<UBondSaveGame> SaveObj = nullptr;
+	
 	bool bDirty = false;
 };

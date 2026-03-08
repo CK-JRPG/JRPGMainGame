@@ -13,8 +13,10 @@ class JRPG_API UExplorationSaveGameSubsystem : public UGameInstanceSubsystem
 public:
 	UPROPERTY(EditAnywhere)
 	FString SlotName = TEXT("JRPG_Explore");
+	
 	UPROPERTY(EditAnywhere)
 	int32 UserIndex = 0;
+	
 	UPROPERTY(EditAnywhere)
 	bool bAutoSaveOnChange = true;
 

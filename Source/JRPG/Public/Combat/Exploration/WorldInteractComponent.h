@@ -18,6 +18,7 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	float ScanIntervalSec = 0.10f;
+	
 	UPROPERTY(EditAnywhere)
 	TEnumAsByte<ECollisionChannel> LOSTraceChannel = ECC_Visibility;
 

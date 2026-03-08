@@ -24,11 +24,11 @@ public:
 
 	FCombatMotionResponse RequestCombatMotion(const FCombatMotionRequest& Req);
 	bool CancelCombatMotion(FCombatMotionHandle Handle, FName ReasonTag);
-	int32 CancelAllByOwner(FName OwnerTag,FName ReasonTag);
+	int32 CancelAllByOwner(FName OwnerTag, FName ReasonTag);
 
 	bool IsMotionActive() const { return MotionState.ActiveHandle.IsValid(); }
 	ECombatMotionType GetActiveMotionType() const { return MotionState.ActiveRequest.Type; }
-	constFCombatMotionState& GetMotionState() const { return MotionState; }
+	const FCombatMotionState& GetMotionState() const { return MotionState; }
 
 protected:
 	virtual void BeginPlay() override;

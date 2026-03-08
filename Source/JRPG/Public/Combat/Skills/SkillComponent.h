@@ -8,6 +8,19 @@
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnSkillCast, FName /*SkillId*/, AActor* /*Caster*/, int32 /*TargetCount*/);
 DECLARE_MULTICAST_DELEGATE_FourParams(FOnSkillResolvedDetailed, FName /*SkillId*/, AActor* /*Caster*/, int32/*TargetCount*/,bool/*bFromTacticalReservation*/);
 
+USTRUCT()
+struct FPreparedSkillCast
+{
+	GENERATED_BODY()
+
+	UPROPERTY() TObjectPtr<USkillDataAsset> Skill = nullptr;
+	UPROPERTY() TArray<TWeakObjectPtr<AActor>> Targets;
+	UPROPERTY() int32 CommittedAP = 0;
+	UPROPERTY() int32 CommittedSP = 0;
+	UPROPERTY() bool bFromTacticalReservation = false;
+	UPROPERTY() FName ReasonTag = NAME_None;
+};
+
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class JRPG_API USkillComponent : public UActorComponent
 {
@@ -42,18 +55,6 @@ protected:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 private:
-	USTRUCT()
-	struct FPreparedSkillCast
-		{
-			GENERATED_BODY()
-
-			UPROPERTY() TObjectPtr<USkillDataAsset> Skill = nullptr;
-			UPROPERTY() TArray<TWeakObjectPtr<AActor>> Targets;
-			UPROPERTY() int32 CommittedAP = 0;
-			UPROPERTY() int32 CommittedSP = 0;
-			UPROPERTY() bool bFromTacticalReservation = false;
-			UPROPERTY() FName ReasonTag = NAME_None;
-		};
 
 	UPROPERTY() TMap<FName,float> Cooldowns;
 	UPROPERTY() bool bHasPrepared = false;

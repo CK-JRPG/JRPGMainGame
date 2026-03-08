@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/PrimaryDataAsset.h"
+#include "Engine/DataAsset.h"
 #include "Combat/Exploration/ExplorationTypes.h"
 #include "Combat/Exploration/ExplorationRewardTypes.h"
 #include "ExplorationObjectDataAsset.generated.h"
@@ -18,11 +18,13 @@ public:
 
 	UPROPERTY(EditAnywhere)
 	EExplorationObjectType Type = EExplorationObjectType::Chest;
+	
 	UPROPERTY(EditAnywhere)
 	EExplorationTriggerType TriggerType = EExplorationTriggerType::Interact;
 
 	UPROPERTY(EditAnywhere)
 	float InteractRange = 250.f;
+	
 	UPROPERTY(EditAnywhere)
 	bool bRequiresLOS = false;
 
@@ -32,21 +34,26 @@ public:
 	// RewardTable + DirectEntries(혼용 가능)
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<UExplorationRewardTableAsset> RewardTable = nullptr;
+	
 	UPROPERTY(EditAnywhere)
 	TArray<FRewardEntry> RewardEntries;
 
 	UPROPERTY(EditAnywhere)
 	EExplorationAcquisitionPolicy AcquisitionPolicy = EExplorationAcquisitionPolicy::OneTime;
+	
 	UPROPERTY(EditAnywhere)
 	float RespawnTimeSec = 0.f;
 
 	// UI/Map 확장
 	UPROPERTY(EditAnywhere)
 	FText UIName;
+	
 	UPROPERTY(EditAnywhere, Multiline)
 	FText UIDescription;
+	
 	UPROPERTY(EditAnywhere)
 	TObjectPtr<UTexture2D> Icon = nullptr;
+	
 	UPROPERTY(EditAnywhere)
 	FName MapMarkerType = NAME_None;
 

@@ -16,14 +16,18 @@ public:
 	// Walk
 	UPROPERTY(EditAnywhere)
 	float WalkTickSec = 60.f; // 예시 :contentReference[oaicite:12]{index=12}
+	
 	UPROPERTY(EditAnywhere)
 	float WalkDistanceCm = 20000.f; // 200m 예시(문서 4.1 예시) :contentReference[oaicite:13]{index=13}
+	
 	UPROPERTY(EditAnywhere)
 	int32 WalkBPBase = 2; // 예시 :contentReference[oaicite:14]{index=14}
+	
 
 	// Combat/Rest
 	UPROPERTY(EditAnywhere)
 	int32 CombatWinBPBase = 6; // 예시 :contentReference[oaicite:15]{index=15}
+	
 	UPROPERTY(EditAnywhere)
 	int32 RestTalkBPBase = 12; // 예시 :contentReference[oaicite:16]{index=16}
 
@@ -36,18 +40,14 @@ public:
 	TArray<float> ExpBonusByTrioLevel = {0.f, 1.00f, 1.02f, 1.04f, 1.06f, 1.08f};
 
 	// Anti-exploit: 동일 bond의 BP 이벤트 쿨다운 (Reason: Reject.AntiExploitCooldown) :contentReference[oaicite:19]{index=19}
-	UPROPERTY(EditAnywhere)
-	float AntiExploitCooldownSec = 6.f;
+	UPROPERTY(EditAnywhere) float AntiExploitCooldownSec = 6.f;
 
 	// Walk: 유의미 진행 없으면 획득 속도 감소 :contentReference[oaicite:20]{index=20}
-	UPROPERTY(EditAnywhere)
-	float InactivityWindowSec = 60.f;
-	UPROPERTY(EditAnywhere)
-	float InactivityMul = 0.35f;
+	UPROPERTY(EditAnywhere) float InactivityWindowSec = 60.f;
+	UPROPERTY(EditAnywhere) float InactivityMul = 0.35f;
 
 	// Trio 이벤트를 페어로 분배할지(기본: 분배) - 밸런스 안전장치
-	UPROPERTY(EditAnywhere)
-	bool bDistributeTrioEventToPairs = true;
+	UPROPERTY(EditAnywhere) bool bDistributeTrioEventToPairs = true;
 
 	float GetDiminishMul(int32 BondLevel) const
 	{

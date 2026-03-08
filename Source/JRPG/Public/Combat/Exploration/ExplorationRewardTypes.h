@@ -40,12 +40,16 @@ struct FRewardEntry
 
 	UPROPERTY(EditAnywhere)
 	EExplorationRewardType RewardType = EExplorationRewardType::Gold;
+	
 	UPROPERTY(EditAnywhere)
 	FName Id = NAME_None;
+	
 	UPROPERTY(EditAnywhere)
 	int32 Amount = 1;
+	
 	UPROPERTY(EditAnywhere)
 	float Chance = 1.0f; // 0..1
+	
 	UPROPERTY(EditAnywhere)
 	bool bUnique = false; // UniqueRewardClaims로 중복 방지
 };
@@ -57,13 +61,16 @@ struct FGrantedReward
 
 	UPROPERTY()
 	EExplorationRewardType RewardType = EExplorationRewardType::Gold;
+	
 	UPROPERTY()
 	FName Id = NAME_None;
+	
 	UPROPERTY()
 	int32 Amount = 0;
 
 	UPROPERTY()
 	bool bGranted = false;
+	
 	UPROPERTY()
 	FName ReasonTag = NAME_None;
 };
@@ -75,11 +82,13 @@ struct FRewardGrantRequest
 
 	UPROPERTY()
 	FGuid SourceObjectId;
+	
 	UPROPERTY()
 	FName SourceDiscoveryId = NAME_None;
 
 	UPROPERTY()
 	FName SourceTag = "Explore.Reward";
+	
 	UPROPERTY()
 	EExplorationTriggerType TriggerType = EExplorationTriggerType::Interact;
 
@@ -88,6 +97,7 @@ struct FRewardGrantRequest
 
 	UPROPERTY()
 	TArray<FRewardEntry> DirectEntries;
+	
 	UPROPERTY()
 	TObjectPtr<class UExplorationRewardTableAsset> Table = nullptr;
 

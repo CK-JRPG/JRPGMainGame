@@ -29,8 +29,10 @@ struct FBondOp
 
 	UPROPERTY()
 	bool bOk = false;
+	
 	UPROPERTY()
 	EBondResult Result = EBondResult::Rejected;
+	
 	UPROPERTY()
 	FName ReasonTag = NAME_None;
 
@@ -58,10 +60,8 @@ struct FBondPairId
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	FName A = NAME_None;
-	UPROPERTY()
-	FName B = NAME_None;
+	UPROPERTY() FName A = NAME_None;
+	UPROPERTY() FName B = NAME_None;
 
 	static FBondPairId Make(FName InA, FName InB)
 	{
@@ -95,12 +95,9 @@ struct FBondTrioId
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	FName A = NAME_None;
-	UPROPERTY()
-	FName B = NAME_None;
-	UPROPERTY()
-	FName C = NAME_None;
+	UPROPERTY() FName A = NAME_None;
+	UPROPERTY() FName B = NAME_None;
+	UPROPERTY() FName C = NAME_None;
 
 	static FBondTrioId Make(FName X, FName Y, FName Z)
 	{
@@ -135,14 +132,10 @@ struct FBondState
 {
 	GENERATED_BODY()
 
-	UPROPERTY()
-	int32 BondLevel = 1; // 1~5
-	UPROPERTY()
-	int32 BondPoint = 0; // 권장 0~99, 레벨업 시 -100
-	UPROPERTY()
-	int32 TotalEarnedBP = 0;
-	UPROPERTY()
-	double LastBPEventTimeReal = 0.0; // 악용 방지용
+	UPROPERTY() int32 BondLevel = 1; // 1~5
+	UPROPERTY() int32 BondPoint = 0; // 권장 0~99, 레벨업 시 -100
+	UPROPERTY() int32 TotalEarnedBP = 0;
+	UPROPERTY() double LastBPEventTimeReal = 0.0; // 악용 방지용
 
 	static FBondState Default()
 	{

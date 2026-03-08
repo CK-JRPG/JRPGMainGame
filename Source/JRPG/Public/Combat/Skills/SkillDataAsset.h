@@ -54,7 +54,7 @@ public:
 	UPROPERTY(EditAnywhere) FCombatMotionRequest SkillMotion;
 
 	UPROPERTY(EditAnywhere) FGameplayTagContainer DispelAnyTags;
-	UPROPERTY(EditAnywhere) int32 DispelRemoveCount =0;// <=0 means all
+	UPROPERTY(EditAnywhere) int32 DispelRemoveCount = 0;// <=0 means all
 	
-	bool IsValidSkill()const { return !SkillId.IsNone(); }
+	bool IsValidSkill() const { return !SkillId.IsNone(); }
 };
