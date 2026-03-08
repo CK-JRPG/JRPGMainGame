@@ -2,8 +2,8 @@
 #include"Combat/Characters/CombatCharacterDataAsset.h"
 #include"Combat/Characters/CombatCharacterRegistrySubsystem.h"
 
-#include"Combat/Skills/SkillComponent.h"
-#include "Combat/Skills/SkillDataAsset.h"
+#include"Combat/Skills/JRPGSkillComponent.h"
+#include "Combat/Skills/JRPGSkillDataAsset.h"
 
 #if __has_include("Combat/Items/InventorySubsystem.h")
 	#include "Combat/Items/InventorySubsystem.h"
@@ -65,7 +65,7 @@ void UCombatCharacterComponent::GiveStartingItems()
 void UCombatCharacterComponent::GiveStartingSkills()
 {
 	if (!CharacterDef) return;
-	if (USkillComponent *SC =GetOwner() ? GetOwner()->FindComponentByClass<USkillComponent>() : nullptr)
+	if (UJRPGSkillComponent *SC =GetOwner() ? GetOwner()->FindComponentByClass<UJRPGSkillComponent>() : nullptr)
 	{
 		// 여기선 SkillId만 있으므로 실제 SkillDataAsset 매핑은 프로젝트에서 AssetManager로 연결.
 		// SkillId 목록을 유지만 해두고, 런타임에 외부에서 LearnSkill로 주입해도 됨.

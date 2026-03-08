@@ -6,8 +6,8 @@
 #include "CombatStatsComponent.generated.h"
 
 class UCombatCharacterComponent;
-class UHPComponent;
-class UAPComponent;
+class UCombatHPComponent;
+class UCombatAPComponent;
 class USPComponent;
 
 USTRUCT()
@@ -54,8 +54,8 @@ private:
 	UPROPERTY() FCombatStatSnapshot Snapshot;
 
 	TWeakObjectPtr<UCombatCharacterComponent> CharacterComp;
-	TWeakObjectPtr<UHPComponent> HP;
-	TWeakObjectPtr<UAPComponent> AP;
+	TWeakObjectPtr<UCombatHPComponent> HP;
+	TWeakObjectPtr<UCombatAPComponent> AP;
 	TWeakObjectPtr<USPComponent> SP;
 
 	int32 QueryPartyLevel() const;

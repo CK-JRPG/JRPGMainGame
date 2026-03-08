@@ -10,7 +10,7 @@
 
 class UCombatAIContext;
 class UCombatAIScorer;
-class USkillComponent;
+class UJRPGSkillComponent;
 
 UCLASS(ClassGroup=(JRPGCombat),meta=(BlueprintSpawnableComponent=false))
 class JRPG_API UCombatPartyAIComponent : public UActorComponent
@@ -44,5 +44,5 @@ private:
 	FCombatAIAction ChooseBestAction() const;
 	void ExecuteAction(const FCombatAIAction &Action);
 
-	bool ResolveSkillMeta(USkillComponent *SkillComp, FName SkillId,/*out*/struct FSkillAIMeta &OutMeta) const;
+	bool ResolveSkillMeta(UJRPGSkillComponent *SkillComp, FName SkillId,/*out*/struct FSkillAIMeta &OutMeta) const;
 };

@@ -5,7 +5,7 @@
 #include "Subsystems/WorldSubsystem.h"
 
 #include "Combat/Battle/CombatTargetingTypes.h"
-#include "Combat/Skills/SkillDataAsset.h"
+#include "Combat/Skills/JRPGSkillDataAsset.h"
 
 #include "CombatTargetingSubsystem.generated.h"
 
@@ -19,15 +19,15 @@ public:
 	FTargetingResult ResolvePreferredBasicAttackTarget(AActor *Requester) const;
 
 	// 스킬용 “선호 타겟 세트”
-	FTargetingResult ResolvePreferredTargetsForSkill(AActor *Requester,const USkillDataAsset *Skill) const;
+	FTargetingResult ResolvePreferredTargetsForSkill(AActor *Requester,const UJRPGSkillDataAsset *Skill) const;
 
 	// 사용자가 고른 타겟이 합법적인지 검사
-	FTargetValidationResult ValidateSkillTargets(AActor *Requester,const USkillDataAsset *Skill,const TArray<AActor*> &Targets) const;
+	FTargetValidationResult ValidateSkillTargets(AActor *Requester,const UJRPGSkillDataAsset *Skill,const TArray<AActor*> &Targets) const;
 
 	FTargetValidationResult ValidateBasicAttackTarget(AActor *Requester,AActor *Target)const;
 
 private:
-	class UBattleSessionSubsystem* GetBattle()const;
+	class UCombatBattleSessionSubsystem* GetBattle()const;
 
 	bool IsAliveCombatant(AActor *Actor) const;
 	bool IsSameTeam(AActor *A,AActor *B) const;

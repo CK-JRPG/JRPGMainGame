@@ -8,7 +8,7 @@
 #include "Combat/Battle/BasicCombatTypes.h"
 #include "Combat/Tactical/TacticalModeTypes.h"
 #include "Combat/Chain/ChainAttackTypes.h"
-#include "Combat/SP/SynergyPointTypes.h"
+#include "Combat/SP/JRPGSynergyPointTypes.h"
 
 #include "CombatDebugSubsystem.generated.h"
 

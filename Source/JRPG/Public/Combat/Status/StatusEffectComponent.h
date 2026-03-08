@@ -53,7 +53,7 @@ private:
 	TArray<FActiveStatus> Active;
 
 	TWeakObjectPtr<class UCombatStatsComponent> Stats;
-	TWeakObjectPtr<class UHPComponent> HP;
+	TWeakObjectPtr<class UCombatHPComponent> HP;
 
 	int32 FindIdx(FName EffectId) const;
 

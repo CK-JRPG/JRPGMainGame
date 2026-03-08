@@ -1,8 +1,8 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/PrimaryDataAsset.h"
-#include "Combat/Threat/ThreatTypes.h"
+#include "Engine/DataAsset.h"
+#include "Combat/Threat/CombatThreatTypes.h"
 #include "ThreatConfigDataAsset.generated.h"
 
 UENUM()

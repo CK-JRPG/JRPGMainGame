@@ -6,14 +6,14 @@
 
 #include "Combat/Characters/CombatParticipantInterface.h"
 
-#include "Combat/Stats/HPComponent.h"
-#include "Combat/Stats/APComponent.h"
+#include "Combat/Stats/CombatHPComponent.h"
+#include "Combat/Stats/CombatAPComponent.h"
 
 #include "Combat/SP/SPComponent.h"
-#include "Combat/SP/SynergyPointSubsystem.h"
+#include "Combat/SP/CombatSynergyPointSubsystem.h"
 
-#include "Combat/Groggy/GroggyComponent.h"
-#include "Combat/Threat/ThreatComponent.h"
+#include "Combat/Groggy/CombatGroggyComponent.h"
+#include "Combat/Threat/CombatThreatComponent.h"
 
 #include "Combat/Status/StatusEffectComponent.h"
 #include "Combat/Status/CombatStatusCleanseInterface.h"
@@ -26,7 +26,7 @@ bool UCombatItemExecutionSubsystem::IsAliveCombatant(AActor* Actor) const
 
 	if (ICombatParticipantInterface* P = Cast<ICombatParticipantInterface>(Actor))
 	{
-		if (UHPComponent* HP = P->GetHP())
+		if (UCombatHPComponent* HP = P->GetHP())
 		{
 			return !HP->IsDead();
 		}
@@ -163,8 +163,8 @@ bool UCombatItemExecutionSubsystem::WouldAnyEffectApply(
 	{
 		if (!T)continue;
 
-		UHPComponent* HP = T->FindComponentByClass<UHPComponent>();
-		UAPComponent* AP = T->FindComponentByClass<UAPComponent>();
+		UCombatHPComponent* HP = T->FindComponentByClass<UCombatHPComponent>();
+		UCombatAPComponent* AP = T->FindComponentByClass<UCombatAPComponent>();
 		USPComponent* SP = T->FindComponentByClass<USPComponent>();
 
 		if (HP && ItemDef.HealHP > 0.f && HP->GetHP() < HP->GetMaxHP())
@@ -242,7 +242,7 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 	}
 
 	UCombatItemComponent* ItemComp = User->FindComponentByClass<UCombatItemComponent>();
-	USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
+	UCombatSynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>() : nullptr;
 	
 	if (!ItemComp)
 	{
@@ -371,11 +371,11 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 	{
 		if (!T)continue;
 
-		UHPComponent* HP = T->FindComponentByClass<UHPComponent>();
-		UAPComponent* AP = T->FindComponentByClass<UAPComponent>();
+		UCombatHPComponent* HP = T->FindComponentByClass<UCombatHPComponent>();
+		UCombatAPComponent* AP = T->FindComponentByClass<UCombatAPComponent>();
 		USPComponent* SP = T->FindComponentByClass<USPComponent>();
 		UGroggyComponent* Groggy = T->FindComponentByClass<UGroggyComponent>();
-		UThreatComponent* Threat = T->FindComponentByClass<UThreatComponent>();
+		UCombatThreatComponent* Threat = T->FindComponentByClass<UCombatThreatComponent>();
 		UStatusEffectComponent* Status = T->FindComponentByClass<UStatusEffectComponent>();
 
 		if (HP&&ItemDef->HealHP > 0.f)

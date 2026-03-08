@@ -2,8 +2,8 @@
 
 #include "Combat/AI/EnemyAIController.h"
 
-#include "Combat/Threat/ThreatComponent.h"
-#include "Combat/Skills/SkillComponent.h"
+#include "Combat/Threat/CombatThreatComponent.h"
+#include "Combat/Skills/JRPGSkillComponent.h"
 #include "Combat/AI/CombatAIInterfaces.h"
 
 #include "GameFramework/Pawn.h"
@@ -19,8 +19,8 @@ void AEnemyAIController::OnPossess(APawn *InPawn)
 	Super::OnPossess(InPawn);
 
 	ControlledPawn = InPawn;
-	ThreatComp = InPawn ? InPawn->FindComponentByClass<UThreatComponent>() : nullptr;
-	SkillComp  = InPawn ? InPawn->FindComponentByClass<USkillComponent>() : nullptr;
+	ThreatComp = InPawn ? InPawn->FindComponentByClass<UCombatThreatComponent>() : nullptr;
+	SkillComp  = InPawn ? InPawn->FindComponentByClass<UJRPGSkillComponent>() : nullptr;
 
 	State = EEnemyCombatState::Engage;
 }

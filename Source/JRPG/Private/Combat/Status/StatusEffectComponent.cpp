@@ -1,7 +1,7 @@
 ﻿#include "Combat/Status/StatusEffectComponent.h"
 
 #include "Combat/Characters/Stats/CombatStatsComponent.h"
-#include "Combat/Stats/HPComponent.h"
+#include "Combat/Stats/CombatHPComponent.h"
 
 #include "Combat/Debug/CombatDebugSubsystem.h"
 
@@ -16,7 +16,7 @@ void UStatusEffectComponent::BeginPlay()
 	Super::BeginPlay();
 	
 	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
-	HP = GetOwner() ? GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
+	HP = GetOwner() ? GetOwner()->FindComponentByClass<UCombatHPComponent>() : nullptr;
 }
 
 int32 UStatusEffectComponent::FindIdx(FName EffectId)const

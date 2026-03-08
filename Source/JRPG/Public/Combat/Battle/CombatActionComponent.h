@@ -3,11 +3,11 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Combat/Battle/BasicCombatTypes.h"
-#include "Combat/Skills/SkillTypes.h"
+#include "Combat/Skills/JRPGSkillTypes.h"
 #include "CombatActionComponent.generated.h"
 
 class UCombatCharacterComponent;
-class USkillComponent;
+class UJRPGSkillComponent;
 class UBasicCombatSubsystem;
 
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
@@ -36,7 +36,7 @@ protected:
 
 private:
 	TWeakObjectPtr<UCombatCharacterComponent> CharacterComp;
-	TWeakObjectPtr<USkillComponent> SkillComp;
+	TWeakObjectPtr<UJRPGSkillComponent> SkillComp;
 
 	UBasicCombatSubsystem* GetCombatSubsystem() const;
 };

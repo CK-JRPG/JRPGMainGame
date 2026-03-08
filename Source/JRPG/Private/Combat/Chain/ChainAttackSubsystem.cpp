@@ -1,18 +1,18 @@
 ﻿#include "Combat/Chain/ChainAttackSubsystem.h"
 
-#include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Battle/CombatBattleSessionSubsystem.h"
 #include "Combat/Battle/BasicCombatSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Characters/CombatCharacterComponent.h"
 
-#include"Combat/SP/SynergyPointSubsystem.h"
-#include "Combat/Stats/HPComponent.h"
+#include"Combat/SP/CombatSynergyPointSubsystem.h"
+#include "Combat/Stats/CombatHPComponent.h"
 
-UBattleSessionSubsystem* UChainAttackSubsystem::GetBattle() const
+UCombatBattleSessionSubsystem* UChainAttackSubsystem::GetBattle() const
 {
-	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	return GetWorld() ? GetWorld()->GetSubsystem<UCombatBattleSessionSubsystem>() : nullptr;
 }
 
 UBasicCombatSubsystem* UChainAttackSubsystem::GetBasicCombat() const
@@ -35,7 +35,7 @@ bool UChainAttackSubsystem::IsValidMember(AActor* Actor) const
 
 	if (ICombatParticipantInterface* P = Cast<ICombatParticipantInterface>(Actor))
 	{
-		if (UHPComponent* HP = P->GetHP())
+		if (UCombatHPComponent* HP = P->GetHP())
 			return !HP->IsDead();
 	}
 	return false;
@@ -90,7 +90,7 @@ bool UChainAttackSubsystem::TryStartChain(AActor* Starter, const FChainAttackCon
 	if (!Starter) return false;
 	if (!IsPlayerActor(Starter)) return false;
 
-	if (USynergyPointSubsystem* SP =GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr)
+	if (UCombatSynergyPointSubsystem* SP =GetWorld() ? GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>() : nullptr)
 	{
 		if (!SP->IsChainReady())
 		{
@@ -98,7 +98,7 @@ bool UChainAttackSubsystem::TryStartChain(AActor* Starter, const FChainAttackCon
 		}
 	}
 	
-	UBattleSessionSubsystem* Battle = GetBattle();
+	UCombatBattleSessionSubsystem* Battle = GetBattle();
 	if (!Battle || !Battle->IsBattleActive()) return false;
 	if (!Battle->CanActorActNow(Starter)) return false;
 
@@ -210,7 +210,7 @@ void UChainAttackSubsystem::EndChain(FName)
 	FChainAttackSnapshot Final = Snapshot;
 	Final.State = EChainAttackState::Finishing;
 
-	if (UBattleSessionSubsystem* Battle = GetBattle())
+	if (UCombatBattleSessionSubsystem* Battle = GetBattle())
 	{
 		Battle->ExitExclusiveMode("ChainAttack");
 

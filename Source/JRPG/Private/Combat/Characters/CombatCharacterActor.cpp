@@ -4,17 +4,17 @@
 #include "Combat/Characters/Stats/CombatStatsComponent.h"
 #include "Combat/Battle/CombatActionComponent.h"
 
-#include "Combat/Skills/SkillComponent.h"
+#include "Combat/Skills/JRPGSkillComponent.h"
 #include "Combat/Status/StatusEffectComponent.h"
-#include "Combat/Groggy/GroggyComponent.h"
-#include "Combat/Threat/ThreatComponent.h"
+#include "Combat/Groggy/CombatGroggyComponent.h"
+#include "Combat/Threat/CombatThreatComponent.h"
 #include "Combat/AI/CombatAIActionSelectorComponent.h"
 #include "Combat/Items/CombatItemComponent.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
-#include "Combat/Motion/CombatMotionComponent.h"
+#include "Combat/Motion/JRPGCombatMotionComponent.h"
 
-#include "Combat/Stats/HPComponent.h"
-#include "Combat/Stats/APComponent.h"
+#include "Combat/Stats/CombatHPComponent.h"
+#include "Combat/Stats/CombatAPComponent.h"
 #include "Combat/SP/SPComponent.h"
 
 ACombatCharacter::ACombatCharacter()
@@ -23,20 +23,20 @@ ACombatCharacter::ACombatCharacter()
 
 	CharacterComp =CreateDefaultSubobject<UCombatCharacterComponent>(TEXT("CombatCharacterComponent"));
 
-	HPComp = CreateDefaultSubobject<UHPComponent>(TEXT("HPComponent"));
-	APComp = CreateDefaultSubobject<UAPComponent>(TEXT("APComponent"));
+	HPComp = CreateDefaultSubobject<UCombatHPComponent>(TEXT("HPComponent"));
+	APComp = CreateDefaultSubobject<UCombatAPComponent>(TEXT("APComponent"));
 	SPComp = CreateDefaultSubobject<USPComponent>(TEXT("SPComponent"));
 
 	StatsComp = CreateDefaultSubobject<UCombatStatsComponent>(TEXT("CombatStatsComponent"));
 	ActionComp = CreateDefaultSubobject<UCombatActionComponent>(TEXT("CombatActionComponent"));
-	SkillComp = CreateDefaultSubobject<USkillComponent>(TEXT("SkillComponent"));
+	SkillComp = CreateDefaultSubobject<UJRPGSkillComponent>(TEXT("SkillComponent"));
 	StatusComp = CreateDefaultSubobject<UStatusEffectComponent>(TEXT("StatusEffectComponent"));
 	GroggyComp = CreateDefaultSubobject<UGroggyComponent>(TEXT("GroggyComponent"));
-	ThreatComp = CreateDefaultSubobject<UThreatComponent>(TEXT("ThreatComponent"));
+	ThreatComp = CreateDefaultSubobject<UCombatThreatComponent>(TEXT("ThreatComponent"));
 	AIActionSelectorComp = CreateDefaultSubobject<UCombatAIActionSelectorComponent>(TEXT("CombatAIActionSelectorComponent"));
 	ItemComp = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
-	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
+	MotionComp = CreateDefaultSubobject<UJRPGCombatMotionComponent>(TEXT("CombatMotionComponent"));
 }
 
 void ACombatCharacter::BeginPlay()

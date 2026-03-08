@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Combat/SP/SynergyPointTypes.h"
+#include "Combat/SP/JRPGSynergyPointTypes.h"
 #include "SynergyPointSettingsDataAsset.generated.h"
 
 /**

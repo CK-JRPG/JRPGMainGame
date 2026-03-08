@@ -6,7 +6,7 @@
 #include "Combat/Battle/BasicCombatTypes.h"
 #include "ChainAttackSubsystem.generated.h"
 
-class UBattleSessionSubsystem;
+class UCombatBattleSessionSubsystem;
 class UBasicCombatSubsystem;
 
 UCLASS()
@@ -32,7 +32,7 @@ private:
 
 	UPROPERTY() TArray<TWeakObjectPtr<AActor>> ActiveMembers;
 
-	UBattleSessionSubsystem* GetBattle() const;
+	UCombatBattleSessionSubsystem* GetBattle() const;
 	UBasicCombatSubsystem* GetBasicCombat() const;
 
 	bool BuildMemberList(const FChainAttackConfig& Config, AActor* Starter);

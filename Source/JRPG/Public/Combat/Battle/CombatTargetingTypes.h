@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Combat/Skills/SkillTypes.h"
+#include "Combat/Skills/JRPGSkillTypes.h"
 #include "CombatTargetingTypes.generated.h"
  
 USTRUCT()

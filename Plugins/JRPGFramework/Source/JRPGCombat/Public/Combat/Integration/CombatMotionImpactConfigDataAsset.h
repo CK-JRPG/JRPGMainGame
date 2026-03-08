@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Combat/Movement/CombatMotionTypes.h"
+#include "Combat/Movement/JRPGCombatMotionTypes.h"
 #include "CombatMotionImpactConfigDataAsset.generated.h"
 
 USTRUCT()

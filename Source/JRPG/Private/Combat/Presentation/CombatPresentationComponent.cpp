@@ -1,16 +1,16 @@
 ﻿#include "Combat/Presentation/CombatPresentationComponent.h"
 
-#include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Battle/CombatBattleSessionSubsystem.h"
 #include "Combat/Battle/BasicCombatSubsystem.h"
 #include "Combat/Items/CombatItemExecutionSubsystem.h"
 
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
-#include "Combat/Skills/SkillComponent.h"
-#include "Combat/Skills/SkillDataAsset.h"
-#include "Combat/Tactical/TacticalModeSubsystem.h"
+#include "Combat/Skills/JRPGSkillComponent.h"
+#include "Combat/Skills/JRPGSkillDataAsset.h"
+#include "Combat/Tactical/CombatTacticalModeSubsystem.h"
 
-#include "Combat/Motion/CombatMotionComponent.h"
+#include "Combat/Motion/JRPGCombatMotionComponent.h"
 
 #include "GameFramework/Character.h"
 
@@ -23,18 +23,18 @@ UCombatPresentationComponent::UCombatPresentationComponent()
 void UCombatPresentationComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	SkillComp = GetOwner() ?GetOwner()->FindComponentByClass<USkillComponent>() : nullptr;
+	SkillComp = GetOwner() ?GetOwner()->FindComponentByClass<UJRPGSkillComponent>() : nullptr;
 	CharacterComp = GetOwner() ?GetOwner()->FindComponentByClass<UCombatCharacterComponent>() : nullptr;
 }
 
-UBattleSessionSubsystem* UCombatPresentationComponent::GetBattle()const
+UCombatBattleSessionSubsystem* UCombatPresentationComponent::GetBattle()const
 {
-	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	return GetWorld() ? GetWorld()->GetSubsystem<UCombatBattleSessionSubsystem>() : nullptr;
 }
 
-UTacticalModeSubsystem* UCombatPresentationComponent::GetTactical() const
+UCombatTacticalModeSubsystem* UCombatPresentationComponent::GetTactical() const
 {
-	return GetWorld() ? GetWorld()->GetSubsystem<UTacticalModeSubsystem>() : nullptr;
+	return GetWorld() ? GetWorld()->GetSubsystem<UCombatTacticalModeSubsystem>() : nullptr;
 }
 
 void UCombatPresentationComponent::TickComponent(float, ELevelTick, FActorComponentTickFunction*)
@@ -45,8 +45,8 @@ void UCombatPresentationComponent::TickComponent(float, ELevelTick, FActorCompon
 
 void UCombatPresentationComponent::TryConsumeTacticalReservation()
 {
-	UTacticalModeSubsystem* Tactical = GetTactical();
-	UBattleSessionSubsystem* Battle = GetBattle();
+	UCombatTacticalModeSubsystem* Tactical = GetTactical();
+	UCombatBattleSessionSubsystem* Battle = GetBattle();
 	if (!Tactical||!Battle)
 		return;
 	if (!Battle->CanActorExecuteAction(GetOwner()))
@@ -75,7 +75,7 @@ bool UCombatPresentationComponent::TryStartMotionForBasicAttack()
 	if (!CharacterComp.IsValid() || !CharacterComp->CharacterDef) return true;
 	if (!CharacterComp->CharacterDef->bHasBasicAttackMotion) return true;
 
-	UCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UCombatMotionComponent>() : nullptr;
+	UJRPGCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UJRPGCombatMotionComponent>() : nullptr;
 	if (!Motion) return false;
 
 	FCombatMotionRequest Req = CharacterComp->CharacterDef->BasicAttackMotion;
@@ -99,11 +99,11 @@ bool UCombatPresentationComponent::TryStartMotionForBasicAttack()
 	return false;
 }
 
-bool UCombatPresentationComponent::TryStartMotionForSkill(USkillDataAsset* SkillDef)
+bool UCombatPresentationComponent::TryStartMotionForSkill(UJRPGSkillDataAsset* SkillDef)
 {
 	if (!SkillDef || !SkillDef->bHasSkillMotion) return true;
 
-	UCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UCombatMotionComponent>() : nullptr;
+	UJRPGCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UJRPGCombatMotionComponent>() : nullptr;
 	if (!Motion) return false;
 
 	FCombatMotionRequest Req = SkillDef->SkillMotion;
@@ -131,7 +131,7 @@ void UCombatPresentationComponent::CancelActiveMotionIfNeeded()
 {
 	if (!Active.bHasMotion) return;
 
-	if (UCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UCombatMotionComponent>() : nullptr)
+	if (UJRPGCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UJRPGCombatMotionComponent>() : nullptr)
 	{
 		Motion->CancelCombatMotion(Active.MotionHandle, "Cancel.Presentation");
 	}
@@ -173,7 +173,7 @@ void UCombatPresentationComponent::PlayActiveMontageOrResolve()
 
 FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *Target)
 {
-	UBattleSessionSubsystem *Battle = GetBattle();
+	UCombatBattleSessionSubsystem *Battle = GetBattle();
 	if (!Battle)
 		return FCombatActionResult::Fail("Reject.NoBattleSession");
 	
@@ -222,7 +222,7 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 
 FSkillCastResult UCombatPresentationComponent::TryPresentSkill(FName SkillId, const TArray<AActor*> &Targets, bool bFromTacticalReservation)
 {
-	UBattleSessionSubsystem *Battle = GetBattle();
+	UCombatBattleSessionSubsystem *Battle = GetBattle();
 	if (!Battle)
 		return FSkillCastResult::Fail("Reject.NoBattleSession");
 	
@@ -232,7 +232,7 @@ FSkillCastResult UCombatPresentationComponent::TryPresentSkill(FName SkillId, co
 	if (!Battle->BeginPresentedAction(GetOwner(), "Present.Skill"))
 		return FSkillCastResult::Fail("Reject.CannotPresentAction");
 
-	USkillDataAsset*Def =SkillComp->GetSkillDef(SkillId);
+	UJRPGSkillDataAsset*Def =SkillComp->GetSkillDef(SkillId);
 	if (!Def)
 	{
 		Battle->AbortPresentedAction(GetOwner(),"Reject.SkillNotFound");
@@ -291,7 +291,7 @@ FSkillCastResult UCombatPresentationComponent::TryPresentSkill(FName SkillId, co
 
 FCombatItemUseResult UCombatPresentationComponent::TryPresentItem(FName ItemId,const TArray<AActor*> &Targets)
 {
-	UBattleSessionSubsystem *Battle = GetBattle();
+	UCombatBattleSessionSubsystem *Battle = GetBattle();
 	if (!Battle)
 		return FCombatItemUseResult::Fail("Reject.NoBattleSession");
 	
@@ -349,7 +349,7 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 	if (Active.bResolved)
 		return;
 
-	UBattleSessionSubsystem *Battle = GetBattle();
+	UCombatBattleSessionSubsystem *Battle = GetBattle();
 	if (!Battle || !Battle->CanActorResolvePresentedAction(GetOwner()))
 		return;
 
@@ -441,7 +441,7 @@ void UCombatPresentationComponent::FinishActivePresentation()
 
 	EmitCue(Active.FinishCueTag);
 
-	if (UBattleSessionSubsystem*Battle =GetBattle())
+	if (UCombatBattleSessionSubsystem*Battle =GetBattle())
 	{
 		if (Active.bResolved)
 		{			
@@ -458,7 +458,7 @@ void UCombatPresentationComponent::FinishActivePresentation()
 			{
 				if (SkillComp.IsValid())
 				{
-					if (USkillDataAsset* Def = SkillComp->GetSkillDef(Active.ActionId))
+					if (UJRPGSkillDataAsset* Def = SkillComp->GetSkillDef(Active.ActionId))
 					{
 						if (Def->CastMontage)
 						{
@@ -510,7 +510,7 @@ void UCombatPresentationComponent::CancelActivePresentation(FName ReasonTag, boo
 		SkillComp->CancelPreparedSkillCast(bRefundPreparedSkill, ReasonTag);
 	}
 
-	if (UBattleSessionSubsystem *Battle = GetBattle())
+	if (UCombatBattleSessionSubsystem *Battle = GetBattle())
 	{
 		Battle->AbortPresentedAction(GetOwner(),ReasonTag);
 	}

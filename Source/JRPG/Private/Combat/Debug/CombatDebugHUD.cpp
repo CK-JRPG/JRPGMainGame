@@ -5,10 +5,10 @@
 #include "Engine/Font.h"
 
 #include "Combat/Debug/CombatDebugSubsystem.h"
-#include "Combat/Battle/BattleSessionSubsystem.h"
-#include "Combat/Tactical/TacticalModeSubsystem.h"
+#include "Combat/Battle/CombatBattleSessionSubsystem.h"
+#include "Combat/Tactical/CombatTacticalModeSubsystem.h"
 #include "Combat/Chain/ChainAttackSubsystem.h"
-#include "Combat/SP/SynergyPointSubsystem.h"
+#include "Combat/SP/CombatSynergyPointSubsystem.h"
 
 static FColor ToFColorSafe(const FLinearColor& C)
 {
@@ -32,7 +32,7 @@ void ACombatDebugHUD::DrawHUD()
 
 	if (bShowSummary)
 	{
-		if (UBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+		if (UCombatBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UCombatBattleSessionSubsystem>())
 		{
 			const FBattleSessionSnapshot& S = Battle->GetSnapshot();
 			const FString BattleLine = FString::Printf(
@@ -74,7 +74,7 @@ void ACombatDebugHUD::DrawHUD()
 			}
 		}
 
-		if (UTacticalModeSubsystem* Tactical = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
+		if (UCombatTacticalModeSubsystem* Tactical = GetWorld()->GetSubsystem<UCombatTacticalModeSubsystem>())
 		{
 			const FString TacticalLine = FString::Printf(
 				TEXT("[Tactical] Active=%s Operator=%s"),
@@ -98,7 +98,7 @@ void ACombatDebugHUD::DrawHUD()
 			Y += LineHeight;
 		}
 
-		if (USynergyPointSubsystem* SP = GetWorld()->GetSubsystem<USynergyPointSubsystem>())
+		if (UCombatSynergyPointSubsystem* SP = GetWorld()->GetSubsystem<UCombatSynergyPointSubsystem>())
 		{
 			const FSynergyPointState& S = SP->GetState();
 			const FString SPLine = FString::Printf(
