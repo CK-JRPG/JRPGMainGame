@@ -60,10 +60,10 @@ public:
 	FCombatItemUseResult TryUseCombatItem(AActor* User, FName ItemId,const TArray<AActor*> &Targets,bool bFromTacticalReservation = false);
 
 	// queries
-	void GetAliveParticipants(TArray<AActor*>&Out)const;
-	void GetAliveParticipantsByTeam(ECombatTeamTeam,TArray<AActor*>&Out)const;
-	void GetOpponentsFor(AActor*Actor,TArray<AActor*>&Out)const;
-	void GetAlliesFor(AActor*Actor,TArray<AActor*>&Out)const;
+	void GetAliveParticipants(TArray<AActor*> &Out)const;
+	void GetAliveParticipantsByTeam(ECombatTeam Team, TArray<AActor*> &Out)const;
+	void GetOpponentsFor(AActor* Actor, TArray<AActor*> &Out)const;
+	void GetAlliesFor(AActor* Actor, TArray<AActor*> &Out)const;
 
 	bool GetCombatClamp(FVector& OutCenter, float& OutRadius) const;
 	

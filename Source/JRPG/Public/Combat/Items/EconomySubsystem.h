@@ -9,7 +9,7 @@
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGoldChanged, int32 /*Before*/, int32 /*After*/);
 
 UCLASS()
-class JRPG_APIUEconomySubsystem : public UGameInstanceSubsystem
+class JRPG_API UEconomySubsystem : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 

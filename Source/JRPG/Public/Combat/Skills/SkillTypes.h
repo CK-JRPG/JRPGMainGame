@@ -27,11 +27,11 @@ struct FSkillCastResult
 		return R;
 	}
 	
-	static FSkillCastResult Fail (FNameReason)
+	static FSkillCastResult Fail (FName Reason)
 	{
 		FSkillCastResult R; 
 		R.bOk=false; 
 		R.ReasonTag=Reason; 
-		returnR;
+		return R;
 	}
 };

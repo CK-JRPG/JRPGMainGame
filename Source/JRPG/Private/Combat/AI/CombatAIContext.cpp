@@ -1,14 +1,14 @@
 ﻿// Source/JRPGCombat/Private/Combat/AI/CombatAIContext.cpp
 
-#include"Combat/AI/CombatAIContext.h"
-#include"GameFramework/Pawn.h"
-#include"Engine/World.h"
+#include "Combat/AI/CombatAIContext.h"
+#include "GameFramework/Pawn.h"
+#include "Engine/World.h"
 
-#include"Combat/Stats/HPComponent.h"
-#include"Combat/Threat/ThreatComponent.h"
-#include"Combat/Skills/SkillComponent.h"
+#include "Combat/Stats/HPComponent.h"
+#include "Combat/Threat/ThreatComponent.h"
+#include "Combat/Skills/SkillComponent.h"
 
-void UCombatAIContext::Initialize(AActor*InOwner,EPartyRole InRole,UCombatAIPresetAsset*InPresetAsset)
+void UCombatAIContext::Initialize(AActor* InOwner, EPartyRole InRole, UCombatAIPresetAsset* InPresetAsset)
 {
 	Owner = InOwner;
 	OwnerPawn = Cast<APawn>(InOwner);

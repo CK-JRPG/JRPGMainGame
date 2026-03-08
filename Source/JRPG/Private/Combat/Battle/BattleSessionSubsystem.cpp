@@ -10,6 +10,7 @@
 #include "Combat/Items/CombatItemExecutionSubsystem.h"
 #include "Combat/Stats/HPComponent.h"
 
+
 #if __has_include("Combat/Progression/Leveling/LevelingSubsystem.h")
 	#include "Combat/Progression/Leveling/LevelingSubsystem.h"
 	#define JRPG_HAS_LEVELING 1
@@ -306,7 +307,7 @@ bool UBattleSessionSubsystem::CanActorExecuteAction(AActor* Actor)const
 	if (ExclusiveModeOwners.Num() > 0) return false;
 	if (IsActorActionLocked(Actor)) return false;
 
-	returntrue;
+	return true;
 }
 
 bool UBattleSessionSubsystem::BeginPresentedAction(AActor* Actor,FName ReasonTag)
@@ -478,7 +479,7 @@ void UBattleSessionSubsystem::GetAliveParticipants(TArray<AActor*> &Out) const
 	}
 }
 
-void UBattleSessionSubsystem::GetAliveParticipantsByTeam(ECombatTeamTeam,TArray<AActor*> &Out)const
+void UBattleSessionSubsystem::GetAliveParticipantsByTeam(ECombatTeam Team,TArray<AActor*> &Out)const
 {
 	Out.Reset();
 	for (const FBattleParticipantSlot &S : Participants)
@@ -683,11 +684,11 @@ void UBattleSessionSubsystem::GrantVictoryRewards()
 #endif
 
 #if JRPG_HAS_ECONOMY
-	if (ActiveConfig.VictoryRewards.GoldReward>0)
+	if (ActiveConfig.VictoryRewards.GoldReward > 0)
 	{
 		if (GetWorld() && GetWorld()->GetGameInstance())
 		{
-			if (UEconomySubsystem* Eco =GetWorld()->GetGameInstance()->GetSubsystem<UEconomySubsystem>())
+			if (UEconomySubsystem* Eco = GetWorld()->GetGameInstance()->GetSubsystem<UEconomySubsystem>())
 			{
 				Eco->AddGold(ActiveConfig.VictoryRewards.GoldReward,"Battle.Victory");
 			}

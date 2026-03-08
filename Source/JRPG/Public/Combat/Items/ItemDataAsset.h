@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Engine/PrimaryDataAsset.h"
+#include "Engine/DataAsset.h"
 #include "Combat/Core/RoleTypes.h"
 #include "Combat/Items/ItemTypes.h"
 #include "Combat/Items/ItemModifierTypes.h"
@@ -50,7 +50,7 @@ public:
 	int32 EquipSlotMask = (int32)EAugmentSlotMask::All;
 
 	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/JRPGCombat.EPartyRoleMask"))
-	int32 RoleRestrictionMask = (int32)EPartyRoleMask::None;
+	int32 RoleRestrictionMask = (int32) EPartyRoleMask::None;
 
 	UPROPERTY(EditAnywhere)
 	FRoleEfficiency RoleEfficiency;

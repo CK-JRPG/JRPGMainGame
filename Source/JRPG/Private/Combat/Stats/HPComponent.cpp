@@ -19,9 +19,9 @@ void UHPComponent::SetMaxHP(float InMaxHP, bool bKeepRatio)
 
 	MaxHP = FMath::Max(1.f, InMaxHP);
 
-	if (bKeepRatio&&OldMax > 0.f)
+	if (bKeepRatio && OldMax > 0.f)
 	{
-		const float Ratio =Old / OldMax;
+		const float Ratio = Old / OldMax;
 		CurrentHP = FMath::Clamp(MaxHP * Ratio, 0.f, MaxHP);
 	}
 	else

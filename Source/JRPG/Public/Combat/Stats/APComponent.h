@@ -26,6 +26,6 @@ public:
 
 	bool CanConsume(int32 Amount) const { return Amount >=0 && CurrentAP >= Amount; }
 
-	bool Consume(int32Amount, FNameReasonTag);
-	void Restore(int32Amount, FNameReasonTag);
+	bool Consume(int32 Amount, FName ReasonTag);
+	void Restore(int32 Amount, FName ReasonTag);
 };
