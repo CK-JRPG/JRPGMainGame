@@ -1,7 +1,7 @@
 ﻿#include "Combat/Characters/CombatCharacterActor.h"
 
 #include "Combat/Characters/CombatCharacterComponent.h"
-#include "Combat/Characters/Stats/CombatStatsComponent.h"
+#include "Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 #include "Combat/Battle/CombatActionComponent.h"
 
 #include "Combat/Skills/SkillComponent.h"

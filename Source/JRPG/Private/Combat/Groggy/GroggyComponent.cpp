@@ -1,5 +1,5 @@
 ﻿#include "JRPG/Public/Combat/Groggy/GroggyComponent.h"
-#include "Combat/Characters/Stats/CombatStatsComponent.h"
+#include "Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 
 #include "Combat/Debug/CombatDebugSubsystem.h"
 

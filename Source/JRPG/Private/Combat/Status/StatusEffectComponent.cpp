@@ -1,6 +1,6 @@
 ﻿#include "Combat/Status/StatusEffectComponent.h"
 
-#include "Combat/Characters/Stats/CombatStatsComponent.h"
+#include "Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 #include "Combat/Stats/HPComponent.h"
 
 #include "Combat/Debug/CombatDebugSubsystem.h"

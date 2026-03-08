@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Combat/Characters/Stats/CombatStatTypes.h"
-#include "CombatStatsComponent.generated.h"
+#include "CharacterCombatStatsComponent.generated.h"
 
 class UCombatCharacterComponent;
 class UHPComponent;
@@ -27,12 +27,12 @@ struct FLevelScalingConfig
 };
 
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
-class JRPG_API UCombatStatsComponent : public UActorComponent
+class JRPG_API UCharacterCombatStatsComponent : public UActorComponent
 {
 	GENERATED_BODY()
 	
 public:
-	UCombatStatsComponent();
+	UCharacterCombatStatsComponent();
 
 	UPROPERTY(EditAnywhere) FLevelScalingConfig LevelScaling;
 	FOnCombatStatsRecomputed OnCombatStatsRecomputed;

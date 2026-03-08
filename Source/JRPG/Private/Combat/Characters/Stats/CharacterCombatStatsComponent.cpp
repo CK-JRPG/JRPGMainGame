@@ -1,4 +1,4 @@
-﻿#include "Combat/Characters/Stats/CombatStatsComponent.h"
+﻿#include "Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 
@@ -13,9 +13,12 @@
 #define JRPG_HAS_LEVELING 0
 #endif
 
-UCombatStatsComponent::UCombatStatsComponent() { PrimaryComponentTick.bCanEverTick=false; }
+UCharacterCombatStatsComponent::UCharacterCombatStatsComponent()
+{
+	PrimaryComponentTick.bCanEverTick = false;
+}
 
-void UCombatStatsComponent::BeginPlay()
+void UCharacterCombatStatsComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	CharacterComp = GetOwner() ? GetOwner()->FindComponentByClass<UCombatCharacterComponent>() : nullptr;
@@ -25,7 +28,7 @@ void UCombatStatsComponent::BeginPlay()
 	RecomputeStats("Init");
 }
 
-int32 UCombatStatsComponent::QueryPartyLevel() const
+int32 UCharacterCombatStatsComponent::QueryPartyLevel() const
 {
 #if JRPG_HAS_LEVELING
 	if (GetWorld() && GetWorld()->GetGameInstance())
@@ -35,36 +38,46 @@ int32 UCombatStatsComponent::QueryPartyLevel() const
 	return 1;
 }
 
-void UCombatStatsComponent::AddModifier(const FCombatStatModifier& Mod) { Mods.Add(Mod); RecomputeStats("Mod.Add"); }
+void UCharacterCombatStatsComponent::AddModifier(const FCombatStatModifier& Mod)
+{
+	Mods.Add(Mod); 
+	RecomputeStats("Mod.Add");
+}
 
-void UCombatStatsComponent::RemoveModifiersBySource(UObject* Source)
+void UCharacterCombatStatsComponent::RemoveModifiersBySource(UObject* Source)
 {
 	if (!Source) return;
 	Mods.RemoveAll([Source](const FCombatStatModifier& M){ return M.Source.Get() == Source; });
 	RecomputeStats("Mod.RemoveBySource");
 }
 
-void UCombatStatsComponent::ClearModifiers() { Mods.Reset(); RecomputeStats("Mod.Clear"); }
+void UCharacterCombatStatsComponent::ClearModifiers()
+{
+	Mods.Reset(); 
+	RecomputeStats("Mod.Clear");
+}
 
-float UCombatStatsComponent::GetStatFloat(ECombatStat Stat) const
+float UCharacterCombatStatsComponent::GetStatFloat(ECombatStat Stat) const
 {
 	switch (Stat)
 	{
-		case ECombatStat::Attack: return Snapshot.Attack;
-		case ECombatStat::Defense: return Snapshot.Defense;
-		case ECombatStat::Speed: return Snapshot.Speed;
-		case ECombatStat::MaxHP: return Snapshot.MaxHP;
-		case ECombatStat::MaxAP: return (float)Snapshot.MaxAP;
-		case ECombatStat::MaxSP: return (float)Snapshot.MaxSP;
-		case ECombatStat::CritRate: return Snapshot.CritRate;
-		case ECombatStat::CritDamage: return Snapshot.CritDamage;
-		case ECombatStat::BreakPower: return Snapshot.BreakPower;
+		case ECombatStat::Attack:		return Snapshot.Attack;
+		case ECombatStat::Defense:		return Snapshot.Defense;
+		case ECombatStat::Speed:		return Snapshot.Speed;
+		case ECombatStat::MaxHP:		return Snapshot.MaxHP;
+		case ECombatStat::MaxAP:		return (float)Snapshot.MaxAP;
+		case ECombatStat::MaxSP:		return (float)Snapshot.MaxSP;
+		case ECombatStat::CritRate:		return Snapshot.CritRate;
+		case ECombatStat::CritDamage:	return Snapshot.CritDamage;
+		case ECombatStat::BreakPower:	return Snapshot.BreakPower;
 		case ECombatStat::HealingPower: return Snapshot.HealingPower;
-		default: return 0.f;
+		default: 
+		
+		return 0.f;
 	}
 }
 
-void UCombatStatsComponent::ApplyMods(ECombatStat Stat,float&InOutValue) const
+void UCharacterCombatStatsComponent::ApplyMods(ECombatStat Stat,float&InOutValue) const
 {
 	for (const FCombatStatModifier& M : Mods)
 		if (M.Stat == Stat && M.Op == EStatModOp::Add) InOutValue += M.Value;
@@ -76,14 +89,14 @@ void UCombatStatsComponent::ApplyMods(ECombatStat Stat,float&InOutValue) const
 	InOutValue *= Mul;
 }
 
-void UCombatStatsComponent::ApplyToResources(bool bKeepHPRatio)
+void UCharacterCombatStatsComponent::ApplyToResources(bool bKeepHPRatio)
 {
 	if (HP.IsValid()) HP->SetMaxHP(Snapshot.MaxHP, bKeepHPRatio);
 	if (AP.IsValid()) AP->InitializeAP(Snapshot.MaxAP, true);
 	if (SP.IsValid()) SP->InitializeSP(Snapshot.MaxSP, SP->GetSP());
 }
 
-void UCombatStatsComponent::RecomputeStats(FName)
+void UCharacterCombatStatsComponent::RecomputeStats(FName)
 {
 	const int32 Level = QueryPartyLevel();
 

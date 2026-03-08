@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
-#include "CombatLevelProvider.generated.h"
+#include "JRPGCombatLevelProvider.generated.h"
 
 UINTERFACE(MinimalAPI)
 class UCombatLevelProvider : public UInterface { GENERATED_BODY() };

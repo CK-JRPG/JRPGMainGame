@@ -2,7 +2,7 @@
 
 #include "Combat/Battle/CombatFormulaLibrary.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
-#include "Combat/Characters/Stats/CombatStatsComponent.h"
+#include "Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
@@ -39,10 +39,10 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 	UHPComponent* AttackerHP = Attacker->FindComponentByClass<UHPComponent>();
 	UAPComponent* AttackerAP = Attacker->FindComponentByClass<UAPComponent>();
 	USPComponent* AttackerSP = Attacker->FindComponentByClass<USPComponent>();
-	UCombatStatsComponent* AttackerStats = Attacker->FindComponentByClass<UCombatStatsComponent>();
+	UCharacterCombatStatsComponent* AttackerStats = Attacker->FindComponentByClass<UCharacterCombatStatsComponent>();
 
 	UHPComponent* TargetHP = Target->FindComponentByClass<UHPComponent>();
-	UCombatStatsComponent* TargetStats = Target->FindComponentByClass<UCombatStatsComponent>();
+	UCharacterCombatStatsComponent* TargetStats = Target->FindComponentByClass<UCharacterCombatStatsComponent>();
 	UThreatComponent* TargetThreat = Target->FindComponentByClass<UThreatComponent>();
 	UGroggyComponent* TargetGroggy = Target->FindComponentByClass<UGroggyComponent>();
 
@@ -52,7 +52,7 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 
 	if (Req.APCost > 0)
 	{
-		if (!AttackerAP || !AttackerAP->Consume(Req.APCost,Req.ReasonTag))
+		if (!AttackerAP || !AttackerAP->Consume(Req.APCost, Req.ReasonTag))
 			return FCombatActionResult::Fail("Reject.NotEnoughAP");
 	}
 

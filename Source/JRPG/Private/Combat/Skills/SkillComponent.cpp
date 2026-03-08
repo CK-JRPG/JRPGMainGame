@@ -3,7 +3,7 @@
 
 #include "JRPG/Public/Combat/Battle/CombatFormulaLibrary.h"
 #include "JRPG/Public/Combat/Characters/CombatParticipantInterface.h"
-#include "JRPG/Public/Combat/Characters/Stats/CombatStatsComponent.h"
+#include "JRPG/Public/Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 
 #include "JRPG/Public/Combat/Stats/HPComponent.h"
 #include "JRPG/Public/Combat/Stats/APComponent.h"
@@ -26,7 +26,7 @@ USkillComponent::USkillComponent()
 void USkillComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
+	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterCombatStatsComponent>() : nullptr;
 	HP = GetOwner() ? GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
 	AP = GetOwner() ? GetOwner()->FindComponentByClass<UAPComponent>() : nullptr;
 	SP = GetOwner() ? GetOwner()->FindComponentByClass<USPComponent>() : nullptr;
@@ -145,11 +145,11 @@ FSkillCastResult USkillComponent::PrepareSkillCast(FName SkillId, const TArray<A
 	Cooldowns.FindOrAdd(SkillId) = FMath::Max(0.f,Skill->CooldownSec);
 
 	Prepared = FPreparedSkillCast();
-	Prepared.Skill =Skill;
-	Prepared.CommittedAP =Skill->APCost;
-	Prepared.CommittedSP =Skill->SPCost;
+	Prepared.Skill = Skill;
+	Prepared.CommittedAP = Skill->APCost;
+	Prepared.CommittedSP = Skill->SPCost;
 	Prepared.bFromTacticalReservation =bFromTacticalReservation;
-	Prepared.ReasonTag =ReasonTag;
+	Prepared.ReasonTag = ReasonTag;
 
 	for (AActor *T :Targets)
 	{
