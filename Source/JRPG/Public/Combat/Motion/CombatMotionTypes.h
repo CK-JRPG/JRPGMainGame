@@ -7,7 +7,7 @@
 #include "CombatMotionTypes.generated.h"
 
 UENUM()
-enum class ECombatMotionType : uint8
+enum class EJRPGCombatMotionType : uint8
 {
 	None,
 	SkillMove,
@@ -15,8 +15,9 @@ enum class ECombatMotionType : uint8
 	GrappleMove
 };
 
+
 UENUM()
-enum class ECombatMotionExecMode : uint8
+enum class EJRPGCombatMotionExecMode : uint8
 {
 	VelocityCurve,
 	RootMotion,
@@ -24,7 +25,7 @@ enum class ECombatMotionExecMode : uint8
 };
 
 UENUM()
-enum class ECombatMotionEndPolicy : uint8
+enum class EJRPGCombatMotionEndPolicy : uint8
 {
 	TimeElapsed,
 	DistanceReached,
@@ -35,7 +36,7 @@ enum class ECombatMotionEndPolicy : uint8
 };
 
 UENUM()
-enum class ECombatMotionResult : uint8
+enum class EJRPGCombatMotionResult : uint8
 {
 	Accepted,
 	Rejected,
@@ -44,7 +45,7 @@ enum class ECombatMotionResult : uint8
 };
 
 USTRUCT()
-struct FCombatMotionHandle
+struct FJRPGCombatMotionHandle
 {
 	GENERATED_BODY()
 
@@ -53,19 +54,19 @@ struct FCombatMotionHandle
 
 	bool IsValid() const { return UniqueId != 0; }
 
-	friend bool operator==(const FCombatMotionHandle& L, const FCombatMotionHandle& R)
-		{
-			return L.UniqueId == R.UniqueId && L.OwnerTag == R.OwnerTag;
-		}
+	friend bool operator==(const FJRPGCombatMotionHandle& L, const FJRPGCombatMotionHandle& R)
+	{
+		return L.UniqueId == R.UniqueId && L.OwnerTag == R.OwnerTag;
+	}
 };
 
 USTRUCT()
-struct FCombatMotionRequest
+struct FJRPGCombatMotionRequest
 {
 	GENERATED_BODY()
-
-	UPROPERTY(EditAnywhere) ECombatMotionType Type = ECombatMotionType::SkillMove;
-	UPROPERTY(EditAnywhere) ECombatMotionExecMode ExecMode = ECombatMotionExecMode::VelocityCurve;
+	
+	UPROPERTY(EditAnywhere) EJRPGCombatMotionType Type = EJRPGCombatMotionType::SkillMove;
+	UPROPERTY(EditAnywhere) EJRPGCombatMotionExecMode ExecMode = EJRPGCombatMotionExecMode::VelocityCurve;
 	UPROPERTY(EditAnywhere) int32 Priority = 100;
 
 	UPROPERTY() TWeakObjectPtr<AActor> Instigator;
@@ -87,7 +88,7 @@ struct FCombatMotionRequest
 	UPROPERTY(EditAnywhere) bool bComputeTeleportFromTarget = false;
 
 	UPROPERTY(EditAnywhere) bool bIgnoreFriction = false;
-	UPROPERTY(EditAnywhere) ECombatMotionEndPolicy EndPolicy = ECombatMotionEndPolicy::TimeElapsed;
+	UPROPERTY(EditAnywhere) EJRPGCombatMotionEndPolicy EndPolicy = EJRPGCombatMotionEndPolicy::TimeElapsed;
 
 	UPROPERTY(EditAnywhere) bool bAllowClamp = true;
 	UPROPERTY(EditAnywhere) bool bCancelable = true;
@@ -109,8 +110,8 @@ struct FCombatMotionState
 {
 	GENERATED_BODY()
 
-	UPROPERTY() FCombatMotionHandle ActiveHandle;
-	UPROPERTY() FCombatMotionRequest ActiveRequest;
+	UPROPERTY() FJRPGCombatMotionHandle ActiveHandle;
+	UPROPERTY() FJRPGCombatMotionRequest ActiveRequest;
 
 	UPROPERTY() FVector ResolvedDirection = FVector::ZeroVector;
 	UPROPERTY() FVector ResolvedTeleportDest = FVector::ZeroVector;
@@ -126,18 +127,19 @@ struct FCombatMotionState
 	UPROPERTY() FVector LastWorldLocation = FVector::ZeroVector;
 };
 
+
 USTRUCT()
-struct FCombatMotionResponse
+struct FJRPGCombatMotionResponse
 {
 	GENERATED_BODY()
-
-	UPROPERTY() ECombatMotionResult Result = ECombatMotionResult::Rejected;
-	UPROPERTY() FCombatMotionHandle Handle;
+ 
+	UPROPERTY() EJRPGCombatMotionResult Result = EJRPGCombatMotionResult::Rejected;
+	UPROPERTY() FJRPGCombatMotionHandle Handle;
 	UPROPERTY() FName ReasonTag = NAME_None;
-
-	static FCombatMotionResponse Make(ECombatMotionResult InResult, const FCombatMotionHandle& InHandle, FName InReason)
+ 
+	static FJRPGCombatMotionResponse Make(EJRPGCombatMotionResult InResult, const FJRPGCombatMotionHandle& InHandle, FName InReason)
 	{
-		FCombatMotionResponse R;
+		FJRPGCombatMotionResponse R;
 		R.Result = InResult;
 		R.Handle = InHandle;
 		R.ReasonTag = InReason;

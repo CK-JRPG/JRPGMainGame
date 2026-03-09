@@ -3,7 +3,7 @@
 #include "StatusEffectTypes.generated.h"
 
 UENUM()
-enum class EStatusStackPolicy : uint8
+enum class EJRPGStatusStackPolicy : uint8
 {
 	RefreshDuration,
 	AddStacksClamp,

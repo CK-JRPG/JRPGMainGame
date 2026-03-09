@@ -70,9 +70,9 @@ private:
 	void HandleChainEnded(const FChainAttackSnapshot& Snapshot);
 
 	// sp
-	void HandleSPChanged(int32 CurrentSP, int32 Delta, ESPEventType Type, FName ReasonTag);
+	void HandleSPChanged(int32 CurrentSP, int32 Delta, EJRPGSPEventType Type, FName ReasonTag);
 	void HandleSPReadyChanged(bool bReady);
-	void HandleSPGainApplied(const FSPGainEvent& Event);
+	void HandleSPGainApplied(const FJRPGSPGainEvent& Event);
 
 private:
 	FString ActorNameSafe(AActor* Actor) const;

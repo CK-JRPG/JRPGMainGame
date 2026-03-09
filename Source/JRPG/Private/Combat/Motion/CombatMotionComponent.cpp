@@ -36,18 +36,18 @@ UBattleSessionSubsystem* UCombatMotionComponent::GetBattle() const
 	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
 }
 
-int32 UCombatMotionComponent::GetPriorityForType(ECombatMotionType Type) const
+int32 UCombatMotionComponent::GetPriorityForType(EJRPGCombatMotionType Type) const
 {
 	switch (Type)
 	{
-	case ECombatMotionType::GrappleMove: return 300;
-	case ECombatMotionType::HitMove: return 200;
-	case ECombatMotionType::SkillMove: return 100;
-	default:return 0;
+	case EJRPGCombatMotionType::GrappleMove: return 300;
+	case EJRPGCombatMotionType::HitMove: return 200;
+	case EJRPGCombatMotionType::SkillMove: return 100;
+	default: return 0;
 	}
 }
 
-bool UCombatMotionComponent::ValidateRequest(const FCombatMotionRequest& Req, FName& OutReason) const
+bool UCombatMotionComponent::ValidateRequest(const FJRPGCombatMotionRequest& Req, FName& OutReason) const
 {
 	OutReason = NAME_None;
 
@@ -57,13 +57,13 @@ bool UCombatMotionComponent::ValidateRequest(const FCombatMotionRequest& Req, FN
 		return false;
 	}
 
-	if (Req.Type == ECombatMotionType::None)
+	if (Req.Type == EJRPGCombatMotionType::None)
 	{
 		OutReason = "Reject.InvalidType";
 		return false;
 	}
 
-	if (Req.ExecMode == ECombatMotionExecMode::VelocityCurve)
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::VelocityCurve)
 	{
 		if (Req.Duration <= 0.f && Req.Distance <= 0.f)
 		{
@@ -72,12 +72,12 @@ bool UCombatMotionComponent::ValidateRequest(const FCombatMotionRequest& Req, FN
 		}
 	}
 
-	if (Req.ExecMode == ECombatMotionExecMode::RootMotion)
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::RootMotion)
 	{
 		// 외부 몽타주 구동이면 RootMontage가 없어도 추적 가능
 	}
 
-	if (Req.ExecMode == ECombatMotionExecMode::Teleport)
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::Teleport)
 	{
 		if (Req.TeleportDest.IsNearlyZero() && !Req.bComputeTeleportFromTarget && Req.Distance <= 0.f)
 		{
@@ -87,13 +87,13 @@ bool UCombatMotionComponent::ValidateRequest(const FCombatMotionRequest& Req, FN
 	}
 
 	// 문서상 SkillMove는 그로기 중 일반적으로 금지
-	if (Req.Type == ECombatMotionType::SkillMove && Groggy.IsValid() && Groggy->bGroggy && !Req.bAllowSkillMoveWhileGroggy)
+	if (Req.Type == EJRPGCombatMotionType::SkillMove && Groggy.IsValid() && Groggy->bGroggy && !Req.bAllowSkillMoveWhileGroggy)
 	{
 		OutReason ="Reject.GroggyBlocked";
 		return false;
 	}
 
-	if (Req.Type == ECombatMotionType::HitMove && Groggy.IsValid() && Groggy->bGroggy && !Req.bAllowHitMoveWhileGroggy)
+	if (Req.Type == EJRPGCombatMotionType::HitMove && Groggy.IsValid() && Groggy->bGroggy && !Req.bAllowHitMoveWhileGroggy)
 	{
 		OutReason = "Reject.GroggyHitMoveBlocked";
 		return false;
@@ -113,7 +113,7 @@ FVector UCombatMotionComponent::MakeDirectionFromTarget(AActor* TargetActor) con
 	return Dir.GetSafeNormal();
 }
 
-bool UCombatMotionComponent::ResolveRequestContext(FCombatMotionRequest& InOutReq, FName& OutReason)
+bool UCombatMotionComponent::ResolveRequestContext(FJRPGCombatMotionRequest& InOutReq, FName& OutReason)
 {
 	OutReason = NAME_None;
 
@@ -134,7 +134,7 @@ bool UCombatMotionComponent::ResolveRequestContext(FCombatMotionRequest& InOutRe
 		InOutReq.Direction = Dir;
 	}
 
-	if (InOutReq.ExecMode == ECombatMotionExecMode::Teleport)
+	if (InOutReq.ExecMode == EJRPGCombatMotionExecMode::Teleport)
 	{
 		if (InOutReq.bComputeTeleportFromTarget)
 		{
@@ -184,14 +184,14 @@ bool UCombatMotionComponent::ResolveRequestContext(FCombatMotionRequest& InOutRe
 	return true;
 }
 
-bool UCombatMotionComponent::CanReplaceCurrent(const FCombatMotionRequest& NewReq, FName& OutReason) const
+bool UCombatMotionComponent::CanReplaceCurrent(const FJRPGCombatMotionRequest& NewReq, FName& OutReason) const
 {
 	OutReason = NAME_None;
 
 	if (!IsMotionActive())
 		return true;
 
-	const FCombatMotionRequest& Cur = MotionState.ActiveRequest;
+	const FJRPGCombatMotionRequest& Cur = MotionState.ActiveRequest;
 
 	const int32 CurPriority = Cur.Priority > 0 ? Cur.Priority : GetPriorityForType(Cur.Type);
 	const int32 NewPriority = NewReq.Priority > 0 ? NewReq.Priority : GetPriorityForType(NewReq.Type);
@@ -221,7 +221,7 @@ bool UCombatMotionComponent::CanReplaceCurrent(const FCombatMotionRequest& NewRe
 	return false;
 }
 
-void UCombatMotionComponent::StartAcceptedMotion(const FCombatMotionRequest& Req, const FCombatMotionHandle& Handle, bool bBroadcastReplaced, const FCombatMotionHandle& ReplacedHandle)
+void UCombatMotionComponent::StartAcceptedMotion(const FJRPGCombatMotionRequest& Req, const FJRPGCombatMotionHandle& Handle, bool bBroadcastReplaced, const FJRPGCombatMotionHandle& ReplacedHandle)
 {
 	MotionState = FCombatMotionState();
 	MotionState.ActiveHandle = Handle;
@@ -231,7 +231,7 @@ void UCombatMotionComponent::StartAcceptedMotion(const FCombatMotionRequest& Req
 	MotionState.ResolvedDirection = Req.Direction;
 	MotionState.ResolvedTeleportDest = Req.TeleportDest;
 
-	if (Req.ExecMode == ECombatMotionExecMode::RootMotion && !Req.bMontageDrivenExternally && Req.RootMontage)
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::RootMotion && !Req.bMontageDrivenExternally && Req.RootMontage)
 	{
 		if (ACharacter* C = GetCharacterOwner())
 		{
@@ -264,7 +264,7 @@ void UCombatMotionComponent::StartAcceptedMotion(const FCombatMotionRequest& Req
 	}
 }
 
-void UCombatMotionComponent::FinishTeleportRequestImmediately(const FCombatMotionRequest& Req, const FCombatMotionHandle& Handle)
+void UCombatMotionComponent::FinishTeleportRequestImmediately(const FJRPGCombatMotionRequest& Req, const FJRPGCombatMotionHandle& Handle)
 {
 	bool bClamped = false;
 	FVector Dest = Req.TeleportDest;
@@ -285,9 +285,9 @@ void UCombatMotionComponent::FinishTeleportRequestImmediately(const FCombatMotio
 	MotionState = FCombatMotionState();
 }
 
-FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatMotionRequest& InReq)
+FJRPGCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FJRPGCombatMotionRequest& InReq)
 {
-	FCombatMotionRequest Req = InReq;
+	FJRPGCombatMotionRequest Req = InReq;
 
 	if (Req.Priority <= 0)
 	{
@@ -312,7 +312,7 @@ FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatM
 				FLinearColor::Red);
 		}
 		
-		return FCombatMotionResponse::Make(ECombatMotionResult::Rejected, FCombatMotionHandle(), Reason);
+		return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, FJRPGCombatMotionHandle(), Reason);
 	}
 
 	if (!ResolveRequestContext(Req, Reason))
@@ -328,11 +328,11 @@ FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatM
 				FLinearColor::Red);
 		}
 		
-		return FCombatMotionResponse::Make(ECombatMotionResult::Rejected, FCombatMotionHandle(), Reason);
+		return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, FJRPGCombatMotionHandle(), Reason);
 	}
 
 	const bool bHadActive = IsMotionActive();
-	FCombatMotionHandle OldHandle = MotionState.ActiveHandle;
+	FJRPGCombatMotionHandle OldHandle = MotionState.ActiveHandle;
 
 	if (bHadActive)
 	{
@@ -349,18 +349,18 @@ FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatM
 					FLinearColor::Red);
 			}
 			
-			return FCombatMotionResponse::Make(ECombatMotionResult::Rejected, FCombatMotionHandle(), Reason);
+			return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, FJRPGCombatMotionHandle(), Reason);
 		}
 
 		OnCombatMotionEnded.Broadcast(MotionState.ActiveHandle, "Cancel.ReplacedByHigher");
 		MotionState = FCombatMotionState();
 	}
 
-	FCombatMotionHandle NewHandle;
+	FJRPGCombatMotionHandle NewHandle;
 	NewHandle.OwnerTag = Req.OwnerTag;
 	NewHandle.UniqueId = NextMotionId++;
 
-	if (Req.ExecMode == ECombatMotionExecMode::Teleport)
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::Teleport)
 	{
 		FinishTeleportRequestImmediately(Req, NewHandle);
 		
@@ -375,8 +375,8 @@ FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatM
 				FLinearColor(0.7, 1.f, 0.7f));
 		}
 		
-		return FCombatMotionResponse::Make(
-			bHadActive ? ECombatMotionResult::ReplacedExisting : ECombatMotionResult::Accepted,
+		return FJRPGCombatMotionResponse::Make(
+			bHadActive ? EJRPGCombatMotionResult::ReplacedExisting : EJRPGCombatMotionResult::Accepted,
 			NewHandle,
 			bHadActive ? "Accept.Replace" : "Accept.Teleport");
 	}
@@ -398,13 +398,13 @@ FCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FCombatM
 			FLinearColor(0.7f,1.f,1.f));
 	}
 	
-	return FCombatMotionResponse::Make(
-		bHadActive ? ECombatMotionResult::ReplacedExisting : ECombatMotionResult::Accepted,
+	return FJRPGCombatMotionResponse::Make(
+		bHadActive ? EJRPGCombatMotionResult::ReplacedExisting : EJRPGCombatMotionResult::Accepted,
 		NewHandle,
 		bHadActive ? "Accept.Replace" : "Accept");
 }
 
-bool UCombatMotionComponent::CancelCombatMotion(FCombatMotionHandle Handle, FName ReasonTag)
+bool UCombatMotionComponent::CancelCombatMotion(FJRPGCombatMotionHandle Handle, FName ReasonTag)
 {
 	if (!IsMotionActive()) return false;
 	if (!(MotionState.ActiveHandle == Handle)) return false;
@@ -439,7 +439,7 @@ void UCombatMotionComponent::EndActiveMotion(FName EndReasonTag)
 	
 	if (!IsMotionActive()) return;
 
-	const FCombatMotionHandle Handle = MotionState.ActiveHandle;
+	const FJRPGCombatMotionHandle Handle = MotionState.ActiveHandle;
 	if (CharMove.IsValid())
 	{
 		CharMove->StopMovementImmediately();
@@ -492,7 +492,7 @@ void UCombatMotionComponent::ApplyClampIfNeeded()
 	{
 		GetOwner()->SetActorLocation(NewLoc, false);
 
-		if (MotionState.ActiveRequest.EndPolicy == ECombatMotionEndPolicy::HitWallOrBlocked)
+		if (MotionState.ActiveRequest.EndPolicy == EJRPGCombatMotionEndPolicy::HitWallOrBlocked)
 		{
 			EndActiveMotion("End.ClampHit");
 		}
@@ -501,7 +501,7 @@ void UCombatMotionComponent::ApplyClampIfNeeded()
 
 void UCombatMotionComponent::TickVelocityCurve(float DeltaTime)
 {
-	const FCombatMotionRequest& Req = MotionState.ActiveRequest;
+	const FJRPGCombatMotionRequest& Req = MotionState.ActiveRequest;
 	if (!GetOwner()) return;
 
 	MotionState.Elapsed += DeltaTime;
@@ -557,7 +557,7 @@ void UCombatMotionComponent::TickVelocityCurve(float DeltaTime)
 				FLinearColor(1.f, 0.6f, 0.2f));
 		}
 
-		if (Req.EndPolicy == ECombatMotionEndPolicy::HitWallOrBlocked)
+		if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::HitWallOrBlocked)
 		{
 			EndActiveMotion("End.HitWall");
 			return;
@@ -567,13 +567,13 @@ void UCombatMotionComponent::TickVelocityCurve(float DeltaTime)
 	ApplyClampIfNeeded();
 	if (!IsMotionActive()) return;
 
-	if (Req.EndPolicy == ECombatMotionEndPolicy::DistanceReached && Req.Distance > 0.f && MotionState.AccumulatedDistance >= Req.Distance)
+	if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::DistanceReached && Req.Distance > 0.f && MotionState.AccumulatedDistance >= Req.Distance)
 	{
 		EndActiveMotion("End.DistanceReached");
 		return;
 	}
 
-	if (Req.EndPolicy == ECombatMotionEndPolicy::TimeElapsed && Req.Duration > 0.f && MotionState.Elapsed >= Req.Duration)
+	if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::TimeElapsed && Req.Duration > 0.f && MotionState.Elapsed >= Req.Duration)
 	{
 		EndActiveMotion("End.DurationElapsed");
 		return;
@@ -586,9 +586,9 @@ void UCombatMotionComponent::TickRootMotion(float DeltaTime)
 	ApplyClampIfNeeded();
 	if (!IsMotionActive()) return;
 
-	const FCombatMotionRequest& Req = MotionState.ActiveRequest;
-
-	if (Req.EndPolicy == ECombatMotionEndPolicy::MontageEnded)
+	const FJRPGCombatMotionRequest& Req = MotionState.ActiveRequest;
+	
+	if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::MontageEnded)
 	{
 		bool bStillPlaying = false;
 
@@ -617,7 +617,7 @@ void UCombatMotionComponent::TickRootMotion(float DeltaTime)
 		}
 	}
 
-	if (Req.EndPolicy == ECombatMotionEndPolicy::TimeElapsed && Req.Duration > 0.f && MotionState.Elapsed >= Req.Duration)
+	if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::TimeElapsed && Req.Duration > 0.f && MotionState.Elapsed >= Req.Duration)
 	{
 		EndActiveMotion("End.DurationElapsed");
 		return;
@@ -630,15 +630,15 @@ void UCombatMotionComponent::TickComponent(float DeltaTime, ELevelTick, FActorCo
 
 	switch (MotionState.ActiveRequest.ExecMode)
 	{
-	case ECombatMotionExecMode::VelocityCurve:
+	case EJRPGCombatMotionExecMode::VelocityCurve:
 		TickVelocityCurve(DeltaTime);
 		break;
 	
-	case ECombatMotionExecMode::RootMotion:
+	case EJRPGCombatMotionExecMode::RootMotion:
 		TickRootMotion(DeltaTime);
 		break;
 	
-	case ECombatMotionExecMode::Teleport:
+	case EJRPGCombatMotionExecMode::Teleport:
 	default:
 		break;
 	}

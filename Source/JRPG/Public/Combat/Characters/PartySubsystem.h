@@ -8,7 +8,7 @@
 class UCombatCharacterRegistrySubsystem;
 
 UCLASS()
-class JRPG_API UPartySubsystem : public UGameInstanceSubsystem, public IPartyProvider, public ICombatLevelProvider
+class JRPG_API UPartySubsystem : public UGameInstanceSubsystem, public IPartyProvider, public IJRPGCombatLevelProvider
 {
 	GENERATED_BODY()
 	

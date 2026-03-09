@@ -79,7 +79,7 @@ bool UTacticalModeSubsystem::SetReservation(AActor *Actor,FName SkillId,const TA
 	if (!Actor || SkillId.IsNone())    return false;
 	if (!IsSessionParticipant(Actor))  return false;
 
-	FTacticalReservation R;
+	FJRPGTacticalReservation R;
 	R.ReservedActor = Actor;
 	R.SkillId = SkillId;
 	R.CreatedAtReal = FPlatformTime::Seconds();
@@ -119,12 +119,12 @@ bool UTacticalModeSubsystem::ClearReservation(AActor *Actor)
 	return bRemoved;
 }
 
-bool UTacticalModeSubsystem::GetReservation(AActor*Actor,FTacticalReservation&OutReservation)const
+bool UTacticalModeSubsystem::GetReservation(AActor* Actor, FJRPGTacticalReservation& OutReservation)const
 {
 	if (!Actor)
 		return false;
 	
-	const FTacticalReservation *Found = Reservations.Find(Actor);
+	const FJRPGTacticalReservation *Found = Reservations.Find(Actor);
 	
 	if (!Found)
 		return false;

@@ -26,6 +26,7 @@ public:
 
 	float GetMaxHP() const {return MaxHP;}
 	float GetHP() const {return CurrentHP;}
+	float GetHpRatio01() const { return MaxHP > 0.f ? FMath::Clamp(CurrentHP / MaxHP, 0.f, 1.f) : 0.f; }
 	bool IsDead() const {return CurrentHP <= 0.f;}
 
 	void ApplyDamage(float Amount, AActor *Instigator, FName ReasonTag);

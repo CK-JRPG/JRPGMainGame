@@ -310,7 +310,7 @@ void UCombatDebugSubsystem::HandleChainEnded(const FChainAttackSnapshot& Snapsho
 		FLinearColor(1.f, 0.75f, 0.2f));
 }
 
-void UCombatDebugSubsystem::HandleSPChanged(int32 CurrentSP, int32 Delta, ESPEventType Type, FName ReasonTag)
+void UCombatDebugSubsystem::HandleSPChanged(int32 CurrentSP, int32 Delta, EJRPGSPEventType Type, FName ReasonTag)
 {
 	AddLog(
 		ECombatDebugCategory::SP,
@@ -330,7 +330,7 @@ void UCombatDebugSubsystem::HandleSPReadyChanged(bool bReady)
 		bReady ? FLinearColor::Green : FLinearColor::Yellow);
 }
 
-void UCombatDebugSubsystem::HandleSPGainApplied(const FSPGainEvent& Event)
+void UCombatDebugSubsystem::HandleSPGainApplied(const FJRPGSPGainEvent& Event)
 {
 	AddLog(
 		ECombatDebugCategory::SP,

@@ -62,15 +62,15 @@ void AEnemyAIController::RefreshStateFromGroggyAndChain()
 		return;
 	}
 
-	EGroggyPhase Phase = EGroggyPhase::Normal;
+	EJRPGGroggyPhase Phase = EJRPGGroggyPhase::Normal;
 	if (ReadGroggy(Phase))
 	{
-		if (Phase == EGroggyPhase::Stunned)
+		if (Phase == EJRPGGroggyPhase::Stunned)
 		{
 			State = EEnemyCombatState::Groggy_Stunned;
 			return;
 		}
-		if (Phase == EGroggyPhase::Rising)
+		if (Phase == EJRPGGroggyPhase::Rising)
 		{
 			State = EEnemyCombatState::Rising;
 			return;
@@ -161,9 +161,9 @@ bool AEnemyAIController::IsChainSequenceActive()const
 	return false;
 }
 
-bool AEnemyAIController::ReadGroggy(EGroggyPhase &OutPhase)const
+bool AEnemyAIController::ReadGroggy(EJRPGGroggyPhase &OutPhase)const
 {
-	OutPhase = EGroggyPhase::Normal;
+	OutPhase = EJRPGGroggyPhase::Normal;
 
 	if (!ControlledPawn)
 		return false;

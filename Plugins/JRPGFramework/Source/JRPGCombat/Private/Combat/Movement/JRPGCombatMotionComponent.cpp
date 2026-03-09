@@ -343,7 +343,7 @@ void UJRPGCombatMotionComponent::EnsureLocomotionLocked()
 	if (LocomotionLockHandle.IsValid()) return;
 
 	const auto Res = Locomotion->AcquireInputLock(FName("Locomotion.CombatMotion"));
-	if (Res.Op.bOk)
+	if (Res.bOk)
 	{
 		LocomotionLockHandle = Res.Value;
 	}
@@ -355,7 +355,7 @@ void UJRPGCombatMotionComponent::EnsureLocomotionUnlocked()
 	if (!LocomotionLockHandle.IsValid()) return;
 
 	Locomotion->ReleaseInputLock(LocomotionLockHandle);
-	LocomotionLockHandle.Invalidate();
+	LocomotionLockHandle = FJRPGHandle();
 }
 
 // ----------------------------------

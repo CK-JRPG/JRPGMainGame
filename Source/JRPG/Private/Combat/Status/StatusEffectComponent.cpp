@@ -100,16 +100,16 @@ bool UStatusEffectComponent::ApplyStatus(UStatusEffectDataAsset *Effect,AActor *
 
 	switch (Effect->StackPolicy)
 	{
-	case EStatusStackPolicy::RefreshDuration:
+	case EJRPGStatusStackPolicy::RefreshDuration:
 		S.Remaining = FMath::Max(0.01f,Effect->DurationSec);
 		break;
-		
-	case EStatusStackPolicy::AddStacksClamp:
+ 		
+	case EJRPGStatusStackPolicy::AddStacksClamp:
 		S.Stacks = FMath::Clamp(S.Stacks + AddStacks, 1, FMath::Max(1, Effect->MaxStacks));
 		S.Remaining = FMath::Max(0.01f, Effect->DurationSec);
 		break;
-		
-	case EStatusStackPolicy::IgnoreIfExists:
+ 		
+	case EJRPGStatusStackPolicy::IgnoreIfExists:
 	default:
 		break;
 	}

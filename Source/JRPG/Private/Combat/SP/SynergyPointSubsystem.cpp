@@ -11,7 +11,7 @@ void USynergyPointSubsystem::OnWorldBeginPlay(UWorld &InWorld)
 {
 	Super::OnWorldBeginPlay(InWorld);
 
-	State = FSynergyPointState();
+	State = FJRPGSynergyPointState();
 	State.SPCap = Tuning.SPCap;
 	TryBindExternalEvents();
 }
@@ -44,10 +44,10 @@ bool USynergyPointSubsystem::CanAcceptGain() const
 	return Battle && Battle->IsBattleActive();
 }
 
-EPartyRole USynergyPointSubsystem::ResolveRoleForActor(AActor* Actor) const
+EJRPGPartyRole USynergyPointSubsystem::ResolveRoleForActor(AActor* Actor) const
 {
 	if (!Actor)
-		return EPartyRole::Attacker;
+		return EJRPGPartyRole::Attacker;
 
 	if (UCombatCharacterComponent* CC =Actor->FindComponentByClass<UCombatCharacterComponent>())
 	{
@@ -57,7 +57,7 @@ EPartyRole USynergyPointSubsystem::ResolveRoleForActor(AActor* Actor) const
 		}
 	}
 
-	return EPartyRole::Attacker;
+	return EJRPGPartyRole::Attacker;
 }
 
 bool USynergyPointSubsystem::IsAlly(AActor* A,AActor* B) const
@@ -162,7 +162,7 @@ void USynergyPointSubsystem::UpdateReadyState()
 	}
 }
 
-void USynergyPointSubsystem::ApplyGainEvent(FSPGainEvent &Event)
+void USynergyPointSubsystem::ApplyGainEvent(FJRPGSPGainEvent &Event)
 {
 	if (!CanAcceptGain())
 		return;
@@ -211,7 +211,7 @@ void USynergyPointSubsystem::ResetForBattleEnd(FName ReasonTag)
 
 	if (Prev > 0)
 	{
-		OnSynergyPointChanged.Broadcast(State.CurrentSP, -Prev, ESPEventType::None, ReasonTag);
+		OnSynergyPointChanged.Broadcast(State.CurrentSP, -Prev, EJRPGSPEventType::None, ReasonTag);
 	}
 }
 
@@ -226,7 +226,7 @@ void USynergyPointSubsystem::ResetForChainEnd(FName ReasonTag)
 
 	if (Prev > 0)
 	{
-		OnSynergyPointChanged.Broadcast(State.CurrentSP,-Prev, ESPEventType::None,ReasonTag);
+		OnSynergyPointChanged.Broadcast(State.CurrentSP,-Prev, EJRPGSPEventType::None,ReasonTag);
 	}
 }
 
@@ -246,16 +246,16 @@ void USynergyPointSubsystem::ReportDamage(AActor *Instigator, AActor *Target,
 	if (!Instigator || !Target || DamageAmount <= 0.f)
 		return;
 
-	FSPGainEvent Evt;
+	FJRPGSPGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
-	Evt.Type = ESPEventType::Damage;
+	Evt.Type = EJRPGSPEventType::Damage;
 	Evt.BaseAmount = 1 + FMath::FloorToInt(DamageAmount / 100.f);
 	Evt.bFromTacticalReservation = bFromTacticalReservation;
 	Evt.ReasonTag = ReasonTag;
 
-	if (Evt.Role == EPartyRole::Attacker)
+	if (Evt.Role == EJRPGPartyRole::Attacker)
 	{
 		FDamageWindowRuntime &W = DamageWindows.FindOrAdd(Instigator);
 		const double Now = FPlatformTime::Seconds();
@@ -290,16 +290,16 @@ void USynergyPointSubsystem::ReportHeal(AActor *Instigator, AActor *Target,
 	if (!Instigator || !Target || HealAmount <= 0.f)
 		return;
 
-	FSPGainEvent Evt;
+	FJRPGSPGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
-	Evt.Type = ESPEventType::Heal;
+	Evt.Type = EJRPGSPEventType::Heal;
 	Evt.BaseAmount = 1 + FMath::FloorToInt(HealAmount / 120.f);
 	Evt.bFromTacticalReservation = bFromTacticalReservation;
 	Evt.ReasonTag = ReasonTag;
 
-	if (Evt.Role == EPartyRole::Supporter && TargetHPRatioBefore <= Tuning.SupporterCriticalHealThreshold)
+	if (Evt.Role == EJRPGPartyRole::Supporter && TargetHPRatioBefore <= Tuning.SupporterCriticalHealThreshold)
 	{
 		Evt.RoleBonusAmount += Tuning.SupporterCriticalHealBonus;
 	}
@@ -314,16 +314,16 @@ void USynergyPointSubsystem::ReportBreak(AActor*Instigator, AActor*Target,
 	if (!Instigator || !Target) return;
 	if (BreakAmount <= 0.f && !bTriggeredStun) return;
 
-	FSPGainEvent Evt;
+	FJRPGSPGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
-	Evt.Type = ESPEventType::Break;
+	Evt.Type = EJRPGSPEventType::Break;
 	Evt.BaseAmount = (BreakAmount > 0.f) ? 1 : 0;
 	Evt.bFromTacticalReservation = bFromTacticalReservation;
 	Evt.ReasonTag = ReasonTag;
 
-	if (Evt.Role == EPartyRole::Attacker)
+	if (Evt.Role == EJRPGPartyRole::Attacker)
 	{
 		if (BreakAmount > 0.f)
 		{
@@ -353,16 +353,16 @@ void USynergyPointSubsystem::ReportBuff(AActor *Instigator, AActor *Target, FNam
 {
 	if (!Instigator || !Target || BuffId.IsNone()) return;
 
-	FSPGainEvent Evt;
+	FJRPGSPGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
-	Evt.Type = ESPEventType::Buff;
+	Evt.Type = EJRPGSPEventType::Buff;
 	Evt.BaseAmount = 1;
 	Evt.bFromTacticalReservation = bFromTacticalReservation;
 	Evt.ReasonTag = ReasonTag;
 
-	if (Evt.Role == EPartyRole::Supporter && IsAlly(Instigator,Target))
+	if (Evt.Role == EJRPGPartyRole::Supporter && IsAlly(Instigator,Target))
 	{
 		const double Now = FPlatformTime::Seconds();
 		const FString CoolKey = FString::Printf(TEXT("SP.Supporter.Buff.%s.%s"),
@@ -384,16 +384,16 @@ void USynergyPointSubsystem::ReportDebuff(AActor *Instigator, AActor *Target, FN
 {
 	if (!Instigator || !Target || DebuffId.IsNone()) 
 		return;
-
-	FSPGainEvent Evt;
+ 
+	FJRPGSPGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
-	Evt.Type = ESPEventType::Debuff;
+	Evt.Type = EJRPGSPEventType::Debuff;
 	Evt.BaseAmount = 1;
 	Evt.bFromTacticalReservation = bFromTacticalReservation;
 	Evt.ReasonTag = ReasonTag;
-
+ 
 	// 문서상 Debuff는 기본 획득에 포함되지만 별도 롤 보너스 계수는 고정되어 있지 않으므로
 	// 현재는 Base Gain만 준다.
 	Evt.TacticalBonusAmount = ComputeTacticalBonus(Evt.RoleBonusAmount, bFromTacticalReservation);
@@ -405,21 +405,21 @@ void USynergyPointSubsystem::ReportCleanse(AActor *Instigator, AActor *Target,
 {
 	if (!Instigator || !Target || RemovedCount <= 0)
 		return;
-
-	FSPGainEvent Evt;
+ 
+	FJRPGSPGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
-	Evt.Type = ESPEventType::Cleanse;
+	Evt.Type = EJRPGSPEventType::Cleanse;
 	Evt.BaseAmount = 1;
 	Evt.bFromTacticalReservation = bFromTacticalReservation;
 	Evt.ReasonTag = ReasonTag;
-
-	if (Evt.Role == EPartyRole::Supporter && bRemovedCriticalCC)
+ 
+	if (Evt.Role == EJRPGPartyRole::Supporter && bRemovedCriticalCC)
 	{
 		Evt.RoleBonusAmount += Tuning.SupporterCleanseBonus;
 	}
-
+ 
 	Evt.TacticalBonusAmount = ComputeTacticalBonus(Evt.RoleBonusAmount,bFromTacticalReservation);
 	ApplyGainEvent(Evt);
 }
@@ -428,17 +428,17 @@ void USynergyPointSubsystem::ReportThreatOutcome(AActor* Instigator, AActor* Ene
 	float ThreatDelta, bool bBecameTopThreat, bool bRescuedAlly, bool bFromTacticalReservation, FName ReasonTag)
 {
 	if (!Instigator||!EnemyOwner||ThreatDelta<=0.f)return;
-
-	FSPGainEvent Evt;
+ 
+	FJRPGSPGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = EnemyOwner;
 	Evt.Role = ResolveRoleForActor(Instigator);
-	Evt.Type = ESPEventType::Taunt;
+	Evt.Type = EJRPGSPEventType::Taunt;
 	Evt.BaseAmount = 1;
 	Evt.bFromTacticalReservation = bFromTacticalReservation;
 	Evt.ReasonTag = ReasonTag;
-
-	if (Evt.Role == EPartyRole::Defender)
+ 
+	if (Evt.Role == EJRPGPartyRole::Defender)
 	{
 		if (bRescuedAlly)
 		{
@@ -449,7 +449,7 @@ void USynergyPointSubsystem::ReportThreatOutcome(AActor* Instigator, AActor* Ene
 			Evt.RoleBonusAmount += Tuning.DefenderAggroHoldBonus;
 		}
 	}
-
+	
 	Evt.TacticalBonusAmount = ComputeTacticalBonus(Evt.RoleBonusAmount,bFromTacticalReservation);
 	ApplyGainEvent(Evt);
 }
@@ -459,27 +459,27 @@ void USynergyPointSubsystem::ReportAggroHold(AActor* Defender, AActor* EnemyOwne
 {
 	if (!Defender || !EnemyOwner)
 		return;
-
+ 
 	const double Now = FPlatformTime::Seconds();
 	const FString CoolKey = FString::Printf(TEXT("SP.Defender.Hold.%s.%s"),
 			*Defender->GetName(),
 			*EnemyOwner->GetName());
-
+ 
 	if (!PassesSameEventCooldown(CoolKey, Now))
 		return;
-	
-
-	FSPGainEvent Evt;
+ 	
+ 
+	FJRPGSPGainEvent Evt;
 	Evt.Instigator = Defender;
 	Evt.Target = EnemyOwner;
 	Evt.Role = ResolveRoleForActor(Defender);
-	Evt.Type = ESPEventType::Taunt;
+	Evt.Type = EJRPGSPEventType::Taunt;
 	Evt.BaseAmount = 0;
-	Evt.RoleBonusAmount = (Evt.Role == EPartyRole::Defender) ? Tuning.DefenderAggroHoldBonus : 0;
+	Evt.RoleBonusAmount = (Evt.Role == EJRPGPartyRole::Defender) ? Tuning.DefenderAggroHoldBonus : 0;
 	Evt.bFromTacticalReservation = bFromTacticalReservation;
 	Evt.ReasonTag = ReasonTag;
 	Evt.TacticalBonusAmount = ComputeTacticalBonus(Evt.RoleBonusAmount, bFromTacticalReservation);
-
+ 
 	ApplyGainEvent(Evt);
 }
 
@@ -488,17 +488,17 @@ void USynergyPointSubsystem::ReportPartyProtect(AActor* Defender,AActor* Protect
 {
 	if (!Defender || !ProtectedTarget)
 		return;
-
-	FSPGainEvent Evt;
+ 
+	FJRPGSPGainEvent Evt;
 	Evt.Instigator = Defender;
 	Evt.Target = ProtectedTarget;
 	Evt.Role = ResolveRoleForActor(Defender);
-	Evt.Type = ESPEventType::Protect;
+	Evt.Type = EJRPGSPEventType::Protect;
 	Evt.BaseAmount = 1;
-	Evt.RoleBonusAmount = (Evt.Role == EPartyRole::Defender) ? Tuning.DefenderPartyProtectBonus : 0;
+	Evt.RoleBonusAmount = (Evt.Role == EJRPGPartyRole::Defender) ? Tuning.DefenderPartyProtectBonus : 0;
 	Evt.bFromTacticalReservation = bFromTacticalReservation;
 	Evt.ReasonTag = ReasonTag;
 	Evt.TacticalBonusAmount = ComputeTacticalBonus(Evt.RoleBonusAmount, bFromTacticalReservation);
-
+ 
 	ApplyGainEvent(Evt);
 }

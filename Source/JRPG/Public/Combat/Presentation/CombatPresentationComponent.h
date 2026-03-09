@@ -62,7 +62,7 @@ private:
 		FName HitCueTag = NAME_None;
 		FName FinishCueTag = NAME_None;
 		
-		FCombatMotionHandle MotionHandle;
+		FJRPGCombatMotionHandle MotionHandle;
 		bool bHasMotion = false;
 	};
 

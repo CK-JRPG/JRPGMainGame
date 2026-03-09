@@ -165,7 +165,8 @@ void UCombatMotionEffectBridgeComponent::ApplyImpactRule(ECombatMotionArchetype 
 	// 2) Groggy
 	if (Rule.bAddGroggy && Groggy)
 	{
-		Groggy->AddBreak(Rule.GroggyBreakAmount, SourceTag);
+		FGameplayTagContainer ContextTags;
+		Groggy->AddBreak(Req.Instigator, Rule.GroggyBreakAmount, ContextTags);
 	}
 
 	// 3) SP (월드 SSOT)
@@ -175,11 +176,12 @@ void UCombatMotionEffectBridgeComponent::ApplyImpactRule(ECombatMotionArchetype 
 		{
 			if (UCombatSynergyPointSubsystem* SP = W->GetSubsystem<UCombatSynergyPointSubsystem>())
 			{
-				FJRPGSPGainEvent Ev;
-				Ev.Amount = Rule.SPAmount;
+				FSPGainEvent Ev;
+				Ev.Type = ESPEventType::Buff;
+				Ev.OutcomeValue = Rule.SPAmount;
 				Ev.SourceTag = SourceTag;
 				Ev.Instigator = Req.Instigator;
-				SP->ApplyGainEvent(Ev);
+				SP->SubmitGainEvent(Ev, FName("SP.MotionImpact"));
 			}
 		}
 	}

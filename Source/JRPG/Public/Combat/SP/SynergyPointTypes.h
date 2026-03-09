@@ -6,7 +6,7 @@
 #include "SynergyPointTypes.generated.h"
 
 UENUM()
-enum class ESPEventType : uint8
+enum class EJRPGSPEventType : uint8
 {
 	None,
 	Damage,
@@ -20,7 +20,7 @@ enum class ESPEventType : uint8
 };
 
 USTRUCT()
-struct FSynergyPointState
+struct FJRPGSynergyPointState
 {
 	GENERATED_BODY()
 
@@ -31,15 +31,16 @@ struct FSynergyPointState
 };
 
 USTRUCT()
-struct FSPGainEvent
+struct FJRPGSPGainEvent
 {
 	GENERATED_BODY()
 
 	UPROPERTY() TWeakObjectPtr<AActor> Instigator;
 	UPROPERTY() TWeakObjectPtr<AActor> Target;
 
-	UPROPERTY() EPartyRole Role = EPartyRole::Attacker;
-	UPROPERTY() ESPEventType Type = ESPEventType::None;
+
+	UPROPERTY() EJRPGPartyRole Role = EJRPGPartyRole::Attacker;
+	UPROPERTY() EJRPGSPEventType Type = EJRPGSPEventType::None;
 
 	UPROPERTY() int32 BaseAmount = 0;
 	UPROPERTY() int32 RoleBonusAmount = 0;
@@ -85,6 +86,8 @@ struct FSynergyPointTuning
 	UPROPERTY(EditAnywhere) int32 SupporterBuffUptimeBonus = 4;
 };
 
-DECLARE_MULTICAST_DELEGATE_FourParams(FOnSynergyPointChanged, int32/*CurrentSP*/, int32/*Delta*/, ESPEventType/*Type*/, FName/*ReasonTag*/);
+
+
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnSynergyPointChanged, int32/*CurrentSP*/, int32/*Delta*/, EJRPGSPEventType/*Type*/, FName/*ReasonTag*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSynergyReadyChanged,bool/*bReady*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnSynergyGainApplied,const FSPGainEvent& /*Event*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSynergyGainApplied,const FJRPGSPGainEvent& /*Event*/);

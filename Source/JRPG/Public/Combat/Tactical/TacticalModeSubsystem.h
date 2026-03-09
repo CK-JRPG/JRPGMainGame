@@ -25,12 +25,12 @@ public:
 
 	bool SetReservation(AActor *Actor,FName SkillId,const TArray<AActor*> &Targets);
 	bool ClearReservation(AActor *Actor);
-	bool GetReservation(AActor *Actor,FTacticalReservation &OutReservation) const;
+	bool GetReservation(AActor *Actor, FJRPGTacticalReservation &OutReservation) const;
 	bool HasReservation(AActor *Actor)const;
-
+ 
 private:
 	UPROPERTY() FTacticalModeSnapshot Snapshot;
-	UPROPERTY() TMap<TWeakObjectPtr<AActor>, FTacticalReservation> Reservations;
+	UPROPERTY() TMap<TWeakObjectPtr<AActor>, FJRPGTacticalReservation> Reservations;
 
 	UBattleSessionSubsystem *GetBattle() const;
 	bool IsPlayerTurnActor(AActor *Actor) const;

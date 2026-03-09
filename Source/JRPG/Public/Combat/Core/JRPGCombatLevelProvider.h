@@ -5,9 +5,9 @@
 #include "JRPGCombatLevelProvider.generated.h"
 
 UINTERFACE(MinimalAPI)
-class UCombatLevelProvider : public UInterface { GENERATED_BODY() };
-
-class ICombatLevelProvider
+class UJRPGCombatLevelProvider : public UInterface { GENERATED_BODY() };
+ 
+class IJRPGCombatLevelProvide
 {
 	GENERATED_BODY()
 

@@ -22,23 +22,23 @@ struct FSkillAIMeta
 };
 
 // NOTE: 이 부분은 프로젝트의 SkillDataAsset/SkillComponent 구현에 맞춰 채우면 됨.
-DECLARE_DELEGATE_RetVal_TwoParams(bool, FGetSkillAIMetaDelegate, class USkillComponent* /*SkillComp*/, FName /*SkillId*/);
+DECLARE_DELEGATE_RetVal_ThreeParams(bool, FGetSkillAIMetaDelegate, class USkillComponent* /*SkillComp*/, FName /*SkillId*/, FSkillAIMeta& /*OutMeta*/);
 
 UCLASS()
 class JRPG_API UCombatAIScorer :public UObject
 {
 	GENERATED_BODY()
-
+ 
 public:
 	void Initialize(FGetSkillAIMetaDelegate InMetaResolver);
-
-	float ScoreAction(const UCombatAIContext &Ctx,const FCombatAIAction &Action) const;
-
+ 
+	float ScoreAction(const UCombatAIContext &Ctx,const FJRPGCombatAIAction &Action) const;
+ 
 private:
 	FGetSkillAIMetaDelegate MetaResolver;
-
-	float ScoreRoleLogic(const UCombatAIContext &Ctx,const FCombatAIAction &A,const FSkillAIMeta &Meta) const;
-	float ScoreSPOpportunity(const UCombatAIContext &Ctx,const FCombatAIAction &A,const FSkillAIMeta &Meta) const;
-
+ 
+	float ScoreRoleLogic(const UCombatAIContext &Ctx,const FJRPGCombatAIAction &A,const FSkillAIMeta &Meta) const;
+	float ScoreSPOpportunity(const UCombatAIContext &Ctx,const FJRPGCombatAIAction &A,const FSkillAIMeta &Meta) const;
+ 
 	static float SoftCapPenalty(float Value,float SoftCap);
 };

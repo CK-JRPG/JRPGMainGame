@@ -37,14 +37,14 @@ class JRPG_API UAugmentEquipComponent : public UActorComponent
 
 public:
 	UAugmentEquipComponent();
-
-	UPROPERTY(EditAnywhere, Category = "Augment") EPartyRole Role = EPartyRole::Attacker;
+	
+	UPROPERTY(EditAnywhere, Category = "Augment") EJRPGPartyRole Role = EJRPGPartyRole::Attacker;
 	UPROPERTY(EditAnywhere, Category = "Augment") FName CharacterId = NAME_None;
-
+ 
 	UPROPERTY(EditAnywhere, Category = "Augment") TObjectPtr<UItemDatabaseAsset> ItemDB = nullptr;
 	UPROPERTY(EditAnywhere, Category = "Augment") TObjectPtr<UItemCapSettingsDataAsset> CapSettings = nullptr;
-
-	UPROPERTY(EditAnywhere, Category = "Augment") TScriptInterface<ICombatLevelProvider> LevelProvider;
+ 
+	UPROPERTY(EditAnywhere, Category = "Augment") TScriptInterface<IJRPGCombatLevelProvider> LevelProvider;
 
 	FOnAugmentEquipped OnAugmentEquipped;
 	FOnAugmentEquipRejected OnAugmentEquipRejected;

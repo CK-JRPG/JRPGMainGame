@@ -40,7 +40,11 @@ public:
 
 	float GetCooldownRemaining(FName SkillId) const;
 	USkillDataAsset* GetSkillDef(FName SkillId) const;
-
+	void GetOwnedSkillIds(TArray<FName>& OutSkillIds) const;
+	bool CanUseSkill(FName SkillId) const;
+	void RequestBasicAttack(AActor* Target);
+	void RequestUseSkillByAI(FName SkillId, AActor* Target);
+	
 	// 기존 즉발 API 유지
 	FSkillCastResult CastSkill(FName SkillId,const TArray<AActor*> &Targets,FName ReasonTag);
 

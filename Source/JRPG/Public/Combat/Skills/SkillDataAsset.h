@@ -51,7 +51,7 @@ public:
 	UPROPERTY(EditAnywhere) FName HitCueTag = "Skill.Hit";
 	UPROPERTY(EditAnywhere) FName FinishCueTag = "Skill.Finish";
 	UPROPERTY(EditAnywhere) bool bHasSkillMotion = false;
-	UPROPERTY(EditAnywhere) FCombatMotionRequest SkillMotion;
+	UPROPERTY(EditAnywhere) FJRPGCombatMotionRequest SkillMotion;
 
 	UPROPERTY(EditAnywhere) FGameplayTagContainer DispelAnyTags;
 	UPROPERTY(EditAnywhere) int32 DispelRemoveCount = 0;// <=0 means all

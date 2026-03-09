@@ -298,8 +298,11 @@ void UCombatHPComponent::ApplyGroggyIfNeeded(const FCombatDamageSpec& Spec)
 {
 	if (!Groggy) return;
 	if (Spec.BreakAmount <= 0.f) return;
-
-	Groggy->AddBreak(Spec.BreakAmount, Spec.SourceTag.IsNone() ? FName("Damage.Break") : Spec.SourceTag);
+	
+	{
+		FGameplayTagContainer ContextTags;
+		Groggy->AddBreak(Spec.Instigator, Spec.BreakAmount, ContextTags);
+	}
 }
 
 void UCombatHPComponent::ApplyThreatIfNeeded(const FCombatDamageSpec& Spec)
@@ -318,7 +321,7 @@ void UCombatHPComponent::RouteSPEvents(const FCombatDamageSpec& Spec, const FCom
 	{
 		if (USPEventRouterSubsystem* Router = W->GetSubsystem<USPEventRouterSubsystem>())
 		{
-			Router->RouteDamageEvent(Spec, Result, GetOwner());
+			Router->RouteDamageOrHeal(Spec, Result, GetOwner());
 			return;
 		}
 	}
