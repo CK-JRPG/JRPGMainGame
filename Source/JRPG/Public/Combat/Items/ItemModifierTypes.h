@@ -48,14 +48,14 @@ struct FRoleEfficiency
 	UPROPERTY(EditAnywhere) float Attacker = 1.0f;
 	UPROPERTY(EditAnywhere) float Supporter = 1.0f;
 
-float Get(EPartyRole Role) const
+	float Get(EJRPGPartyRole Role) const
 	{
 		switch (Role)
 		{
-			case EPartyRole::Defender: return Defender;
-			case EPartyRole::Attacker: return Attacker;
-			case EPartyRole::Supporter: return Supporter;
-			default: return 1.0f;
+		case EJRPGPartyRole::Defender: return Defender;
+		case EJRPGPartyRole::Attacker: return Attacker;
+		case EJRPGPartyRole::Supporter: return Supporter;
+		default: return 1.0f;
 		}
 	}
 };

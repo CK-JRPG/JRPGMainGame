@@ -8,7 +8,8 @@
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Skills/SkillComponent.h"
 
-void UCombatAIContext::Initialize(AActor* InOwner, EPartyRole InRole, UCombatAIPresetAsset* InPresetAsset)
+
+void UCombatAIContext::Initialize(AActor* InOwner, EJRPGPartyRole InRole, UCombatAIPresetAsset* InPresetAsset)
 {
 	Owner = InOwner;
 	OwnerPawn = Cast<APawn>(InOwner);
@@ -101,7 +102,7 @@ void UCombatAIContext::RefreshTargetSnapshot()
 {
 	// PrimaryTarget은 문서: 기본은 세션 PrimaryTarget 공격 :contentReference[oaicite:17]{index=17}
 	// 실제로는 BattleSessionSubsystem에서 가져오기.
-	TargetGroggyPhase = EGroggyPhase::Normal;
+	TargetGroggyPhase = EJRPGGroggyPhase::Normal;
 	TargetBreakRatio01 = 0.f;
 	if (PrimaryTarget.IsValid())
 	{
@@ -122,9 +123,11 @@ void UCombatAIContext::RefreshSP()
 	}
 }
 
-bool UCombatAIContext::TryReadGroggyFromActor(AActor *Actor, EGroggyPhase &OutPhase, float &OutBreakRatio01)
+
+bool UCombatAIContext::TryReadGroggyFromActor(AActor *Actor, EJRPGGroggyPhase &OutPhase, float &OutBreakRatio01)
 {
-	OutPhase = EGroggyPhase::Normal;
+	
+	OutPhase = EJRPGGroggyPhase::Normal;
 	OutBreakRatio01 = 0.f;
 
 	if (!Actor)

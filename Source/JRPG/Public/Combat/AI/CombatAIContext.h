@@ -19,8 +19,7 @@ class JRPG_API UCombatAIContext : public UObject
 	GENERATED_BODY()
 
 public:
-	void Initialize(AActor*InOwner,EPartyRole InRole,UCombatAIPresetAsset *InPresetAsset);
-
+	void Initialize(AActor*InOwner,EJRPGPartyRole InRole,UCombatAIPresetAsset *InPresetAsset);
 	void Refresh();
 
 	// ---- World/Owner
@@ -28,7 +27,7 @@ public:
 	UPROPERTY() TWeakObjectPtr<APawn> OwnerPawn;
 	UPROPERTY() TWeakObjectPtr<AController> OwnerController;
 
-	UPROPERTY() EPartyRole Role = EPartyRole::Attacker;
+	UPROPERTY() EJRPGPartyRole Role = EJRPGPartyRole::Attacker;
 	UPROPERTY() TWeakObjectPtr<UCombatAIPresetAsset> PresetAsset;
 
 	// ---- Components
@@ -55,7 +54,7 @@ public:
 	UPROPERTY() TWeakObjectPtr<AActor> AllyCC_Target;
 
 	// Target groggy snapshot
-	UPROPERTY() EGroggyPhase TargetGroggyPhase = EGroggyPhase::Normal;
+	UPROPERTY() EJRPGGroggyPhase TargetGroggyPhase = EJRPGGroggyPhase::Normal;
 	UPROPERTY() float TargetBreakRatio01 = 0.f;
 
 	// SP snapshot
@@ -71,7 +70,7 @@ private:
 	void RefreshSP();
 
 	// Helpers: 인터페이스 구현 컴포넌트를 찾아서 읽는다.
-	static bool TryReadGroggyFromActor(AActor *Actor, EGroggyPhase &OutPhase, float &OutBreakRatio01);
+	static bool TryReadGroggyFromActor(AActor *Actor, EJRPGGroggyPhase &OutPhase, float &OutBreakRatio01);
 	static bool TryReadSPFromWorld(UWorld *World, int32 &OutCurrent, int32 &OutCap, bool &OutReady, FCombatSPSettingsView &OutSettings);
 	static bool TryReadChainActiveFromWorld(UWorld *World, bool &bOutChainActive);
 };

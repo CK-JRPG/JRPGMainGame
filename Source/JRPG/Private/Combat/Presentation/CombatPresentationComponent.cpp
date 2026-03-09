@@ -52,7 +52,7 @@ void UCombatPresentationComponent::TryConsumeTacticalReservation()
 	if (!Battle->CanActorExecuteAction(GetOwner()))
 		return;
 	
-	FTacticalReservation R;
+	FJRPGTacticalReservation R;
 	if (!Tactical->GetReservation(GetOwner(),R)) 
 		return;
 
@@ -78,19 +78,19 @@ bool UCombatPresentationComponent::TryStartMotionForBasicAttack()
 	UCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UCombatMotionComponent>() : nullptr;
 	if (!Motion) return false;
 
-	FCombatMotionRequest Req = CharacterComp->CharacterDef->BasicAttackMotion;
+	FJRPGCombatMotionRequest Req = CharacterComp->CharacterDef->BasicAttackMotion;
 	Req.Instigator = GetOwner();
 	if (Active.Targets.Num() > 0) Req.Target = Active.Targets[0];
 	Req.OwnerTag = "BasicAttack";
 
-	if (Req.ExecMode == ECombatMotionExecMode::RootMotion && Req.RootMontage == nullptr)
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::RootMotion && Req.RootMontage == nullptr)
 	{
 		Req.RootMontage = CharacterComp->CharacterDef->BasicAttackMontage;
 		Req.bMontageDrivenExternally = true;
 	}
 
-	const FCombatMotionResponse Resp = Motion->RequestCombatMotion(Req);
-	if (Resp.Result == ECombatMotionResult::Accepted || Resp.Result == ECombatMotionResult::ReplacedExisting)
+	const FJRPGCombatMotionResponse Resp = Motion->RequestCombatMotion(Req);
+	if (Resp.Result == EJRPGCombatMotionResult::Accepted || Resp.Result == EJRPGCombatMotionResult::ReplacedExisting)
 	{
 		Active.MotionHandle = Resp.Handle;
 		Active.bHasMotion = true;
@@ -106,19 +106,19 @@ bool UCombatPresentationComponent::TryStartMotionForSkill(USkillDataAsset* Skill
 	UCombatMotionComponent* Motion = GetOwner() ? GetOwner()->FindComponentByClass<UCombatMotionComponent>() : nullptr;
 	if (!Motion) return false;
 
-	FCombatMotionRequest Req = SkillDef->SkillMotion;
+	FJRPGCombatMotionRequest Req = SkillDef->SkillMotion;
 	Req.Instigator = GetOwner();
 	if (Active.Targets.Num() > 0) Req.Target = Active.Targets[0];
 	Req.OwnerTag = SkillDef->SkillId;
 
-	if (Req.ExecMode == ECombatMotionExecMode::RootMotion && Req.RootMontage == nullptr)
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::RootMotion && Req.RootMontage == nullptr)
 	{
 		Req.RootMontage = SkillDef->CastMontage;
 		Req.bMontageDrivenExternally = true;
 	}
 
-	const FCombatMotionResponse Resp = Motion->RequestCombatMotion(Req);
-	if (Resp.Result == ECombatMotionResult::Accepted || Resp.Result == ECombatMotionResult::ReplacedExisting)
+	const FJRPGCombatMotionResponse Resp = Motion->RequestCombatMotion(Req);
+	if (Resp.Result == EJRPGCombatMotionResult::Accepted || Resp.Result == EJRPGCombatMotionResult::ReplacedExisting)
 	{
 		Active.MotionHandle = Resp.Handle;
 		Active.bHasMotion = true;

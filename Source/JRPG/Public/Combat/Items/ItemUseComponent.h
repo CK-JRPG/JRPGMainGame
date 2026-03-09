@@ -24,15 +24,15 @@ DECLARE_MULTICAST_DELEGATE_FiveParams(FOnItemConsumed, AActor* /*User*/, AActor*
 
 // 상태 시스템 붙일 연결점
 UINTERFACE(MinimalAPI)
-class UCombatStatusMutator :public UInterface { GENERATED_BODY() };
+class UCombatStatusMutator : public UInterface { GENERATED_BODY() };
 
 class ICombatStatusMutator
 {
 	GENERATED_BODY()
 public:
-virtual bool ApplyStatusById(const FName &StatusId, float DurationSec, float Magnitude, int32 Stacks,const FGameplayTagContainer& Tags) = 0;
-virtual bool RemoveStatusById(const FName &StatusId,FName ReasonTag) = 0;
-virtual bool RemoveByTag(const FGameplayTag &Tag,FName ReasonTag) = 0;
+	virtual bool ApplyStatusById(const FName &StatusId, float DurationSec, float Magnitude, int32 Stacks,const FGameplayTagContainer& Tags) = 0;
+	virtual bool RemoveStatusById(const FName &StatusId,FName ReasonTag) = 0;
+	virtual bool RemoveByTag(const FGameplayTag &Tag,FName ReasonTag) = 0;
 };
 
 // SP 시스템 붙일 연결점
@@ -55,7 +55,7 @@ public:
 	UItemUseComponent();
 
 	UPROPERTY(EditAnywhere) TObjectPtr<UItemDatabaseAsset> ItemDB = nullptr;
-	UPROPERTY(EditAnywhere) TScriptInterface<ICombatLevelProvider> LevelProvider;
+	UPROPERTY(EditAnywhere) TScriptInterface<IJRPGCombatLevelProvider> LevelProvider;
 
 	// 전투/체인/파티 제공자(없으면 제한적으로만 동작)
 	UPROPERTY(EditAnywhere) TScriptInterface<ICombatSessionProvider> SessionProvider;

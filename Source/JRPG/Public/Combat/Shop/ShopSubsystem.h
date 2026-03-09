@@ -12,7 +12,7 @@ class UInventorySubsystem;
 class UEconomySubsystem;
 class UItemDataAsset;
 class UAugmentEquipComponent;
-class ICombatLevelProvider;
+class IJRPGCombatLevelProvider;
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnShopOpened, FName/*VendorId*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnShopClosed, FName/*VendorId*/);

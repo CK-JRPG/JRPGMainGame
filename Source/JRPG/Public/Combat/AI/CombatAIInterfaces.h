@@ -47,7 +47,7 @@ class ICombatSynergyPointProvider
 // ---- Groggy/Break Gauge Provider (AI가 Stun/Rising 판정용으로만 사용)
 // 그로기 문서: Break>=Max -> Stun, Stun 만료 후 Rising, Rising 후 Normal :contentReference[oaicite:8]{index=8}
 UENUM(BlueprintType)
-enum class EGroggyPhase : uint8
+enum class EJRPGGroggyPhase : uint8
 {
 	Normal,
 	Stunned,
@@ -65,7 +65,7 @@ class ICombatGroggyProvider
 	GENERATED_BODY()
 
 public:
-	virtual EGroggyPhase GetGroggyPhase() const = 0;
+	virtual EJRPGGroggyPhase GetGroggyPhase() const = 0;
 	virtual float GetBreakRatio01() const = 0;// 0..1 (BreakValue/BreakMax)
 };
 

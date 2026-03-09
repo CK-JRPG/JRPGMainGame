@@ -87,7 +87,7 @@ public:
 	bool IsConsumable() const { return ItemType == EItemType::Consumable; }
 	bool IsKeyItem() const { return ItemType == EItemType::KeyItem; }
 
-	bool IsRoleAllowed(EPartyRole Role) const
+	bool IsRoleAllowed(EJRPGPartyRole Role) const
 	{
 		const EPartyRoleMask Mask = (EPartyRoleMask)RoleRestrictionMask;
 		if (Mask == EPartyRoleMask::None) return true;

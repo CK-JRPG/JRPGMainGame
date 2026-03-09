@@ -40,5 +40,5 @@ private:
 	void TickRising(float DeltaSeconds);
 
 	bool IsChainSequenceActive()const;
-	bool ReadGroggy(EGroggyPhase&OutPhase)const;
+	bool ReadGroggy(EJRPGGroggyPhase&OutPhase)const;
 };

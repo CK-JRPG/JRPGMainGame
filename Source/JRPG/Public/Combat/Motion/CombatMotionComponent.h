@@ -22,12 +22,12 @@ public:
 	FOnCombatMotionReplaced OnCombatMotionReplaced;
 	FOnCombatMotionBlocked OnCombatMotionBlocked;
 
-	FCombatMotionResponse RequestCombatMotion(const FCombatMotionRequest& Req);
-	bool CancelCombatMotion(FCombatMotionHandle Handle, FName ReasonTag);
+	FJRPGCombatMotionResponse RequestCombatMotion(const FJRPGCombatMotionRequest& Req);
+	bool CancelCombatMotion(FJRPGCombatMotionHandle Handle, FName ReasonTag);
 	int32 CancelAllByOwner(FName OwnerTag, FName ReasonTag);
-
+ 
 	bool IsMotionActive() const { return MotionState.ActiveHandle.IsValid(); }
-	ECombatMotionType GetActiveMotionType() const { return MotionState.ActiveRequest.Type; }
+	EJRPGCombatMotionType GetActiveMotionType() const { return MotionState.ActiveRequest.Type; }
 	const FCombatMotionState& GetMotionState() const { return MotionState; }
 
 protected:
@@ -44,19 +44,20 @@ private:
 	UBattleSessionSubsystem* GetBattle() const;
 	ACharacter* GetCharacterOwner() const;
 
-	int32 GetPriorityForType(ECombatMotionType Type) const;
-	bool CanReplaceCurrent(const FCombatMotionRequest& NewReq, FName& OutReason) const;
 
-	bool ResolveRequestContext(FCombatMotionRequest& InOutReq, FName& OutReason);
-	bool ValidateRequest(const FCombatMotionRequest& Req, FName& OutReason) const;
-
-	void StartAcceptedMotion(const FCombatMotionRequest& Req, const FCombatMotionHandle& Handle, bool bBroadcastReplaced, const FCombatMotionHandle& ReplacedHandle);
+	int32 GetPriorityForType(EJRPGCombatMotionType Type) const;
+	bool CanReplaceCurrent(const FJRPGCombatMotionRequest& NewReq, FName& OutReason) const;
+ 
+	bool ResolveRequestContext(FJRPGCombatMotionRequest& InOutReq, FName& OutReason);
+	bool ValidateRequest(const FJRPGCombatMotionRequest& Req, FName& OutReason) const;
+ 
+	void StartAcceptedMotion(const FJRPGCombatMotionRequest& Req, const FJRPGCombatMotionHandle& Handle, bool bBroadcastReplaced, const FJRPGCombatMotionHandle& ReplacedHandle);
 	void EndActiveMotion(FName EndReasonTag);
-
+ 
 	void TickVelocityCurve(float DeltaTime);
 	void TickRootMotion(float DeltaTime);
 	void ApplyClampIfNeeded();
-	void FinishTeleportRequestImmediately(const FCombatMotionRequest& Req, const FCombatMotionHandle& Handle);
+	void FinishTeleportRequestImmediately(const FJRPGCombatMotionRequest& Req, const FJRPGCombatMotionHandle& Handle);
 
 	FVector MakeDirectionFromTarget(AActor* TargetActor) const;
 	FVector ClampLocationToBattle(const FVector& InLocation, bool& bWasClamped) const;

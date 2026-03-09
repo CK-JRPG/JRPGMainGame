@@ -1,20 +1,3 @@
-// Source/JRPGCombat/Public/Combat/Items/CombatLevelProvider.h
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/Interface.h"
-#include "CombatLevelProvider.generated.h"
-
-UINTERFACE(MinimalAPI)
-class UCombatLevelProvider : public UInterface
-{
-	GENERATED_BODY()
-};
-
-class ICombatLevelProvider
-{
-	GENERATED_BODY()
-	public:
-	virtual int32 GetCharacterLevel(const AActor* Character) const = 0;
-	virtual int32 GetPartyLevel() const = 0; // 상점/해금에 쓰기 좋음
-};
+#include "Combat/Core/JRPGCombatLevelProvider.h"

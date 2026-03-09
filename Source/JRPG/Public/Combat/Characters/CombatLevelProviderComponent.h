@@ -6,7 +6,7 @@
 #include "CombatLevelProviderComponent.generated.h"
 
 UCLASS(ClassGroup=(Combat),meta=(BlueprintSpawnableComponent))
-class JRPG_API UCombatLevelProviderComponent : public UActorComponent, public ICombatLevelProvider
+class JRPG_API UCombatLevelProviderComponent : public UActorComponent, public IJRPGCombatLevelProvider
 {
 	GENERATED_BODY()
 

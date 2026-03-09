@@ -85,19 +85,19 @@ void UPartyAIComponent::ThinkOnce()
 	// 체인 동안 멈춤(체인은 별도 시퀀스 전투처럼 보이게)
 	if (bPauseDuringChain && CtxObj->bChainActive) return;
 
-	const FCombatAIAction Action = FCombatAIScorer::ChoosePartyAction(*CtxObj, *PresetAsset, Role, Preset);
+	const FJRPGCombatAIAction Action = FCombatAIScorer::ChoosePartyAction(*CtxObj, *PresetAsset, Role, Preset);
 
 	USkillComponent*Skill = CtxObj->Skill;
 	if (!Skill) return;
 
 	switch (Action.Type)
 	{
-	case ECombatAIActionType::UseSkill:
+	case EJRPGCombatAIActionType::UseSkill:
 		{
 			Skill->RequestUseSkill(Action.SkillId,Action.Target.Get(),/*Source*/ESkillRequestSource::AI);
 			break;
 		}
-	case ECombatAIActionType::BasicAttack:
+	case EJRPGCombatAIActionType::BasicAttack:
 		{
 			Skill->RequestBasicAttack(Action.Target.Get(),/*Source*/ESkillRequestSource::AI);
 			break;

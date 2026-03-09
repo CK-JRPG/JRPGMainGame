@@ -267,3 +267,55 @@ void UJRPGSkillComponent::TickComponent(float DeltaTime, ELevelTick TickType, FA
 		}
 	}
 }
+
+bool UJRPGSkillComponent::HasSkill(FName SkillId) const
+{
+	return FindSkill(SkillId) != nullptr;
+}
+
+void UJRPGSkillComponent::GetOwnedSkillIds(TArray<FName>& OutSkillIds) const
+{
+	OutSkillIds.Reset();
+	SkillDB.GetKeys(OutSkillIds);
+}
+
+bool UJRPGSkillComponent::CanUseSkill(FName SkillId) const
+{
+	FJRPGReason Reason;
+	return CanUseReservedSkill(SkillId, Reason);
+}
+
+void UJRPGSkillComponent::RequestBasicAttack(AActor* Target)
+{
+	FName ChosenSkillId = NAME_None;
+	for (const TPair<FName, TObjectPtr<UJRPGSkillDataAsset>>& It : SkillDB)
+	{
+		if (It.Key.ToString().Contains(TEXT("Basic")))
+		{
+			ChosenSkillId = It.Key;
+			break;
+		}
+		if (ChosenSkillId.IsNone())
+		{
+			ChosenSkillId = It.Key;
+		}
+	}
+
+	if (ChosenSkillId.IsNone())
+	{
+		return;
+	}
+
+	FJRPGSkillRequest Req;
+	Req.SkillId = ChosenSkillId;
+	if (Target) Req.Targets.Add(Target);
+	RequestUseSkill(Req);
+}
+
+void UJRPGSkillComponent::RequestUseSkillByAI(FName SkillId, AActor* Target)
+{
+	FJRPGSkillRequest Req;
+	Req.SkillId = SkillId;
+	if (Target) Req.Targets.Add(Target);
+	RequestUseSkill(Req);
+}

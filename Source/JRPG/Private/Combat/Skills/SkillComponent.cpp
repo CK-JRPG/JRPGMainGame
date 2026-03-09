@@ -356,3 +356,43 @@ FSkillCastResult USkillComponent::CastSkill(FName SkillId,const TArray<AActor*> 
 		return P;
 	return ResolvePreparedSkillCast();
 }
+
+void USkillComponent::GetOwnedSkillIds(TArray<FName>& OutSkillIds) const
+{
+	OutSkillIds.Reset();
+	for (USkillDataAsset* S : KnownSkills)
+	{
+		if (S && !S->SkillId.IsNone())
+		{
+			OutSkillIds.AddUnique(S->SkillId);
+		}
+	}
+}
+
+bool USkillComponent::CanUseSkill(FName SkillId) const
+{
+	USkillDataAsset* Skill = GetSkillDef(SkillId);
+	if (!Skill) return false;
+	return ValidateCast(*Skill, TArray<AActor*>()).bAccepted;
+}
+
+void USkillComponent::RequestBasicAttack(AActor* Target)
+{
+	for (USkillDataAsset* Skill : KnownSkills)
+	{
+		if (Skill && (Skill->SkillId.ToString().Contains(TEXT("Basic")) || Skill->APCost == 0))
+		{
+			TArray<AActor*> Targets;
+			if (Target) Targets.Add(Target);
+			CastSkill(Skill->SkillId, Targets, FName("AI.BasicAttack"));
+			return;
+		}
+	}
+}
+
+void USkillComponent::RequestUseSkillByAI(FName SkillId, AActor* Target)
+{
+	TArray<AActor*> Targets;
+	if (Target) Targets.Add(Target);
+	CastSkill(SkillId, Targets, FName("AI.UseSkill"));
+}

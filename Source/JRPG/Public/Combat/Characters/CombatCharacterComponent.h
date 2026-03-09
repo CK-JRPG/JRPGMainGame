@@ -20,11 +20,11 @@ public:
 
 	UPROPERTY(VisibleAnywhere) FName CharacterId = NAME_None;
 	UPROPERTY(VisibleAnywhere) ECombatTeam Team = ECombatTeam::Player;
-	UPROPERTY(VisibleAnywhere) EPartyRole Role = EPartyRole::Attacker;
-
+	UPROPERTY(VisibleAnywhere) EJRPGPartyRole Role = EJRPGPartyRole::Attacker;
+ 
 	FName GetCharacterId() const { return CharacterId; }
 	ECombatTeam GetTeam() const { return Team; }
-	EPartyRole GetRole() const { return Role; }
+	EJRPGPartyRole GetRole() const { return Role; }
 
 	void InitializeFromDef();
 

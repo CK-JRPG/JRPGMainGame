@@ -16,8 +16,8 @@ public:
 
 	UPROPERTY(EditAnywhere) float DurationSec = 5.f;
 	UPROPERTY(EditAnywhere) int32 MaxStacks = 1;
-	UPROPERTY(EditAnywhere) EStatusStackPolicy StackPolicy = EStatusStackPolicy::RefreshDuration;
-
+	UPROPERTY(EditAnywhere) EJRPGStatusStackPolicy StackPolicy = EJRPGStatusStackPolicy::RefreshDuration;
+	
 	UPROPERTY(EditAnywhere) FPeriodicEffect Periodic;
 
 	UPROPERTY(EditAnywhere) TArray<FCombatStatModifier> StatMods;// Source는 런타임에서 교체

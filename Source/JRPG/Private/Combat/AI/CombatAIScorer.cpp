@@ -8,7 +8,7 @@ void UCombatAIScorer::Initialize(FGetSkillAIMetaDelegate InMetaResolver)
 	MetaResolver = InMetaResolver;
 }
 
-float UCombatAIScorer::ScoreAction(const UCombatAIContext &Ctx, const FCombatAIAction &Action) const
+float UCombatAIScorer::ScoreAction(const UCombatAIContext &Ctx, const FJRPGCombatAIAction &Action) const
 {
 	if (!Ctx.Owner.IsValid())
 		return -FLT_MAX;
@@ -21,24 +21,24 @@ float UCombatAIScorer::ScoreAction(const UCombatAIContext &Ctx, const FCombatAIA
 		return -FLT_MAX;
 
 	// 기본: Wait는 매우 낮게
-	if (Action.Type== ECombatAIActionType::Wait)
+	if (Action.Type == EJRPGCombatAIActionType::Wait)
 		return 0.05f;
 
 	// BasicAttack은 항상 후보로 남김
-	if (Action.Type== ECombatAIActionType::BasicAttack)
+	if (Action.Type == EJRPGCombatAIActionType::BasicAttack)
 	{
 		// “기본 공격은 오토, 스킬은 AP 기반” 전제 :contentReference[oaicite:21]{index=21}
 		return 0.5f;
 	}
 
-	if (Action.Type!= ECombatAIActionType::UseSkill||Action.SkillId.IsNone())
+	if (Action.Type != EJRPGCombatAIActionType::UseSkill||Action.SkillId.IsNone())
 		return 0.f;
 
 	FSkillAIMeta Meta;
 	if (MetaResolver.IsBound())
 	{
 		// Resolver가 false면 Meta는 기본값(=모름)으로 처리
-		MetaResolver.Execute(Ctx.SkillComp.Get(),Action.SkillId);
+		MetaResolver.Execute(Ctx.SkillComp.Get(), Action.SkillId, Meta);
 	}
 
 	float S =0.f;
@@ -57,7 +57,7 @@ float UCombatAIScorer::ScoreAction(const UCombatAIContext &Ctx, const FCombatAIA
 	return S;
 }
 
-float UCombatAIScorer::ScoreRoleLogic(const UCombatAIContext &Ctx,const FCombatAIAction &A,const FSkillAIMeta &Meta)const
+float UCombatAIScorer::ScoreRoleLogic(const UCombatAIContext &Ctx,const FJRPGCombatAIAction &A,const FSkillAIMeta &Meta)const
 {
 	const UCombatAIPresetAsset *Preset = Ctx.PresetAsset.Get();
 	const FPartyAIWeights W = Preset ? Preset->Weights : FPartyAIWeights();
@@ -66,7 +66,7 @@ float UCombatAIScorer::ScoreRoleLogic(const UCombatAIContext &Ctx,const FCombatA
 	float Score = 0.f;
 
 	// ---- Supporter(서포터): HP<30% 힐 > 정화 > 버프/디버프 > 공격 :contentReference[oaicite:23]{index=23}
-	if (Ctx.Role == EPartyRole::Supporter)
+	if (Ctx.Role == EJRPGPartyRole::Supporter)
 	{
 		const float HealThr = T.SupporterHealCriticalHp01;
 
@@ -87,7 +87,7 @@ float UCombatAIScorer::ScoreRoleLogic(const UCombatAIContext &Ctx,const FCombatA
 	}
 
 	// ---- Defender(탱커): Threat 유지 > 보호 > 브레이크 보조 > 공격 :contentReference[oaicite:26]{index=26}
-	else if (Ctx.Role == EPartyRole::Defender)
+	else if (Ctx.Role == EJRPGPartyRole::Defender)
 	{
 		if (Meta.bIsTaunt)
 			Score += W.ThreatHold;
@@ -122,7 +122,7 @@ float UCombatAIScorer::ScoreRoleLogic(const UCombatAIContext &Ctx,const FCombatA
 	return Score;
 }
 
-float UCombatAIScorer::ScoreSPOpportunity(const UCombatAIContext &Ctx,const FCombatAIAction &A,const FSkillAIMeta &Meta) const
+float UCombatAIScorer::ScoreSPOpportunity(const UCombatAIContext &Ctx,const FJRPGCombatAIAction &A,const FSkillAIMeta &Meta) const
 {
 	const UCombatAIPresetAsset *Preset = Ctx.PresetAsset.Get();
 	const FPartyAIWeights W = Preset ? Preset->Weights : FPartyAIWeights();
@@ -134,7 +134,7 @@ float UCombatAIScorer::ScoreSPOpportunity(const UCombatAIContext &Ctx,const FCom
 	// - Supporter: CriticalHeal/Cleanse/BuffUptime :contentReference[oaicite:32]{index=32}
 	float Score = 0.f;
 
-	if (Ctx.Role == EPartyRole::Defender)
+	if (Ctx.Role == EJRPGPartyRole::Defender)
 	{
 		if (Meta.bIsTaunt) 
 			Score += 1.5f;
@@ -142,7 +142,7 @@ float UCombatAIScorer::ScoreSPOpportunity(const UCombatAIContext &Ctx,const FCom
 		if (Ctx.bAnyAllyCritical && (Meta.bIsTaunt || Meta.bIsBuff)) 
 			Score += 2.0f;
 	}
-	else if (Ctx.Role == EPartyRole::Attacker)
+	else if (Ctx.Role == EJRPGPartyRole::Attacker)
 	{
 		if (Meta.bIsBreak) 
 			Score += 2.0f;

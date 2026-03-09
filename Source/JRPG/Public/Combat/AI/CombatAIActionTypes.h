@@ -35,7 +35,7 @@ enum class EEnemyCombatState : uint8
 };
 
 UENUM(BlueprintType)
-enum class ECombatAIActionType : uint8
+enum class EJRPGCombatAIActionType : uint8
 {
 	None,
 	BasicAttack,
@@ -44,36 +44,36 @@ enum class ECombatAIActionType : uint8
 };
 
 USTRUCT(BlueprintType)
-struct FCombatAIAction
+struct FJRPGCombatAIAction
 {
 	GENERATED_BODY()
-
-	UPROPERTY() ECombatAIActionType Type = ECombatAIActionType::None;
+ 
+	UPROPERTY() EJRPGCombatAIActionType Type = EJRPGCombatAIActionType::None;
 	UPROPERTY() FName SkillId = NAME_None;
 	UPROPERTY() TWeakObjectPtr<AActor> Target = nullptr;
 	UPROPERTY() float Score = -FLT_MAX;
-
-	static FCombatAIAction MakeWait(float InScore = 0.f)
+ 
+	static FJRPGCombatAIAction MakeWait(float InScore = 0.f)
 	{
-		FCombatAIAction A;
-		A.Type = ECombatAIActionType::Wait;
+		FJRPGCombatAIAction A;
+		A.Type = EJRPGCombatAIActionType::Wait;
 		A.Score = InScore;
 		return A;
 	}
-
-	static FCombatAIAction MakeBasicAttack (TWeakObjectPtr<AActor> InTarget, float InScore)
+ 
+	static FJRPGCombatAIAction MakeBasicAttack (TWeakObjectPtr<AActor> InTarget, float InScore)
 	{
-		FCombatAIAction A;
-		A.Type = ECombatAIActionType::BasicAttack;
+		FJRPGCombatAIAction A;
+		A.Type = EJRPGCombatAIActionType::BasicAttack;
 		A.Target = InTarget;
 		A.Score = InScore;
 		return A;
 	}
-
-	static FCombatAIAction MakeUseSkill(FName InSkillId, TWeakObjectPtr<AActor> InTarget, float InScore)
+ 
+	static FJRPGCombatAIAction MakeUseSkill(FName InSkillId, TWeakObjectPtr<AActor> InTarget, float InScore)
 	{
-		FCombatAIAction A;
-		A.Type = ECombatAIActionType::UseSkill;
+		FJRPGCombatAIAction A;
+		A.Type = EJRPGCombatAIActionType::UseSkill;
 		A.SkillId = InSkillId;
 		A.Target = InTarget;
 		A.Score = InScore;

@@ -27,7 +27,7 @@ public:
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 	// 역할/프리셋은 코드에서 지정(블루프린트 최소화)
-	UPROPERTY(EditAnywhere) EPartyRole Role = EPartyRole::Attacker;
+	UPROPERTY(EditAnywhere) EJRPGPartyRole Role = EJRPGPartyRole::Attacker;
 	UPROPERTY(EditAnywhere) TObjectPtr<UCombatAIPresetAsset> PresetAsset;
 
 	// 디버그용
@@ -41,8 +41,8 @@ private:
 
 	void RefreshContext();
 	void UpdateStateMachine();
-	FCombatAIAction ChooseBestAction() const;
-	void ExecuteAction(const FCombatAIAction &Action);
+	FJRPGCombatAIAction ChooseBestAction() const;
+	void ExecuteAction(const FJRPGCombatAIAction &Action);
 
 	bool ResolveSkillMeta(USkillComponent *SkillComp, FName SkillId,/*out*/struct FSkillAIMeta &OutMeta) const;
 };

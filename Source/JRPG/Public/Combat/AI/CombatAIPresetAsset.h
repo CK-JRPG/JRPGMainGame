@@ -4,15 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
+#include "Combat/Core/RoleTypes.h
 #include "CombatAIPresetAsset.generated.h"
-
-UENUM(BlueprintType)
-enum class EPartyRole : uint8
-{
-	Defender,
-	Attacker,
-	Supporter,
-};
 
 UENUM(BlueprintType)
 enum class EPartyAIPreset : uint8

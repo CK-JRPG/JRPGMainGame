@@ -11,7 +11,7 @@ enum class ETacticalModeState : uint8
 };
 
 USTRUCT()
-struct FTacticalReservation
+struct FJRPGTacticalReservation
 {
 	GENERATED_BODY()
 

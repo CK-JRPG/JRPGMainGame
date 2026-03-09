@@ -33,15 +33,6 @@ enum class EEnemyCombatAIState : uint8
 	ReturnToIdle,
 };
 
-UENUM()
-enum class ECombatAIActionType : uint8
-{
-	None,
-	Wait,
-	BasicAttack,
-	UseSkill,
-};
-
 USTRUCT()
 struct FCombatAIWeights
 {
@@ -151,16 +142,4 @@ struct FEnemyAITuning
 	UPROPERTY(EditAnywhere)bool bRisingAttackAllowed = false;
 
 	UPROPERTY(EditAnywhere)TArray<FEnemySkillPatternEntry> Pattern;
-};
-
-USTRUCT()
-struct FCombatAIAction
-{
-	GENERATED_BODY()
-
-	UPROPERTY() ECombatAIActionType Type = ECombatAIActionType::None;
-	UPROPERTY() FName SkillId = NAME_None;
-	UPROPERTY() TWeakObjectPtr<AActor> Target;
-	UPROPERTY() float Score = 0.0f;
-	UPROPERTY() FString DebugReason;
 };

@@ -30,8 +30,8 @@ public:
 	UPROPERTY(EditAnywhere) FText DisplayName;
 
 	UPROPERTY(EditAnywhere) ECombatTeam DefaultTeam = ECombatTeam::Player;
-	UPROPERTY(EditAnywhere) EPartyRole DefaultRole = EPartyRole::Attacker;
-
+	UPROPERTY(EditAnywhere) EJRPGPartyRole DefaultRole = EJRPGPartyRole::Attacker;
+	
 	UPROPERTY(EditAnywhere) FCharacterBaseParams BaseParams;
 
 	// 기본 공격 정의
@@ -55,7 +55,7 @@ public:
 	UPROPERTY(EditAnywhere) TMap<FName,int32> StartingItems;
 
 	UPROPERTY(EditAnywhere) bool bHasBasicAttackMotion = false;
-	UPROPERTY(EditAnywhere) FCombatMotionRequest BasicAttackMotion;
+	UPROPERTY(EditAnywhere) FJRPGCombatMotionRequest BasicAttackMotion;
 	
 	bool IsValidDef() const { return !CharacterId.IsNone(); }
 };

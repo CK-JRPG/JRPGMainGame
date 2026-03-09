@@ -20,7 +20,8 @@ public:
 	FOnSynergyReadyChanged OnSynergyReadyChanged;
 	FOnSynergyGainApplied OnSynergyGainApplied;
 
-	const FSynergyPointState& GetState() const	 { return State; }
+
+	const FJRPGSynergyPointState& GetState() const	 { return State; } 
 	FSynergyPointTuning& GetMutableTuning()		 { return Tuning; }
 	const FSynergyPointTuning& GetTuning() const { return Tuning; }
 
@@ -61,7 +62,7 @@ protected:
 
 private:
 	UPROPERTY() 
-	FSynergyPointState State;
+	FJRPGSynergyPointState State;
 	
 	UPROPERTY(EditAnywhere)
 	FSynergyPointTuning Tuning;
@@ -87,7 +88,7 @@ private:
 	bool CanAcceptGain() const;
 	void TryBindExternalEvents();
 
-	EPartyRole ResolveRoleForActor(AActor *Actor) const;
+	EJRPGPartyRole ResolveRoleForActor(AActor *Actor) const;
 	bool IsAlly(AActor *A, AActor *B) const;
 	bool IsEnemy(AActor *A, AActor *B) const;
 
@@ -95,7 +96,7 @@ private:
 	bool PassesSameEventCooldown(const FString &EventKey, double Now);
 	int32 ConsumePerSecondBudget(int32 ProposedAmount, double Now);
 
-	void ApplyGainEvent(FSPGainEvent &Event);
+	void ApplyGainEvent(FJRPGSPGainEvent &Event);
 	void UpdateReadyState();
 
 	void HandleBattleEnded(const FBattleSessionSnapshot &Snapshot,EBattleEndReason Reason);

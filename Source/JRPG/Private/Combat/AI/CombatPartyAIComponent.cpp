@@ -65,7 +65,7 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	DecisionAccum = 0.f;
 
 	UpdateStateMachine();
-	const FCombatAIAction Best =ChooseBestAction();
+	const FJRPGCombatAIAction Best =ChooseBestAction();
 	ExecuteAction(Best);
 }
 
@@ -91,20 +91,20 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 	State = EPartyAIState::ExecuteRole;
 }
 
-FCombatAIAction UCombatPartyAIComponent::ChooseBestAction()const
+FJRPGCombatAIAction UCombatPartyAIComponent::ChooseBestAction()const
 {
 	if (!Context->SkillComp.IsValid())
-		return FCombatAIAction::MakeWait(0.f);
+		return FJRPGCombatAIAction::MakeWait(0.f);
 
 	TWeakObjectPtr<AActor>Target =Context->PrimaryTarget;
 
 	// 후보: BasicAttack / OwnedSkills
-	FCombatAIAction Best = FCombatAIAction::MakeWait(0.05f);
+	FJRPGCombatAIAction Best = FJRPGCombatAIAction::MakeWait(0.05f);
 
 	{
-		const float S =Scorer->ScoreAction(*Context, FCombatAIAction::MakeBasicAttack(Target,0.f));
+		const float S =Scorer->ScoreAction(*Context, FJRPGCombatAIAction::MakeBasicAttack(Target,0.f));
 		if (S > Best.Score)
-			Best = FCombatAIAction::MakeBasicAttack(Target,S);
+			Best = FJRPGCombatAIAction::MakeBasicAttack(Target,S);
 	}
 
 	// 스킬 목록은 프로젝트의 SkillComponent API에 맞춰 연결
@@ -120,7 +120,7 @@ FCombatAIAction UCombatPartyAIComponent::ChooseBestAction()const
 		if (!Context->SkillComp->CanUseSkill(SkillId))
 			continue;
 
-		const FCombatAIAction A = FCombatAIAction::MakeUseSkill(SkillId,Target,0.f);
+		const FJRPGCombatAIAction A = FJRPGCombatAIAction::MakeUseSkill(SkillId,Target,0.f);
 		const float S =Scorer->ScoreAction(*Context,A);
 		if (S > Best.Score)
 		{
@@ -132,22 +132,22 @@ FCombatAIAction UCombatPartyAIComponent::ChooseBestAction()const
 	return Best;
 }
 
-void UCombatPartyAIComponent::ExecuteAction(const FCombatAIAction &Action)
+void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction &Action)
 {
 	if (!Context->SkillComp.IsValid())
 		return;
 
-	if (Action.Type == ECombatAIActionType::Wait)
+	if (Action.Type == EJRPGCombatAIActionType::Wait)
 		return;
 
 	// 기본 공격도 스킬 요청으로 통합(스킬 문서: 단일 API) :contentReference[oaicite:36]{index=36}
-	if (Action.Type == ECombatAIActionType::BasicAttack)
+	if (Action.Type == EJRPGCombatAIActionType::BasicAttack)
 	{
 		Context->SkillComp->RequestBasicAttack(Action.Target.Get());
 		return;
 	}
 
-	if (Action.Type == ECombatAIActionType::UseSkill)
+	if (Action.Type == EJRPGCombatAIActionType::UseSkill)
 	{
 		Context->SkillComp->RequestUseSkillByAI(Action.SkillId, Action.Target.Get());
 		return;

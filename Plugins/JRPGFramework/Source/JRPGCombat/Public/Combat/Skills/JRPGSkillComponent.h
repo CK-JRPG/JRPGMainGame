@@ -28,6 +28,12 @@ public:
 	TMap<FName, TObjectPtr<UJRPGSkillDataAsset>> SkillDB;
 
 	const UJRPGSkillDataAsset *GetSkillAsset(FName SkillId) const;
+	bool HasSkill(FName SkillId) const;
+	void GetOwnedSkillIds(TArray<FName>& OutSkillIds) const;
+	bool CanUseSkill(FName SkillId) const;
+	void RequestBasicAttack(AActor* Target);
+	void RequestUseSkillByAI(FName SkillId, AActor* Target);
+	
 	/** 이벤트 */
 	FOnSkillExecuted OnSkillExecuted;
 
@@ -46,7 +52,7 @@ public:
 	// 스킬 시스템 확장을 위한 공용 함수(Executor가 호출)
 	void StartCooldown(FName SkillId, float CooldownSec);
 	void StartGlobalCooldown(float Sec);
-
+	
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -61,6 +67,12 @@ private:
 
 	UPROPERTY(Transient)
 	float GlobalCooldownRemaining = 0.f;
+	
+	UPROPERTY(Transient)
+	float TacticalPollAccum = 0.f;
+
+	UPROPERTY(EditAnywhere, Category="JRPG|Skill|Tactical")
+	float TacticalPollIntervalSec = 0.1f;
 
 	const UJRPGSkillDataAsset* FindSkill(FName SkillId) const;
 

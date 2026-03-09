@@ -100,7 +100,7 @@ void ACombatDebugHUD::DrawHUD()
 
 		if (USynergyPointSubsystem* SP = GetWorld()->GetSubsystem<USynergyPointSubsystem>())
 		{
-			const FSynergyPointState& S = SP->GetState();
+			const FJRPGSynergyPointState& S = SP->GetState();
 			const FString SPLine = FString::Printf(
 				TEXT("[SP] Current=%d Cap=%d Ready=%s"),
 					S.CurrentSP,

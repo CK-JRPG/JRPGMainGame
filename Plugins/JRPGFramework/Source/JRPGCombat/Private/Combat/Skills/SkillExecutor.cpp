@@ -379,7 +379,10 @@ void FSkillExecutor::AddGroggy(AActor* Target, const FJRPGSkillEffectEntry& E, F
 	UCombatGroggyComponent* Groggy = Target->FindComponentByClass<UCombatGroggyComponent>();
 	if (!Groggy) return;
 
-	Groggy->AddBreak(E.Groggy.BreakAmount, "Skill.Groggy");
+	{
+		FGameplayTagContainer ContextTags;
+		Groggy->AddBreak(nullptr, E.Groggy.BreakAmount, ContextTags);
+	}
 }
 
 void FSkillExecutor::AddThreat(AActor* Target, AActor* Caster, const FJRPGSkillEffectEntry& E, FJRPGSkillResult& InOutResult)
@@ -473,10 +476,11 @@ void FSkillExecutor::GrantSP(AActor* Caster, const UJRPGSkillDataAsset& Skill, c
 	// (추후 Router에 RouteDirectSP 추가하면 여기만 바꾸면 됨)
 	if (UCombatSynergyPointSubsystem* SP = W->GetSubsystem<UCombatSynergyPointSubsystem>())
 	{
-		FJRPGSPGainEvent Ev;
-		Ev.Amount = E.SP.Amount;
+		FSPGainEvent Ev;
+		Ev.Type = ESPEventType::Buff;
+		Ev.OutcomeValue = E.SP.Amount;
 		Ev.SourceTag = E.SP.SourceTag.IsNone() ? Skill.SkillId : E.SP.SourceTag;
 		Ev.Instigator = Caster;
-		SP->ApplyGainEvent(Ev);
+		SP->SubmitGainEvent(Ev, FName("SP.Skill.Grant"));
 	}
 }
