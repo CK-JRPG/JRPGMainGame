@@ -20,6 +20,8 @@ public:
 USTRUCT()
 struct FEffectActiveStatus
 {
+	GENERATED_BODY()
+	
 	TObjectPtr<UStatusEffectDataAsset> Def = nullptr;
 	TObjectPtr<UStatusModSourceObject> ModSource = nullptr;
 	TWeakObjectPtr<AActor> Applier;

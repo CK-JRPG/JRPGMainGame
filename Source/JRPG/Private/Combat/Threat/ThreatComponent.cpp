@@ -43,7 +43,7 @@ void UThreatComponent::AddThreat(AActor *Source, float Amount, FName)
 	}
 	
 	AActor* PrevTarget = GetTopThreatSource(); //PreviousTargetActor;
-	AActor* NewTarget = CurrentTarget.Get();
+	AActor* NewTarget = CurrentTarget.Get(); //CurrentTarget 에러. -> 플러그인에서 가지고 있는 GetCurrentTarget()으로 가지고 와야하나...?
 
 	if (USynergyPointSubsystem *SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr)
 	{
@@ -61,7 +61,7 @@ void UThreatComponent::AddThreat(AActor *Source, float Amount, FName)
 				bBecameTopThreat,
 				bRescuedAlly,
 				false,
-				ActionTag);
+				ActionTag); //ActionTag 없음.
 		}
 	}
 	

@@ -164,5 +164,7 @@ bool UCombatPartyAIComponent::ResolveSkillMeta(USkillComponent *SkillComp, FName
 	// 프로젝트 SSOT: SkillDataAsset/SkillSpec에 효과 타입 태그 넣기
 	// (Heal/Taunt/Cleanse/Break/Debuff/Buff 등)
 	// 여기서는 예시용 API. 너희 SkillComponent에 맞춰 구현해주면 됨.
+	
+	//FSkillAIMeta는 CombatAiScore.h헤더에 선언 되어 있으나, SKillComp에는 GetSkillAiMeta가 없음.
 	return SkillComp->GetSkillAIMeta(SkillId,OutMeta);
 }

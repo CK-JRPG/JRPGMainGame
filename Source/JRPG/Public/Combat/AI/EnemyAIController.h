@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "CombatAIInterfaces.h"
 #include "Combat/AI/CombatAIActionTypes.h"
 #include "EnemyAIController.generated.h"
 
@@ -40,5 +41,5 @@ private:
 	void TickRising(float DeltaSeconds);
 
 	bool IsChainSequenceActive()const;
-	bool ReadGroggy(EJRPGGroggyPhase&OutPhase)const;
+	bool ReadGroggy(EJRPGGroggyPhase &OutPhase)const;
 };

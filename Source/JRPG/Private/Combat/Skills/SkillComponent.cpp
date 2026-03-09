@@ -256,6 +256,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 			{
 				if (IsHostileTarget(T))
 				{
+					// Skill,ApplyStatus->StatusId 에 없음. - 에러.
 					SP->ReportDebuff(GetOwner(),T,Skill.ApplyStatus->StatusId, bFromTacticalReservation,Skill.SkillId);
 				}
 				else

@@ -5,6 +5,7 @@
 #include "JRPGCombat/Public/Combat/Threat/CombatThreatComponent.h"
 #include "Combat/Skills/SkillComponent.h"
 #include "Combat/AI/CombatAIInterfaces.h"
+#include "Combat/AI/CombatAIPresetAsset.h"
 
 #include "GameFramework/Pawn.h"
 #include "Engine/World.h"
@@ -93,6 +94,8 @@ void AEnemyAIController::TickCombatNormal(float DeltaSeconds)
 		return;
 
 	// 간단: 기본 공격 or 패턴 스킬 (패턴은 너희 SkillPatternTableId로 확장 가능 :contentReference[oaicite:42]{index=42})
+	
+	//에러 : SkillComponent에 CanUseBasicAttack() 없음.
 	if (SkillComp->CanUseBasicAttack())
 	{
 		SkillComp->RequestBasicAttack(Target);
