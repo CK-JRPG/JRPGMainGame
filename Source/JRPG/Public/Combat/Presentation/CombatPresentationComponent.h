@@ -10,6 +10,7 @@
 #include "Combat/Motion/CombatMotionTypes.h"
 
 #include "Combat/Debug/CombatDebugSubsystem.h"
+#include "Combat/Skills/SkillDataAsset.h"
 
 #include "CombatPresentationComponent.generated.h"
 

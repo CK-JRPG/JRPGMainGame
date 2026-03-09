@@ -17,7 +17,8 @@ public:
 	FName EffectId = NAME_None;
 };
 
-struct FActiveStatus
+USTRUCT()
+struct FEffectActiveStatus
 {
 	TObjectPtr<UStatusEffectDataAsset> Def = nullptr;
 	TObjectPtr<UStatusModSourceObject> ModSource = nullptr;
@@ -52,16 +53,16 @@ protected:
 private:
 
 	UPROPERTY() 
-	TArray<FActiveStatus> Active;
+	TArray<FEffectActiveStatus> Active;
 
 	TWeakObjectPtr<class UCombatStatsComponent> Stats;
 	TWeakObjectPtr<class UHPComponent> HP;
 
 	int32 FindIdx(FName EffectId) const;
 
-	void AddMods(FActiveStatus &S);
-	void RemoveMods(FActiveStatus &S);
+	void AddMods(FEffectActiveStatus &S);
+	void RemoveMods(FEffectActiveStatus &S);
 
-	void TickPeriodic(FActiveStatus &S,float DeltaTime);
+	void TickPeriodic(FEffectActiveStatus &S,float DeltaTime);
 	void TickExpiry(float DeltaTime);
 };

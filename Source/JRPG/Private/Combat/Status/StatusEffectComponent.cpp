@@ -4,6 +4,7 @@
 #include "Combat/Stats/HPComponent.h"
 
 #include "Combat/Debug/CombatDebugSubsystem.h"
+#include "Combat/Stats/CombatStatsComponent.h"
 
 UStatusEffectComponent::UStatusEffectComponent()
 {
@@ -32,7 +33,7 @@ bool UStatusEffectComponent::HasStatus(FName EffectId) const
 	return FindIdx(EffectId) != INDEX_NONE;
 }
 
-void UStatusEffectComponent::AddMods(FActiveStatus&S)
+void UStatusEffectComponent::AddMods(FEffectActiveStatus &S)
 {
 	if (!Stats.IsValid()||!S.Def)return;
 
@@ -50,14 +51,14 @@ void UStatusEffectComponent::AddMods(FActiveStatus&S)
 		if (M.Tag.IsNone()) 
 			M.Tag = S.Def->EffectId;
 		
-		Stats->AddModifier(M);
+		Stats->AddModifier(M); // 함수없음
 	}
 }
 
-void UStatusEffectComponent::RemoveMods(FActiveStatus &S)
+void UStatusEffectComponent::RemoveMods(FEffectActiveStatus &S)
 {
 	if (!Stats.IsValid() || !S.ModSource) return;
-	Stats->RemoveModifiersBySource(S.ModSource);
+	Stats->RemoveModifiersBySource(S.ModSource); // 함수없음
 }
 
 bool UStatusEffectComponent::ApplyStatus(UStatusEffectDataAsset *Effect,AActor *Source,int32 AddStacks, FName)
@@ -68,7 +69,7 @@ bool UStatusEffectComponent::ApplyStatus(UStatusEffectDataAsset *Effect,AActor *
 	const int32 Idx =FindIdx(Effect->EffectId);
 	if (Idx == INDEX_NONE)
 	{
-		FActiveStatus S;
+		FEffectActiveStatus S;
 		S.Def =Effect;
 		S.Applier =Source;
 		S.Stacks = FMath::Clamp(AddStacks,1, FMath::Max(1,Effect->MaxStacks));
@@ -95,7 +96,7 @@ bool UStatusEffectComponent::ApplyStatus(UStatusEffectDataAsset *Effect,AActor *
 	}
 
 	// existing
-	FActiveStatus&S =Active[Idx];
+	FEffectActiveStatus &S =Active[Idx];
 	if (!S.Def) {S.Def = Effect; }
 
 	switch (Effect->StackPolicy)
@@ -136,7 +137,7 @@ bool UStatusEffectComponent::RemoveStatus(FName EffectId, FName)
 	if (Idx == INDEX_NONE) 
 		return false;
 
-	FActiveStatus S = Active[Idx];
+	FEffectActiveStatus S = Active[Idx];
 	RemoveMods(S);
 
 	Active.RemoveAt(Idx);
@@ -156,7 +157,7 @@ bool UStatusEffectComponent::RemoveStatus(FName EffectId, FName)
 	return true;
 }
 
-void UStatusEffectComponent::TickPeriodic(FActiveStatus &S, float DeltaTime)
+void UStatusEffectComponent::TickPeriodic(FEffectActiveStatus &S, float DeltaTime)
 {
 	if (!S.Def)
 		return;
@@ -186,7 +187,7 @@ void UStatusEffectComponent::TickExpiry(float DeltaTime)
 {
 	for (int32 i = Active.Num() - 1; i >= 0; --i)
 	{
-		FActiveStatus &S = Active[i];
+		FEffectActiveStatus &S = Active[i];
 		if (!S.Def)
 		{
 			Active.RemoveAt(i); 
@@ -217,7 +218,7 @@ void UStatusEffectComponent::TickExpiry(float DeltaTime)
 
 void UStatusEffectComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponentTickFunction*)
 {
-	for (FActiveStatus&S : Active)
+	for (FEffectActiveStatus &S : Active)
 		TickPeriodic(S,DeltaTime);
 	
 	TickExpiry(DeltaTime);

@@ -96,7 +96,7 @@ private:
 	bool PassesSameEventCooldown(const FString &EventKey, double Now);
 	int32 ConsumePerSecondBudget(int32 ProposedAmount, double Now);
 
-	void ApplyGainEvent(FJRPGSPGainEvent &Event);
+	void ApplyGainEvent(FSynergyPointGainEvent &Event);
 	void UpdateReadyState();
 
 	void HandleBattleEnded(const FBattleSessionSnapshot &Snapshot,EBattleEndReason Reason);

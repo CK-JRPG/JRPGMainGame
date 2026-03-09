@@ -50,7 +50,8 @@ public:
 	int32 EquipSlotMask = (int32)EAugmentSlotMask::All;
 
 	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/JRPGCombat.EPartyRoleMask"))
-	int32 RoleRestrictionMask = (int32) EPartyRoleMask::None;
+	int32 RoleRestrictionMask = (int32) EPartyRoleMask::None; 	//에러 : EPartyRoleMask Enum 타입 없음. 
+
 
 	UPROPERTY(EditAnywhere)
 	FRoleEfficiency RoleEfficiency;
@@ -89,6 +90,7 @@ public:
 
 	bool IsRoleAllowed(EJRPGPartyRole Role) const
 	{
+		//에러 : EPartyRoleMask Enum 타입 없음. 
 		const EPartyRoleMask Mask = (EPartyRoleMask)RoleRestrictionMask;
 		if (Mask == EPartyRoleMask::None) return true;
 		return EnumHasAnyFlags(Mask, RoleToMask(Role));

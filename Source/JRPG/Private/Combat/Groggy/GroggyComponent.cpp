@@ -2,6 +2,8 @@
 #include "Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 
 #include "Combat/Debug/CombatDebugSubsystem.h"
+#include "Combat/SP/SynergyPointSubsystem.h"
+#include "Combat/Stats/CombatStatsComponent.h"
 
 UGroggyComponent::UGroggyComponent()
 {
@@ -15,7 +17,7 @@ void UGroggyComponent::BeginPlay()
 	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
 }
 
-void UGroggyComponent::AddGroggyDamage(float Amount, AActor* SourceActor, FName ReasonTag, bool bFromTacticalReservation = false)
+void UGroggyComponent::AddGroggyDamage(float Amount, AActor* SourceActor, FName ReasonTag, bool bFromTacticalReservation) 
 {
 	if (Amount <= 0.f) 
 		return;
@@ -51,6 +53,7 @@ void UGroggyComponent::EnterGroggy()
 
 	if (Stats.IsValid())
 	{
+		//에러 : AddModifier 없음.
 		Stats->AddModifier(FCombatStatModifier::Mul(ECombatStat::Defense, FMath::Clamp(DefenseMulWhileGroggy, 0.f, 2.f),"Groggy", ModSource));
 		Stats->AddModifier(FCombatStatModifier::Mul(ECombatStat::Speed,   FMath::Clamp(SpeedMulWhileGroggy, 0.f, 2.f),"Groggy", ModSource));
 	}
@@ -85,6 +88,7 @@ void UGroggyComponent::ExitGroggy()
 
 	if (Stats.IsValid() && ModSource)
 	{
+		//에러 : RemoveModifiersBySource 없음.
 		Stats->RemoveModifiersBySource(ModSource);
 	}
 	OnGroggyStateChanged.Broadcast(false);

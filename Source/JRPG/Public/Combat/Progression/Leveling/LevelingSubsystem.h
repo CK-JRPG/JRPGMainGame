@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LevelingSaveGame.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 
 #include "Combat/Progression/Leveling/LevelingTypes.h"

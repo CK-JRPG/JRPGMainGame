@@ -1,4 +1,6 @@
 ﻿#include "JRPG/Public/Combat/Skills/SkillComponent.h"
+
+#include "Combat/Stats/CombatStatsComponent.h"
 #include "JRPG/Public/Combat/Skills/SkillDataAsset.h"
 
 #include "JRPG/Public/Combat/Battle/CombatFormulaLibrary.h"
@@ -163,7 +165,8 @@ FSkillCastResult USkillComponent::PrepareSkillCast(FName SkillId, const TArray<A
 
 void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArray<AActor*>&Targets, bool bFromTacticalReservation)
 {
-	const float Atk = Stats.IsValid() ? Stats->GetSnapshot().Attack : 10.f;
+	//에러 : Stats안에 GetSnapshot() 없음.
+	const float Atk = Stats.IsValid() ? Stats->GetSnapshot().Attack : 10.f; 
 	const float CritRate = Stats.IsValid() ? Stats->GetSnapshot().CritRate : 0.f;
 	const float CritBonus = Stats.IsValid() ? Stats->GetSnapshot().CritDamage : 0.f;
 
@@ -183,6 +186,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 
 		if (THP && (Skill.BasePower > 0.f || Skill.AttackScale > 0.f))
 		{
+		
 			const float Def = TStats ? TStats->GetSnapshot().Defense : 5.f;
 
 			const FDamageBreakdown B = UCombatFormulaLibrary::BuildDamage(
@@ -372,8 +376,10 @@ void USkillComponent::GetOwnedSkillIds(TArray<FName>& OutSkillIds) const
 bool USkillComponent::CanUseSkill(FName SkillId) const
 {
 	USkillDataAsset* Skill = GetSkillDef(SkillId);
-	if (!Skill) return false;
-	return ValidateCast(*Skill, TArray<AActor*>()).bAccepted;
+	if (!Skill)
+		return false;
+	
+	return ValidateCast(*Skill, TArray<AActor*>()).bOk; //b.Ok로 변경.
 }
 
 void USkillComponent::RequestBasicAttack(AActor* Target)

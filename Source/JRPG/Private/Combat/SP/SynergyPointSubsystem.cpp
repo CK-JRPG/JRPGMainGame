@@ -162,7 +162,7 @@ void USynergyPointSubsystem::UpdateReadyState()
 	}
 }
 
-void USynergyPointSubsystem::ApplyGainEvent(FJRPGSPGainEvent &Event)
+void USynergyPointSubsystem::ApplyGainEvent(FSynergyPointGainEvent &Event)
 {
 	if (!CanAcceptGain())
 		return;
@@ -246,7 +246,7 @@ void USynergyPointSubsystem::ReportDamage(AActor *Instigator, AActor *Target,
 	if (!Instigator || !Target || DamageAmount <= 0.f)
 		return;
 
-	FJRPGSPGainEvent Evt;
+	FSynergyPointGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
@@ -290,7 +290,7 @@ void USynergyPointSubsystem::ReportHeal(AActor *Instigator, AActor *Target,
 	if (!Instigator || !Target || HealAmount <= 0.f)
 		return;
 
-	FJRPGSPGainEvent Evt;
+	FSynergyPointGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
@@ -314,7 +314,7 @@ void USynergyPointSubsystem::ReportBreak(AActor*Instigator, AActor*Target,
 	if (!Instigator || !Target) return;
 	if (BreakAmount <= 0.f && !bTriggeredStun) return;
 
-	FJRPGSPGainEvent Evt;
+	FSynergyPointGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
@@ -353,7 +353,7 @@ void USynergyPointSubsystem::ReportBuff(AActor *Instigator, AActor *Target, FNam
 {
 	if (!Instigator || !Target || BuffId.IsNone()) return;
 
-	FJRPGSPGainEvent Evt;
+	FSynergyPointGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
@@ -385,7 +385,7 @@ void USynergyPointSubsystem::ReportDebuff(AActor *Instigator, AActor *Target, FN
 	if (!Instigator || !Target || DebuffId.IsNone()) 
 		return;
  
-	FJRPGSPGainEvent Evt;
+	FSynergyPointGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
@@ -406,7 +406,7 @@ void USynergyPointSubsystem::ReportCleanse(AActor *Instigator, AActor *Target,
 	if (!Instigator || !Target || RemovedCount <= 0)
 		return;
  
-	FJRPGSPGainEvent Evt;
+	FSynergyPointGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = Target;
 	Evt.Role = ResolveRoleForActor(Instigator);
@@ -429,7 +429,7 @@ void USynergyPointSubsystem::ReportThreatOutcome(AActor* Instigator, AActor* Ene
 {
 	if (!Instigator||!EnemyOwner||ThreatDelta<=0.f)return;
  
-	FJRPGSPGainEvent Evt;
+	FSynergyPointGainEvent Evt;
 	Evt.Instigator = Instigator;
 	Evt.Target = EnemyOwner;
 	Evt.Role = ResolveRoleForActor(Instigator);
@@ -469,7 +469,7 @@ void USynergyPointSubsystem::ReportAggroHold(AActor* Defender, AActor* EnemyOwne
 		return;
  	
  
-	FJRPGSPGainEvent Evt;
+	FSynergyPointGainEvent Evt;
 	Evt.Instigator = Defender;
 	Evt.Target = EnemyOwner;
 	Evt.Role = ResolveRoleForActor(Defender);
@@ -489,7 +489,7 @@ void USynergyPointSubsystem::ReportPartyProtect(AActor* Defender,AActor* Protect
 	if (!Defender || !ProtectedTarget)
 		return;
  
-	FJRPGSPGainEvent Evt;
+	FSynergyPointGainEvent Evt;
 	Evt.Instigator = Defender;
 	Evt.Target = ProtectedTarget;
 	Evt.Role = ResolveRoleForActor(Defender);

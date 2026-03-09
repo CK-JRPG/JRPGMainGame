@@ -224,7 +224,13 @@ bool UBattleSessionSubsystem::EnterExclusiveMode(FName ModeTag)
 	if (ModeTag.IsNone())
 		return false;
 
-	const bool bAdded = ExclusiveModeOwners.Add(ModeTag) > 0;
+	
+	bool bAlreadyInSet = false;
+	
+	ExclusiveModeOwners.Add(ModeTag, &bAlreadyInSet);
+	const bool bAdded = !bAlreadyInSet;
+	//에러 : 이항 '>' 연산자 없음. const bool bAdded = ExclusiveModeOwners.Add(ModeTag) > 0;
+	//위 코드로 고침(Set 전용)
 	if (bAdded)
 	{
 		Snapshot.bExclusiveMode = true;

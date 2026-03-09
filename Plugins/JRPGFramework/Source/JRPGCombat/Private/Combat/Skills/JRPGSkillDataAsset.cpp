@@ -8,7 +8,7 @@ bool UJRPGSkillDataAsset::Validate(FJRPGReason& OutReason) const
 		return false;
 	}
 	
-	if (Effects.Num == 0)
+	if (Effects.Num() == 0)
 	{
 		OutReason = FJRPGReason::Make("Skill.NoEffects");
 		return false;

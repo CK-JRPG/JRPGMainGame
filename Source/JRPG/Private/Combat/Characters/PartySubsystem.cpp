@@ -112,7 +112,7 @@ int32 UPartySubsystem::GetPartyLevel() const
 {
 #if JRPG_HAS_LEVELING
 	if (ULevelingSubsystem *L =GetGameInstance()->GetSubsystem<ULevelingSubsystem>())
-		returnL->GetPartyLevel();
+		return L->GetPartyLevel();
 #endif
 	return 1;
 }
@@ -122,7 +122,7 @@ void UPartySubsystem::SetRestockKey(FName RestockKey)
 	CurrentRestockKey = RestockKey;
 #if JRPG_HAS_SHOP
 	if (UShopSubsystem *Shop = GetGameInstance()->GetSubsystem<UShopSubsystem>())
-		Shop->SetCurrentRestockKey(RestockKey);
+		Shop->SetCurrentRestockKey(RestockKey); // 에러 : SetCurrentRestockKey 없음. 함수 추가 필요.
 #endif
 	FlushToSave();
 }
@@ -139,6 +139,6 @@ void UPartySubsystem::PushPartyLevelToShop()
 {
 #if JRPG_HAS_SHOP
 	if (UShopSubsystem *Shop = GetGameInstance()->GetSubsystem<UShopSubsystem>())
-		Shop->SetPartyLevel(GetPartyLevel());
+		Shop->SetPartyLevel(GetPartyLevel()); // 에러 : SetPartyLevel 없음. 함수 추가 필요.
 #endif
 }

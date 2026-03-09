@@ -79,26 +79,32 @@ void UPartyAIComponent::ThinkOnce()
 	// 플레이어 조작 중이면 파티 AI는 꺼짐
 	if (IsPlayerControlledNow())return;
 
+	// Build. - 에러.
 	UCombatAIContext *CtxObj = UCombatAIContext::Build(GetOwner());
 	if (!CtxObj) return;
 
 	// 체인 동안 멈춤(체인은 별도 시퀀스 전투처럼 보이게)
+	
+	// bChainActive없음. - 에러.
 	if (bPauseDuringChain && CtxObj->bChainActive) return;
 
-	const FJRPGCombatAIAction Action = FCombatAIScorer::ChoosePartyAction(*CtxObj, *PresetAsset, Role, Preset);
+	//ChoosePartyAction 없음. - 에러.
+	const FJRPGCombatAIAction Action = UCombatAIScorer::ChoosePartyAction(*CtxObj, *PresetAsset, Role, Preset);
 
-	USkillComponent*Skill = CtxObj->Skill;
+	USkillComponent* Skill = CtxObj->SkillComp;
 	if (!Skill) return;
 
 	switch (Action.Type)
 	{
 	case EJRPGCombatAIActionType::UseSkill:
 		{
-			Skill->RequestUseSkill(Action.SkillId,Action.Target.Get(),/*Source*/ESkillRequestSource::AI);
+			//EJRPGSkillRequestSource 없음. - 에러.
+			Skill->RequestUseSkillByAI(Action.SkillId,Action.Target.Get(),/*Source*/EJRPGSkillRequestSource::AI);
 			break;
 		}
 	case EJRPGCombatAIActionType::BasicAttack:
 		{
+			//EJRPGSkillRequestSource 없음. - 에러.
 			Skill->RequestBasicAttack(Action.Target.Get(),/*Source*/ESkillRequestSource::AI);
 			break;
 		}

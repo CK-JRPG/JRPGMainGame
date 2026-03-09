@@ -100,7 +100,7 @@ bool UChainAttackSubsystem::TryStartChain(AActor* Starter, const FChainAttackCon
 	
 	UBattleSessionSubsystem* Battle = GetBattle();
 	if (!Battle || !Battle->IsBattleActive()) return false;
-	if (!Battle->CanActorActNow(Starter)) return false;
+	if (!Battle->CanActorExecuteAction(Starter)) return false;
 
 	if (!BuildMemberList(Config, Starter)) return false;
 
@@ -216,7 +216,7 @@ void UChainAttackSubsystem::EndChain(FName)
 
 		if (ActiveConfig.bConsumeBattleTurnOnEnd && Battle->IsBattleActive())
 		{
-			Battle->FinishCurrentTurn("Chain.End");
+			Battle->FinishCurrentTurn("Chain.End"); // 에러. : FinishCurrentTurn 없음.
 		}
 	}
 

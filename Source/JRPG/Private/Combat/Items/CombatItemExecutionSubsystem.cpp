@@ -371,21 +371,21 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 	{
 		if (!T)continue;
 
-		UHPComponent* HP = T->FindComponentByClass<UHPComponent>();
-		UAPComponent* AP = T->FindComponentByClass<UAPComponent>();
-		USPComponent* SP = T->FindComponentByClass<USPComponent>();
+		UHPComponent* HPComp = T->FindComponentByClass<UHPComponent>();
+		UAPComponent* APComp = T->FindComponentByClass<UAPComponent>();
+		USPComponent* SPComp = T->FindComponentByClass<USPComponent>();
 		UGroggyComponent* Groggy = T->FindComponentByClass<UGroggyComponent>();
 		UThreatComponent* Threat = T->FindComponentByClass<UThreatComponent>();
 		UStatusEffectComponent* Status = T->FindComponentByClass<UStatusEffectComponent>();
 
-		if (HP&&ItemDef->HealHP > 0.f)
+		if (HPComp && ItemDef->HealHP > 0.f)
 		{
-			const float Before = HP->GetHP();
-			const float BeforeRatio = HP->GetMaxHP() > 0.f ? (Before / HP->GetMaxHP()) : 1.f;
+			const float Before = HPComp->GetHP();
+			const float BeforeRatio = HPComp->GetMaxHP() > 0.f ? (Before / HPComp->GetMaxHP()) : 1.f;
 
-			HP->Heal(ItemDef->HealHP, User, ItemDef->ItemId);
+			HPComp->Heal(ItemDef->HealHP, User, ItemDef->ItemId);
 
-			const float After = HP-> GetHP();
+			const float After = HPComp-> GetHP();
 			const float Delta = FMath::Max(0.f,After-Before);
 
 			Out.Breakdown.TotalHealedHP += Delta;
@@ -396,29 +396,29 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 			}
 		}
 
-		if (AP && ItemDef->RestoreAP > 0)
+		if (APComp && ItemDef->RestoreAP > 0)
 		{
-			const int32 Before = AP->GetAP();
-			AP->Restore(ItemDef->RestoreAP, ItemDef->ItemId);
+			const int32 Before = APComp->GetAP();
+			APComp->Restore(ItemDef->RestoreAP, ItemDef->ItemId);
 			
-			const int32 After = AP->GetAP();
+			const int32 After = APComp->GetAP();
 			Out.Breakdown.TotalRestoredAP += FMath::Max(0, After - Before);
 		}
 
-		if (SP && ItemDef->GrantSP > 0)
+		if (SPComp && ItemDef->GrantSP > 0)
 		{
-			const int32 Before = SP->GetSP();
-			SP->AddSP(ItemDef->GrantSP, ItemDef->ItemId);
+			const int32 Before = SPComp->GetSP();
+			SPComp->AddSP(ItemDef->GrantSP, ItemDef->ItemId);
 			
-			const int32 After = SP->GetSP();
+			const int32 After = SPComp->GetSP();
 			Out.Breakdown.TotalGrantedSP += FMath::Max(0, After - Before);
 		}
 
-		if (HP&&ItemDef->FlatDamage>0.f)
+		if (HPComp && ItemDef->FlatDamage > 0.f)
 		{
-			const float Before = HP->GetHP();
-			HP->ApplyDamage(ItemDef->FlatDamage, User, ItemDef->ItemId);
-			const float After = HP->GetHP();
+			const float Before = HPComp->GetHP();
+			HPComp->ApplyDamage(ItemDef->FlatDamage, User, ItemDef->ItemId);
+			const float After = HPComp->GetHP();
 			const float Delta = FMath::Max(0.f, Before - After);
 
 			Out.Breakdown.TotalDealtDamage+=Delta;
@@ -466,10 +466,12 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 
 					if (bEnemy)
 					{
+						//StatusEffectDataAsset.h 쪽에 StatusId 없음. //ItemDef->ItemId가 아닐까 싶기도 합니다.
 						SP->ReportDebuff(User, T, ItemDef->ApplyStatus->StatusId, false, ItemDef->ItemId);
 					}
 					else
 					{
+						//StatusEffectDataAsset.h 쪽에 StatusId 없음.  //ItemDef->ItemId가 아닐까 싶기도 합니다.
 						SP->ReportBuff(User, T, ItemDef->ApplyStatus->StatusId, false, ItemDef->ItemId);
 					}
 				}

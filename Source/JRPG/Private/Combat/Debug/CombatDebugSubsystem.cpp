@@ -51,6 +51,8 @@ void UCombatDebugSubsystem::BindGlobalEvents()
 	{
 		Battle->OnBattleStarted.AddUObject(this, &UCombatDebugSubsystem::HandleBattleStarted);
 		Battle->OnBattleEnded.AddUObject(this, &UCombatDebugSubsystem::HandleBattleEnded);
+		
+		//에러 : OnBattlePhaseChanged / OnActorActionLockChanged / OnExclusiveModeChanged는 UBattleSessionSubsystem에 선언되어 있지 않음.
 		Battle->OnBattlePhaseChanged.AddUObject(this, &UCombatDebugSubsystem::HandleBattlePhaseChanged);
 		Battle->OnActorActionLockChanged.AddUObject(this, &UCombatDebugSubsystem::HandleActorActionLockChanged);
 		Battle->OnExclusiveModeChanged.AddUObject(this, &UCombatDebugSubsystem::HandleExclusiveModeChanged);
@@ -183,7 +185,7 @@ void UCombatDebugSubsystem::HandleBattlePhaseChanged(EBattlePhase NewPhase)
 		"Battle.Phase",
 		FString::Printf(TEXT("Battle phase changed -> %d"), (int32)NewPhase),
 		nullptr, nullptr,
-		FLinearColor::Silver);
+		FLinearColor(FColor::Silver));
 }
 
 void UCombatDebugSubsystem::HandleActorActionLockChanged(AActor* Actor, bool bLocked, FName ReasonTag)

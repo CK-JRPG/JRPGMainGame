@@ -53,7 +53,7 @@ void UCombatCharacterComponent::GiveStartingItems()
 
 	if (UInventorySubsystem *Inv = GetWorld()->GetGameInstance()->GetSubsystem<UInventorySubsystem>())
 	{
-		for (constauto &KV :CharacterDef -> StartingItems)
+		for (const auto &KV :CharacterDef -> StartingItems)
 		{
 			if (!KV.Key.IsNone() && KV.Value>0)
 				Inv->AddItem(KV.Key, KV.Value,"Character.StartingItems", nullptr);
