@@ -1,5 +1,5 @@
 
-﻿#include "Combat/Progression/Bond/BondWalkComponent.h"
+#include "Combat/Progression/Bond/BondWalkComponent.h"
 
 #include "Combat/Progression/Bond/BondSubsystem.h"
 #include "Combat/Progression/Bond/BondSettingsDataAsset.h"

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ThreatConfigDataAsset.h"
 #include "Components/ActorComponent.h"
 #include "JRPGCore/Public/JRPGCoreApiTypes.h"
 #include "Combat/Threat/CombatThreatTypes.h"

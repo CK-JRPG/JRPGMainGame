@@ -147,7 +147,7 @@ struct FJRPGCombatMotionResponse
 	}
 };
 
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCombatMotionStarted, FCombatMotionHandle /*Handle*/, ECombatMotionType /*Type*/);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCombatMotionEnded, FCombatMotionHandle /*Handle*/, FName /*EndReasonTag*/);
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCombatMotionReplaced, FCombatMotionHandle /*OldHandle*/, FCombatMotionHandle /*NewHandle*/, FName /*ReasonTag*/);
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCombatMotionBlocked, FCombatMotionHandle /*Handle*/, const FHitResult& /*Hit*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCombatMotionStarted, FJRPGCombatMotionHandle /*Handle*/, EJRPGCombatMotionType /*Type*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCombatMotionEnded, FJRPGCombatMotionHandle /*Handle*/, FName /*EndReasonTag*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCombatMotionReplaced, FJRPGCombatMotionHandle /*OldHandle*/, FJRPGCombatMotionHandle /*NewHandle*/, FName /*ReasonTag*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnCombatMotionBlocked, FJRPGCombatMotionHandle /*Handle*/, const FHitResult& /*Hit*/);

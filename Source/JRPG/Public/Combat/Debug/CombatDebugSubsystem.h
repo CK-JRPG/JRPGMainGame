@@ -72,7 +72,7 @@ private:
 	// sp
 	void HandleSPChanged(int32 CurrentSP, int32 Delta, EJRPGSPEventType Type, FName ReasonTag);
 	void HandleSPReadyChanged(bool bReady);
-	void HandleSPGainApplied(const FJRPGSPGainEvent& Event);
+	void HandleSPGainApplied(const FSynergyPointGainEvent& Event);
 
 private:
 	FString ActorNameSafe(AActor* Actor) const;

@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "CombatMotionImpactConfigDataAsset.h"
 #include "Components/ActorComponent.h"
 #include "Combat/Movement/JRPGCombatMotionTypes.h"
 #include "CombatMotionEffectBridgeComponent.generated.h"

@@ -7,7 +7,7 @@
 UINTERFACE(MinimalAPI)
 class UJRPGCombatLevelProvider : public UInterface { GENERATED_BODY() };
  
-class IJRPGCombatLevelProvide
+class IJRPGCombatLevelProvider
 {
 	GENERATED_BODY()
 

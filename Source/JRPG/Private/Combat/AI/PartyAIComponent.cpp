@@ -12,7 +12,7 @@
 #include "Combat/AI/CombatAIPresetAsset.h"
 
 #include "Combat/Skills/SkillComponent.h"
-#include "Combat/Infrastructure/BattleSessionSubsystem.h"
+#include "JRPGCombat/Public/Combat/Infrastructure/CombatBattleSessionSubsystem.h"
 
 UPartyAIComponent::UPartyAIComponent()
 {
@@ -62,7 +62,7 @@ void UPartyAIComponent::StartLoop()
 		return;
 	}
 
-	const float Interval = FMath::Max(0.05f, PresetAsset->PartyDecisionIntervalRealSec);
+	const float Interval = FMath::Max(0.05f, PresetAsset->DecisionIntervalSec);
 	GetWorld()->GetTimerManager().SetTimer(DecisionTimer,this, &UPartyAIComponent::ThinkOnce,Interval,true);
 }
 

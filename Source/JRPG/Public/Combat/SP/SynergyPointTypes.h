@@ -31,7 +31,7 @@ struct FJRPGSynergyPointState
 };
 
 USTRUCT()
-struct FJRPGSPGainEvent
+struct FSynergyPointGainEvent
 {
 	GENERATED_BODY()
 
@@ -89,5 +89,5 @@ struct FSynergyPointTuning
 
 
 DECLARE_MULTICAST_DELEGATE_FourParams(FOnSynergyPointChanged, int32/*CurrentSP*/, int32/*Delta*/, EJRPGSPEventType/*Type*/, FName/*ReasonTag*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnSynergyReadyChanged,bool/*bReady*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnSynergyGainApplied,const FJRPGSPGainEvent& /*Event*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSynergyReadyChanged, bool/*bReady*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSynergyGainApplied, const FSynergyPointGainEvent& /*Event*/);

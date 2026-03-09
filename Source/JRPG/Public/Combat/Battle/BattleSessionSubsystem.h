@@ -35,7 +35,7 @@ public:
 	float GetDefaultActionRecoverySec()const {return ActiveConfig.DefaultActionRecoverySec; }
 
 	// clamp
-	bool GetCombatClamp(FVector&OutCenter,float&OutRadius)const;
+	bool GetCombatClamp(FVector& OutCenter,float& OutRadius) const;
 
 	// exclusive mode: 체인/연출 전용 별도 시퀀스
 	bool EnterExclusiveMode(FName ModeTag);
@@ -64,8 +64,6 @@ public:
 	void GetAliveParticipantsByTeam(ECombatTeam Team, TArray<AActor*> &Out)const;
 	void GetOpponentsFor(AActor* Actor, TArray<AActor*> &Out)const;
 	void GetAlliesFor(AActor* Actor, TArray<AActor*> &Out)const;
-
-	bool GetCombatClamp(FVector& OutCenter, float& OutRadius) const;
 	
 	void GetParticipantRuntimeStates(TArray<FBattleActorRuntimeState>& OutStates) const;
 	

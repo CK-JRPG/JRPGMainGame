@@ -330,7 +330,7 @@ void UCombatDebugSubsystem::HandleSPReadyChanged(bool bReady)
 		bReady ? FLinearColor::Green : FLinearColor::Yellow);
 }
 
-void UCombatDebugSubsystem::HandleSPGainApplied(const FJRPGSPGainEvent& Event)
+void UCombatDebugSubsystem::HandleSPGainApplied(const FSynergyPointGainEvent& Event)
 {
 	AddLog(
 		ECombatDebugCategory::SP,

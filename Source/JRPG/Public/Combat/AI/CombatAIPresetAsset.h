@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataAsset.h"
-#include "Combat/Core/RoleTypes.h
+#include "Combat/Core/RoleTypes.h"
 #include "CombatAIPresetAsset.generated.h"
 
 UENUM(BlueprintType)

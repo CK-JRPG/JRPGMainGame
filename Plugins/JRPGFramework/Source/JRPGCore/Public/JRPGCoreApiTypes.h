@@ -80,7 +80,8 @@ struct JRPGCORE_API FJRPGHandle
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	//uint64는 BlueprintReadWrite이 안되어서 일단 EditAnywhere만 가능하게 함.
+	UPROPERTY(EditAnywhere) 
 	uint64 Value = 0;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)

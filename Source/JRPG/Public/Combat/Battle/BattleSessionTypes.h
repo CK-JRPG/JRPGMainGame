@@ -5,6 +5,7 @@
 #include "Combat/Characters/CombatTeamTypes.h"
 #include "BattleSessionTypes.generated.h"
 
+
 UENUM()
 enum class EBattlePhase :uint8
 {
@@ -106,5 +107,5 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnBattleStarted, const FBattleSessionSnapsh
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnBattleEnded, const FBattleSessionSnapshot &/*Snapshot*/, EBattleEndReason /*Reason*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTurnStarted, AActor* /*Actor*/, int32 /*Round*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTurnEnded, AActor* /*Actor*/, int32 /*Round*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnBattleStateChanged, EBattleFlowState /*NewState*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBattleStateChanged, EBattlePhase /*NewState*/); //EBattleFlowState가 없어서 EBattlePhase로 바꿈.
 
