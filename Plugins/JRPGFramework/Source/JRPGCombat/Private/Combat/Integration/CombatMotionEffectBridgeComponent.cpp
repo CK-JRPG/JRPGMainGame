@@ -195,7 +195,7 @@ void UCombatMotionEffectBridgeComponent::ApplyImpactRule(ECombatMotionArchetype 
 		}
 		if (Rule.bLockThreatToInstigator && Req.Instigator)
 		{
-			Threat->LockTarget(Req.Instigator, Rule.ThreatLockDuration, SourceTag);
+			Threat->LockTarget(Rule.ThreatLockDuration, SourceTag);
 		}
 	}
 

@@ -308,7 +308,7 @@ void UJRPGSkillComponent::RequestBasicAttack(AActor* Target)
 
 	FJRPGSkillRequest Req;
 	Req.SkillId = ChosenSkillId;
-	if (Target) Req.Targets.Add(Target);
+	if (Target) Req.AdditionalTargets.Add(Target);
 	RequestUseSkill(Req);
 }
 
@@ -316,6 +316,6 @@ void UJRPGSkillComponent::RequestUseSkillByAI(FName SkillId, AActor* Target)
 {
 	FJRPGSkillRequest Req;
 	Req.SkillId = SkillId;
-	if (Target) Req.Targets.Add(Target);
+	if (Target) Req.AdditionalTargets.Add(Target);
 	RequestUseSkill(Req);
 }
