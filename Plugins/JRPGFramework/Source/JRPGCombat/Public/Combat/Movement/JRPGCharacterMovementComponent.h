@@ -17,7 +17,7 @@ class JRPGCOMBAT_API UJRPGCharacterMovementComponent : public UCharacterMovement
 	GENERATED_BODY()
 
 public:
-	void SetCurrentCombatZone(ACombatZoneActor* InZone) { CurrentCombatZone = InZone; }
+	void SetCurrentCombatZone(ACombatZoneActor* InZone);
 	ACombatZoneActor* GetCurrentCombatZone() const { return CurrentCombatZone.Get(); }
 
 	/** 전투가 아닐 때 Clamp를 끄고 싶으면 false로 */

@@ -4,6 +4,11 @@
 #include "Components/CapsuleComponent.h"
 #include "GameFramework/Character.h"
 
+void UJRPGCharacterMovementComponent::SetCurrentCombatZone(ACombatZoneActor* InZone)
+{
+	CurrentCombatZone = InZone;
+}
+
 void UJRPGCharacterMovementComponent::OnMovementUpdated(float DeltaSeconds, const FVector& OldLocation, const FVector& OldVelocity)
 {
 	Super::OnMovementUpdated(DeltaSeconds, OldLocation, OldVelocity);
