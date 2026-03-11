@@ -5,6 +5,7 @@
 #include "Combat/AI/CombatAIScorer.h"
 
 #include "Combat/Skills/SkillComponent.h"
+#include "Combat/Skills/SkillDataAsset.h"
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Controller.h"
 
@@ -165,6 +166,15 @@ bool UCombatPartyAIComponent::ResolveSkillMeta(USkillComponent *SkillComp, FName
 	// (Heal/Taunt/Cleanse/Break/Debuff/Buff 등)
 	// 여기서는 예시용 API. 너희 SkillComponent에 맞춰 구현해주면 됨.
 	
-	//FSkillAIMeta는 CombatAiScore.h헤더에 선언 되어 있으나, SKillComp에는 GetSkillAiMeta가 없음.
-	return SkillComp->GetSkillAIMeta(SkillId,OutMeta);
+	if (const USkillDataAsset* Def = SkillComp->GetSkillDef(SkillId))
+	{
+		OutMeta.bIsHeal = Def->HealPower > 0.f;
+		OutMeta.bIsBreak = Def->GroggyPower > 0.f;
+		OutMeta.bIsDebuff = Def->ApplyStatus != nullptr;
+		OutMeta.bIsHighDps = (Def->BasePower > 0.f && Def->AttackScale >= 1.0f);
+		return true;
+	}
+	
+	return false;
 }
+ 

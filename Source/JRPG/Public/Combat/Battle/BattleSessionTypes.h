@@ -105,6 +105,9 @@ struct FBattleActorRuntimeState
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBattleStarted, const FBattleSessionSnapshot &/*Snapshot*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnBattleEnded, const FBattleSessionSnapshot &/*Snapshot*/, EBattleEndReason /*Reason*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnBattlePhaseChanged, EBattlePhase /*NewPhase*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnActorActionLockChanged, AActor* /*Actor*/, bool /*bLocked*/, FName /*ReasonTag*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExclusiveModeChanged, bool /*bActive*/, FName /*ModeTag*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTurnStarted, AActor* /*Actor*/, int32 /*Round*/);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnTurnEnded, AActor* /*Actor*/, int32 /*Round*/);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnBattleStateChanged, EBattlePhase /*NewState*/); //EBattleFlowState가 없어서 EBattlePhase로 바꿈.

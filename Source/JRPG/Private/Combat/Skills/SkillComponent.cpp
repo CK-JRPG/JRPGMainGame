@@ -1,6 +1,5 @@
 ﻿#include "JRPG/Public/Combat/Skills/SkillComponent.h"
 
-#include "Combat/Stats/CombatStatsComponent.h"
 #include "JRPG/Public/Combat/Skills/SkillDataAsset.h"
 
 #include "JRPG/Public/Combat/Battle/CombatFormulaLibrary.h"
@@ -176,11 +175,11 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 			continue;
 
 		UHPComponent* THP = T->FindComponentByClass<UHPComponent>();
-		UCombatStatsComponent* TStats = T->FindComponentByClass<UCombatStatsComponent>();
+		UCharacterCombatStatsComponent* TStats = T->FindComponentByClass<UCharacterCombatStatsComponent>();
 		UThreatComponent* TThreat = T->FindComponentByClass<UThreatComponent>();
 		UGroggyComponent* TGroggy = T->FindComponentByClass<UGroggyComponent>();
 		UStatusEffectComponent* TStatus = T->FindComponentByClass<UStatusEffectComponent>();
-		USynergyPointSubsystem* SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
+		USynergyPointSubsystem* SPSubSystem = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
 		
 		float DamageDone = 0.f;
 
@@ -206,9 +205,9 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 
 			DamageDone = B.FinalDamage;
 			
-			if (SP && DamageDone>0.f)
+			if (SPSubSystem && DamageDone>0.f)
 			{
-				SP->ReportDamage(GetOwner(),T, DamageDone,bFromTacticalReservation, Skill.SkillId);
+				SPSubSystem->ReportDamage(GetOwner(),T, DamageDone,bFromTacticalReservation, Skill.SkillId);
 			}
 			
 			//THP->ApplyDamage(DamageDone,GetOwner(), Skill.SkillId);
@@ -220,9 +219,9 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 					TGroggy->AddGroggyDamage(B.GroggyDamage,GetOwner(), Skill.SkillId);
 				}
 				
-				if (SP && Skill.GroggyPower > 0.f)
+				if (SPSubSystem && Skill.GroggyPower > 0.f)
 				{
-					SP->ReportBreak(GetOwner(),T, B.GroggyDamage,false, bFromTacticalReservation, Skill.SkillId);
+					SPSubSystem->ReportBreak(GetOwner(),T, B.GroggyDamage,false, bFromTacticalReservation, Skill.SkillId);
 				}
 				
 				if (TThreat)
@@ -235,7 +234,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 		}
 		
 		const float BeforeRatio = THP ? (THP->GetMaxHP() > 0.f ? (THP->GetHP() / THP->GetMaxHP()) : 1.f) :1.f;
-		if (SP && Skill.HealPower > 0.f)
+		if (THP && SPSubSystem && Skill.HealPower > 0.f)
 		{
 			const float BeforeHP = THP->GetHP();
 			THP->Heal(Skill.HealPower,GetOwner(), Skill.SkillId);
@@ -243,7 +242,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 
 			if (Healed > 0.f)
 			{
-				SP->ReportHeal(GetOwner(),T, Healed, BeforeRatio, bFromTacticalReservation, Skill.SkillId);
+				SPSubSystem->ReportHeal(GetOwner(),T, Healed, BeforeRatio, bFromTacticalReservation, Skill.SkillId);
 			}
 		}
 
@@ -252,16 +251,15 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 		{
 			TStatus->ApplyStatus(Skill.ApplyStatus,GetOwner(), Skill.StatusStacks, Skill.SkillId);
 			
-			if (SP)
+			if (SPSubSystem)
 			{
 				if (IsHostileTarget(T))
 				{
-					// Skill,ApplyStatus->StatusId 에 없음. - 에러.
-					SP->ReportDebuff(GetOwner(),T,Skill.ApplyStatus->StatusId, bFromTacticalReservation,Skill.SkillId);
+					SPSubSystem->ReportDebuff(GetOwner(), T, !Skill.ApplyStatus->StatusId.IsNone() ? Skill.ApplyStatus->StatusId : Skill.ApplyStatus->EffectId, bFromTacticalReservation, Skill.SkillId);
 				}
 				else
 				{
-					SP->ReportBuff(GetOwner(),T,Skill.ApplyStatus->StatusId, bFromTacticalReservation,Skill.SkillId);
+					SPSubSystem->ReportBuff(GetOwner(), T, !Skill.ApplyStatus->StatusId.IsNone() ? Skill.ApplyStatus->StatusId : Skill.ApplyStatus->EffectId, bFromTacticalReservation, Skill.SkillId);
 				}
 			}
 		}
@@ -276,7 +274,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 					GetOwner(),
 					Skill.SkillId);
 
-				if (SP&&Removed>0)
+				if (SPSubSystem && Removed > 0)
 				{
 					bool bCriticalCC = false;
 					for (const FGameplayTag&Tag : Skill.DispelAnyTags)
@@ -288,7 +286,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 						}
 					}
 
-					SP->ReportCleanse(GetOwner(),T,Removed,bCriticalCC,bFromTacticalReservation,Skill.SkillId);
+					SPSubSystem->ReportCleanse(GetOwner(),T,Removed,bCriticalCC,bFromTacticalReservation,Skill.SkillId);
 				}
 			}
 		}

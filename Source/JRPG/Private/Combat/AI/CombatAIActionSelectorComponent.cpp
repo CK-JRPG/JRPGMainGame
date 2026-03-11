@@ -96,6 +96,16 @@ bool UCombatAIActionSelectorComponent::CanAffordSkill(const USkillDataAsset &Ski
 	return true;
 }
 
+USkillDataAsset* UCombatAIActionSelectorComponent::PickBestHealSkill(TArray<AActor*>& OutTargets) const
+{
+	return nullptr;
+}
+
+USkillDataAsset* UCombatAIActionSelectorComponent::PickBestOffensiveSkill(TArray<AActor*>& OutTargets) const
+{
+	return nullptr;
+}
+
 // PickBestHealSkill / PickBestOffensiveSkill는 이전 버전 그대로 사용 가능
 
 void UCombatAIActionSelectorComponent::ThinkAndAct()

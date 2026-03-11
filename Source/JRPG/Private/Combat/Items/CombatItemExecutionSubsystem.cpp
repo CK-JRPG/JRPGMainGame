@@ -466,13 +466,11 @@ FCombatItemUseResult UCombatItemExecutionSubsystem::ExecuteUse(const FCombatItem
 
 					if (bEnemy)
 					{
-						//StatusEffectDataAsset.h 쪽에 StatusId 없음. //ItemDef->ItemId가 아닐까 싶기도 합니다.
-						SP->ReportDebuff(User, T, ItemDef->ApplyStatus->StatusId, false, ItemDef->ItemId);
+						SP->ReportDebuff(User, T, !ItemDef->ApplyStatus->StatusId.IsNone() ? ItemDef->ApplyStatus->StatusId : ItemDef->ApplyStatus->EffectId, false, ItemDef->ItemId);
 					}
 					else
 					{
-						//StatusEffectDataAsset.h 쪽에 StatusId 없음.  //ItemDef->ItemId가 아닐까 싶기도 합니다.
-						SP->ReportBuff(User, T, ItemDef->ApplyStatus->StatusId, false, ItemDef->ItemId);
+						SP->ReportBuff(User, T, !ItemDef->ApplyStatus->StatusId.IsNone() ? ItemDef->ApplyStatus->StatusId : ItemDef->ApplyStatus->EffectId, false, ItemDef->ItemId);
 					}
 				}
 			}

@@ -4,7 +4,7 @@
 #include "Combat/Stats/HPComponent.h"
 
 #include "Combat/Debug/CombatDebugSubsystem.h"
-#include "Combat/Stats/CombatStatsComponent.h"
+#include "Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 
 UStatusEffectComponent::UStatusEffectComponent()
 {
@@ -16,7 +16,8 @@ void UStatusEffectComponent::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
+	
+	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterCombatStatsComponent>() : nullptr;
 	HP = GetOwner() ? GetOwner()->FindComponentByClass<UHPComponent>() : nullptr;
 }
 

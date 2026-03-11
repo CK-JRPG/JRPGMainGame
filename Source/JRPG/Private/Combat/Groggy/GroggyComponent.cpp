@@ -3,7 +3,7 @@
 
 #include "Combat/Debug/CombatDebugSubsystem.h"
 #include "Combat/SP/SynergyPointSubsystem.h"
-#include "Combat/Stats/CombatStatsComponent.h"
+#include "Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 
 UGroggyComponent::UGroggyComponent()
 {
@@ -14,7 +14,7 @@ UGroggyComponent::UGroggyComponent()
 void UGroggyComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCombatStatsComponent>() : nullptr;
+	Stats = GetOwner() ? GetOwner()->FindComponentByClass<UCharacterCombatStatsComponent>() : nullptr;
 }
 
 void UGroggyComponent::AddGroggyDamage(float Amount, AActor* SourceActor, FName ReasonTag, bool bFromTacticalReservation) 
