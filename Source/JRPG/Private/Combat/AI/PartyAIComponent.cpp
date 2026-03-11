@@ -76,39 +76,27 @@ void UPartyAIComponent::ThinkOnce()
 {
 	if (!GetOwner()||!PresetAsset)return;
 
-	// 플레이어 조작 중이면 파티 AI는 꺼짐
-	if (IsPlayerControlledNow())return;
-
-	// Build. - 에러.
-	UCombatAIContext *CtxObj = UCombatAIContext::Build(GetOwner());
-	if (!CtxObj) return;
-
-	// 체인 동안 멈춤(체인은 별도 시퀀스 전투처럼 보이게)
-	
-	// bChainActive없음. - 에러.
-	if (bPauseDuringChain && CtxObj->bChainActive) return;
+	EJRPGPartyRole MappedRole = EJRPGPartyRole::Attacker;
+		switch (Role)
+		{
+		case ECombatPartyRole::Defender: MappedRole = EJRPGPartyRole::Defender; break;
+		case ECombatPartyRole::Supporter: MappedRole = EJRPGPartyRole::Supporter; break;
+		case ECombatPartyRole::Attacker:
+		default: MappedRole = EJRPGPartyRole::Attacker; break;
+		}	
 
 	//ChoosePartyAction 없음. - 에러.
-	const FJRPGCombatAIAction Action = UCombatAIScorer::ChoosePartyAction(*CtxObj, *PresetAsset, Role, Preset);
-
-	USkillComponent* Skill = CtxObj->SkillComp;
+	UCombatAIContext* CtxObj = NewObject<UCombatAIContext>(this);
+	CtxObj->Initialize(GetOwner(), MappedRole, PresetAsset);
+	CtxObj->Refresh();
+	
+	if (bPauseDuringChain && CtxObj->bInChainSequence) return;
+	
+	USkillComponent* Skill = CtxObj->SkillComp.Get();
 	if (!Skill) return;
 
-	switch (Action.Type)
+	if (AActor* Target = CtxObj->PrimaryTarget.Get())
 	{
-	case EJRPGCombatAIActionType::UseSkill:
-		{
-			//EJRPGSkillRequestSource 없음. - 에러.
-			Skill->RequestUseSkillByAI(Action.SkillId,Action.Target.Get(),/*Source*/EJRPGSkillRequestSource::AI);
-			break;
-		}
-	case EJRPGCombatAIActionType::BasicAttack:
-		{
-			//EJRPGSkillRequestSource 없음. - 에러.
-			Skill->RequestBasicAttack(Action.Target.Get(),/*Source*/ESkillRequestSource::AI);
-			break;
-		}
-	default:
-		break;
+		Skill->RequestBasicAttack(Target);
 	}
 }

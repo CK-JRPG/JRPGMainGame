@@ -2,7 +2,8 @@
 
 #include "Combat/AI/EnemyAIController.h"
 
-#include "JRPGCombat/Public/Combat/Threat/CombatThreatComponent.h"
+
+#include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Skills/SkillComponent.h"
 #include "Combat/AI/CombatAIInterfaces.h"
 #include "Combat/AI/CombatAIPresetAsset.h"
@@ -20,7 +21,7 @@ void AEnemyAIController::OnPossess(APawn *InPawn)
 	Super::OnPossess(InPawn);
 
 	ControlledPawn = InPawn;
-	ThreatComp = InPawn ? InPawn->FindComponentByClass<UCombatThreatComponent>() : nullptr;
+	ThreatComp = InPawn ? InPawn->FindComponentByClass<UThreatComponent>() : nullptr;
 	SkillComp  = InPawn ? InPawn->FindComponentByClass<USkillComponent>() : nullptr;
 
 	State = EEnemyCombatState::Engage;
@@ -89,17 +90,15 @@ void AEnemyAIController::TickCombatNormal(float DeltaSeconds)
 		return;
 
 	// Threat 기반 타겟 :contentReference[oaicite:41]{index=41}
-	AActor *Target = ThreatComp->GetCurrentTarget();
+	AActor *Target = ThreatComp->GetTopThreatSource();
 	if (!IsValid(Target))
 		return;
 
 	// 간단: 기본 공격 or 패턴 스킬 (패턴은 너희 SkillPatternTableId로 확장 가능 :contentReference[oaicite:42]{index=42})
 	
-	//에러 : SkillComponent에 CanUseBasicAttack() 없음.
-	if (SkillComp->CanUseBasicAttack())
-	{
-		SkillComp->RequestBasicAttack(Target);
-	}
+
+	SkillComp->RequestBasicAttack(Target);
+	
 }
 
 void AEnemyAIController::TickGroggyStunned(float DeltaSeconds)
@@ -134,10 +133,9 @@ void AEnemyAIController::TickRising(float DeltaSeconds)
 
 	if (ThreatComp && SkillComp)
 	{
-		if (AActor *Target = ThreatComp->GetCurrentTarget())
+		if (AActor *Target = ThreatComp->GetTopThreatSource())
 		{
-			if (SkillComp->CanUseBasicAttack())
-				SkillComp->RequestBasicAttack(Target);
+			SkillComp->RequestBasicAttack(Target);
 		}
 	}
 }

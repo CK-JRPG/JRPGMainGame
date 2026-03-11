@@ -44,6 +44,7 @@ public:
 
 	// action gating
 	bool CanActorExecuteAction(AActor* Actor) const;
+	bool CanActorActNow(AActor* Actor) const { return CanActorExecuteAction(Actor); }
 	bool IsActorActionLocked(AActor* Actor) const;
 	float GetActorRemainingRecoverySec(AActor* Actor) const;
 
@@ -53,7 +54,9 @@ public:
 	void AbortPresentedAction(AActor* Actor, FName ReasonTag, bool bClearRecovery = false);
 
 	void SetActorActionRecovery(AActor* Actor,float RecoverySec,FName ReasonTag);
-
+	void FinishCurrentTurn(FName ReasonTag);
+	
+	
 	// direct execution API (즉발 경로용)
 	FCombatActionResult TryExecuteBasicAttack(AActor* Attacker,AActor* Target);
 	FSkillCastResult TryExecuteSkill(AActor* Attacker, FName SkillId,const TArray<AActor*> &Targets);

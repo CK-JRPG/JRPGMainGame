@@ -15,7 +15,7 @@ bool UTacticalModeSubsystem::IsPlayerTurnActor(AActor*Actor)const
 
 	UBattleSessionSubsystem *Battle = GetBattle();
 	if (!Battle || !Battle->IsBattleActive())	return false;
-	if (!Battle->CanActorActNow(Actor))			return false;
+	if (!Battle->CanActorExecuteAction(Actor))	return false;
 
 	ICombatParticipantInterface *P =Cast<ICombatParticipantInterface>(Actor);
 	if (!P)

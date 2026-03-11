@@ -40,7 +40,7 @@ private:
 	UPROPERTY() float RemainingGroggy = 0.f;
 	UPROPERTY() TObjectPtr<UGroggyModSourceObject> ModSource = nullptr;
 
-	TWeakObjectPtr<class UCombatStatsComponent> Stats;
+	TWeakObjectPtr<class UCharacterCombatStatsComponent> Stats;
 	
 	TWeakObjectPtr<AActor> LastBreakSource;
 	bool bLastBreakFromTacticalReservation = false;

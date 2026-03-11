@@ -470,6 +470,24 @@ FCombatItemUseResult UBattleSessionSubsystem::TryUseCombatItem(AActor*User,FName
 	return R;
 }
 
+void UBattleSessionSubsystem::FinishCurrentTurn(FName ReasonTag)
+{
+	if (!bBattleActive || Snapshot.Phase != EBattlePhase::Active)
+		return;
+	
+	for (auto It = ActivePresentedActors.CreateIterator(); It; ++It)
+	{
+		if (AActor* Actor = It.Key().Get())
+		{
+			OnActorActionLockChanged.Broadcast(Actor, false, ReasonTag);
+		}
+	}
+	
+	ActivePresentedActors.Reset();
+	Snapshot.ActivePresentedActionCount = 0;
+	CheckBattleEndAndResolve();
+}
+
 void UBattleSessionSubsystem::GetAliveParticipants(TArray<AActor*> &Out) const
 {
 	Out.Reset();

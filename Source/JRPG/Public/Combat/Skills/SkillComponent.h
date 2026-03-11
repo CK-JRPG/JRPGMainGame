@@ -64,7 +64,7 @@ private:
 	UPROPERTY() bool bHasPrepared = false;
 	UPROPERTY() FPreparedSkillCast Prepared;
 
-	TWeakObjectPtr<class UCombatStatsComponent> Stats;
+	TWeakObjectPtr<class UCharacterCombatStatsComponent> Stats;
 	TWeakObjectPtr<class UHPComponent> HP;
 	TWeakObjectPtr<class UAPComponent> AP;
 	TWeakObjectPtr<class USPComponent> SP;

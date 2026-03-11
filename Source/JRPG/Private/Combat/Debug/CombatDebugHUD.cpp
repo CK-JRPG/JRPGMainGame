@@ -3,6 +3,7 @@
 #include "Engine/Canvas.h"
 #include "Engine/Engine.h"
 #include "Engine/Font.h"
+#include "CanvasItem.h"
 
 #include "Combat/Debug/CombatDebugSubsystem.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
@@ -10,11 +11,15 @@
 #include "Combat/Chain/ChainAttackSubsystem.h"
 #include "Combat/SP/SynergyPointSubsystem.h"
 
-static FColor ToFColorSafe(const FLinearColor& C)
-{
-	return C.ToFColor(true);
-}
 
+
+static void DrawCanvasTextLine(UCanvas* Canvas, float X, float Y, const FString& Text, UFont* Font, const FLinearColor& Color)
+{
+	FCanvasTextItem TextItem(FVector2D(X, Y), FText::FromString(Text), Font, Color);
+	TextItem.EnableShadow(FLinearColor::Black);
+	Canvas->DrawItem(TextItem);
+ 
+}
 void ACombatDebugHUD::DrawHUD()
 {
 	Super::DrawHUD();
@@ -45,8 +50,7 @@ void ACombatDebugHUD::DrawHUD()
 					S.bExclusiveMode ? TEXT("true") : TEXT("false"),
 					*S.ExclusiveModeTag.ToString());
 
-			Canvas->DrawShadowedString(X, Y, *BattleLine, Font, FLinearColor::White); //에러 : API내에 DrawShadowedString 없음.
-			
+			DrawCanvasTextLine(Canvas, X, Y, BattleLine, Font, FLinearColor::White);			
 			
 			Y += LineHeight;
 
@@ -71,7 +75,7 @@ void ACombatDebugHUD::DrawHUD()
 					(R.bPresentedActionActive ? FLinearColor(0.9f, 0.8f, 0.3f) :
 					(R.bActionLocked ? FLinearColor(1.f, 0.7f, 0.3f) : FLinearColor(0.7f, 1.f, 0.7f)));
 
-				Canvas->DrawShadowedString(X, Y, *RuntimeLine, Font, LineColor); //에러 : API내에 DrawShadowedString 없음.
+				DrawCanvasTextLine(Canvas, X, Y, RuntimeLine, Font, LineColor);
 				Y += LineHeight;
 			}
 		}
@@ -82,7 +86,7 @@ void ACombatDebugHUD::DrawHUD()
 				TEXT("[Tactical] Active=%s Operator=%s"),
 					Tactical->IsActive() ? TEXT("true") : TEXT("false"),
 					Tactical->GetSnapshot().OperatorActor.IsValid() ? *Tactical->GetSnapshot().OperatorActor->GetName() : TEXT("-"));
-			Canvas->DrawShadowedString(X, Y, *TacticalLine, Font, FLinearColor(0.8f, 0.8f, 1.f)); //에러 : API내에 DrawShadowedString 없음.
+			DrawCanvasTextLine(Canvas, X, Y, TacticalLine, Font, FLinearColor(0.8f, 0.8f, 1.f));
 			Y += LineHeight;
 		}
 
@@ -96,7 +100,9 @@ void ACombatDebugHUD::DrawHUD()
 					C.StepIndex,
 					C.CurrentDamageMultiplier,
 					C.CurrentActor.IsValid() ? *C.CurrentActor->GetName() : TEXT("-"));
-			Canvas->DrawShadowedString(X, Y, *ChainLine, Font, FLinearColor(1.f, 0.85f, 0.4f));//에러 : API내에 DrawShadowedString 없음.
+
+			
+			DrawCanvasTextLine(Canvas, X, Y, ChainLine, Font, FLinearColor(1.f, 0.85f, 0.4f));
 			Y += LineHeight;
 		}
 
@@ -108,12 +114,14 @@ void ACombatDebugHUD::DrawHUD()
 					S.CurrentSP,
 					S.SPCap,
 					S.bChainReady ? TEXT("true") : TEXT("false"));
-			Canvas->DrawShadowedString(X, Y, *SPLine, Font, FLinearColor(0.5f, 1.f, 0.5f));//에러 : API내에 DrawShadowedString 없음.
+		
+			DrawCanvasTextLine(Canvas, X, Y, SPLine, Font, FLinearColor(0.5f, 1.f, 0.5f));	
 			Y+=LineHeight;
 		}
 
 		Y += 8.f;
-		Canvas->DrawShadowedString(X, Y, TEXT("---- Recent Combat Logs ----"), Font, FLinearColor::Yellow);//에러 : API내에 DrawShadowedString 없음.
+		
+		DrawCanvasTextLine(Canvas, X, Y, TEXT("---- Recent Combat Logs ----"), Font, FLinearColor::Yellow);
 		Y += LineHeight;
 	}
 
@@ -131,7 +139,7 @@ void ACombatDebugHUD::DrawHUD()
 				*E.InstigatorName,
 				*E.TargetName);
 
-		Canvas->DrawShadowedString(X, Y, *Line, Font, E.Color);//에러 : API내에 DrawShadowedString 없음.
+		DrawCanvasTextLine(Canvas, X, Y, Line, Font, E.Color);
 		Y += LineHeight;
 	}
 }

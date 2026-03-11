@@ -216,7 +216,7 @@ void UChainAttackSubsystem::EndChain(FName)
 
 		if (ActiveConfig.bConsumeBattleTurnOnEnd && Battle->IsBattleActive())
 		{
-			Battle->FinishCurrentTurn("Chain.End"); // 에러. : FinishCurrentTurn 없음.
+			Battle->SetActorActionRecovery(Snapshot.ChainStarter.Get(), Battle->GetDefaultActionRecoverySec(), "Chain.End");
 		}
 	}
 
