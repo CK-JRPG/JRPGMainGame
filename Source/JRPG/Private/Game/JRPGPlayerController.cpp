@@ -41,6 +41,11 @@ void AJRPGPlayerController::SetupInputComponent()
 		EIC->BindAction(IA_Sprint, ETriggerEvent::Started, this, &AJRPGPlayerController::OnSprintStarted);
 		EIC->BindAction(IA_Sprint, ETriggerEvent::Completed, this, &AJRPGPlayerController::OnSprintCompleted);
 	}
+	
+	if (IA_Look)
+	{
+		EIC->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AJRPGPlayerController::OnLook);
+	}
 }
 
 void AJRPGPlayerController::OnMove(const FInputActionValue& Value)
@@ -69,5 +74,20 @@ void AJRPGPlayerController::OnSprintCompleted(const FInputActionValue& /*Value*/
 	if (AJRPGPlayerPawn* P = Cast<AJRPGPlayerPawn>(GetPawn()))
 	{
 		if (P->Locomotion) P->Locomotion->SetSprint(false);
+	}
+}
+
+void AJRPGPlayerController::OnLook(const FInputActionValue& Value)
+{
+	const FVector2D LookAxisVector = Value.Get<FVector2D>();
+	
+	if (LookAxisVector.X != 0.0f)
+	{
+		AddYawInput(LookAxisVector.X);
+	}
+	
+	if (LookAxisVector.Y != 0.0f)
+	{
+		AddPitchInput(LookAxisVector.Y);
 	}
 }

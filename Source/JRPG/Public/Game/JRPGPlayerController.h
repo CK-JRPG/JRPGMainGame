@@ -26,7 +26,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_Sprint;   // Value: bool or Trigger
 
+	UPROPERTY(EditDefaultsOnly, Category="Input")
+	TObjectPtr<UInputAction> IA_Look;
+	
 	void OnMove(const FInputActionValue& Value);
 	void OnSprintStarted(const FInputActionValue& Value);
 	void OnSprintCompleted(const FInputActionValue& Value);
+	void OnLook(const FInputActionValue& Value);
 };

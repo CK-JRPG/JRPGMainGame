@@ -4,6 +4,8 @@
 #include "GameFramework/Character.h"
 #include "JRPGPlayerPawn.generated.h"
 
+class USpringArmComponent;
+class UCameraComponent;
 class ULocomotionComponent;
 class UCombatZoneTrackerComponent;
 
@@ -20,4 +22,11 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category="JRPG")
 	TObjectPtr<UCombatZoneTrackerComponent> ZoneTracker;
+	
+	// 카메라
+	UPROPERTY(VisibleAnywhere, Category="JRPG")
+	TObjectPtr<USpringArmComponent> CameraBoom;
+	
+	UPROPERTY(VisibleAnywhere, Category="JRPG")
+	TObjectPtr<UCameraComponent> FollowCamera;
 };
