@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/Characters/CombatCharacterActor.h"
 #include "GameFramework/Character.h"
 #include "JRPGPlayerPawn.generated.h"
 
@@ -8,6 +9,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class ULocomotionComponent;
 class UCombatZoneTrackerComponent;
+class ACombatCharacterActor;
 
 UCLASS()
 class JRPG_API AJRPGPlayerPawn : public ACharacter
