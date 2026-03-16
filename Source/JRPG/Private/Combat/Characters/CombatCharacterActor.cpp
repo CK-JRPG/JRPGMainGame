@@ -16,8 +16,9 @@
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
+#include "Combat/Stats/CombatStatsComponent.h"
 
-ACombatCharacter::ACombatCharacter()
+ACombatCharacterActor::ACombatCharacterActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
@@ -39,27 +40,27 @@ ACombatCharacter::ACombatCharacter()
 	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
 }
 
-void ACombatCharacter::BeginPlay()
+void ACombatCharacterActor::BeginPlay()
 {
 	Super::BeginPlay();
 }
 
-FName ACombatCharacter::GetCombatantId() const
+FName ACombatCharacterActor::GetCombatantId() const
 {
 	return CharacterComp ? CharacterComp->GetCharacterId() : NAME_None;
 }
 
-ECombatTeam ACombatCharacter::GetCombatTeam() const
+ECombatTeam ACombatCharacterActor::GetCombatTeam() const
 {
 	return CharacterComp ? CharacterComp->GetTeam() : ECombatTeam::Neutral;
 }
 
-bool ACombatCharacter::IsPlayerControlledCombatant() const
+bool ACombatCharacterActor::IsPlayerControlledCombatant() const
 {
 	return IsPlayerControlled();
 }
 
-UActorComponent* ACombatCharacter::GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const
+UActorComponent* ACombatCharacterActor::GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const
 {
 	return CompClass ? GetComponentByClass(CompClass) : nullptr;
 }
