@@ -6,7 +6,18 @@
 
 class UInputMappingContext;
 class UInputAction;
+class UCombatCharacterDataAsset;
 struct FInputActionValue;
+
+//해당 구조체 방식이 맞는가에 대해 점검중.
+USTRUCT(BlueprintType)
+struct FCharacterMappingRow : public FTableRowBase
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TObjectPtr<UCombatCharacterDataAsset> CharacterAsset;
+};
 
 UCLASS()
 class JRPG_API AJRPGPlayerController : public APlayerController
@@ -29,8 +40,17 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_Look;
 	
+	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Combat")
+	TObjectPtr<UDataTable> CharacterTable;
+	
 	void OnMove(const FInputActionValue& Value);
 	void OnSprintStarted(const FInputActionValue& Value);
 	void OnSprintCompleted(const FInputActionValue& Value);
 	void OnLook(const FInputActionValue& Value);
+	
+private:
+	//테스트 중 - CombatCharacterActor와 JRPGPlayerPawn의 브릿지 함수
+	void InitallizeCombatBridge();
+	UCombatCharacterDataAsset* FindCharacterDefById(FName CharId) const;
+	
 };

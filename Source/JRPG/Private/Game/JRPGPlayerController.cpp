@@ -3,6 +3,9 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "Combat/Characters/CombatCharacterComponent.h"
+#include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
+#include "Combat/Characters/PartySubsystem.h"
 
 #include "Game/JRPGPlayerPawn.h"
 #include "Combat/Movement/LocomotionComponent.h"
@@ -21,6 +24,8 @@ void AJRPGPlayerController::BeginPlay()
 			}
 		}
 	}
+	
+	InitallizeCombatBridge();
 }
 
 void AJRPGPlayerController::SetupInputComponent()
@@ -91,3 +96,61 @@ void AJRPGPlayerController::OnLook(const FInputActionValue& Value)
 		AddPitchInput(LookAxisVector.Y);
 	}
 }
+
+void AJRPGPlayerController::InitallizeCombatBridge()
+{
+	UPartySubsystem* PartySubsystem = GetGameInstance()->GetSubsystem<UPartySubsystem>();
+	UCombatCharacterRegistrySubsystem* Registry = GetGameInstance()->GetSubsystem<UCombatCharacterRegistrySubsystem>();
+	
+	if (!PartySubsystem || !Registry) 
+		return;
+	
+	
+		UE_LOG(LogTemp, Error, TEXT("Bridge : 현재 파티원 수 = %d"), PartySubsystem->GetPartyIds().Num());
+		
+
+	
+	
+	// 현재 PartySub에 등록된 파티 ID가지고 와서 레지스트리에 있는지 검사하고서 
+	// 이후 없으면 스폰해서 레지스트리에 일단 임시로 등록함.
+	for (const FName& CharId : PartySubsystem->GetPartyIds())
+	{
+		if (IsValid(Registry->FindById(CharId))) 
+		{
+			UE_LOG(LogTemp, Log, TEXT("Bridge : %s는 이미 런타임에 존재함. 스폰 생략."), *CharId.ToString());
+			continue;
+		}
+		UCombatCharacterDataAsset* FoundDef = FindCharacterDefById(CharId);
+		if (FoundDef)
+		{
+			FActorSpawnParameters Params;
+			Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+		
+			ACombatCharacterActor* BackCombatCharacter = GetWorld()->SpawnActor<ACombatCharacterActor>(
+				ACombatCharacterActor::StaticClass(), Params);
+			
+			if (IsValid(BackCombatCharacter) && IsValid(BackCombatCharacter->CharacterComp))
+			{
+				BackCombatCharacter->CharacterComp->CharacterDef = FoundDef;
+				BackCombatCharacter->CharacterComp->InitializeFromDef();
+				
+				BackCombatCharacter->SetActorHiddenInGame(true);
+				BackCombatCharacter->SetActorEnableCollision(false);
+			
+				UE_LOG(LogTemp, Log, TEXT("Bridge : 파티 데이터 등록 완료 (%s)"), *CharId.ToString());
+			}
+		}
+	}
+		
+}
+
+UCombatCharacterDataAsset* AJRPGPlayerController::FindCharacterDefById(FName CharId) const
+{
+	if (IsValid(CharacterTable)) 
+		return nullptr;
+	
+	FCharacterMappingRow* Row = CharacterTable->FindRow<FCharacterMappingRow>(CharId, TEXT(" "));
+	return Row ? Row->CharacterAsset : nullptr;
+}
+
+

@@ -6,9 +6,12 @@
 #include "EngineUtils.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
+#include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
+#include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Session/CombatZoneActor.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Components/BoxComponent.h"
+#include "Engine/OverlapResult.h"
 #include "Game/JRPGPlayerController.h"
 #include "Game/JRPGPlayerPawn.h"
 
@@ -50,52 +53,89 @@ void AEncounterTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 	if (bHasTriggered || !OtherActor)
 		return;
 	
-	AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(OtherActor);
-	if (!PlayerPawn)
-		return;
-	
 	bHasTriggered = true;
-	SearchCombatCharactersInRadius(PlayerPawn);
+	SearchCombatCharactersInRadius(OtherActor);
 }
 
-void AEncounterTriggerActor::SearchCombatCharactersInRadius(AJRPGPlayerPawn* TriggeringPlayer)
+void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* OverlapActor)
 {
 	FBattleSessionConfig BattleConfig;
 	
-	if (TriggeringPlayer)
+	if (!IsValid(OverlapActor) || !OverlapActor->IsA<AJRPGPlayerPawn>())
+		return;
+	
+	
+	if (UGameInstance* GameInstance = GetGameInstance())
 	{
-		BattleConfig.PlayerSide.Add(TriggeringPlayer);
-		UE_LOG(LogTemp, Warning, TEXT("Encounter : 플레이어 직접 추가 완료."));
+		if (UPartySubsystem* Registry = GameInstance->GetSubsystem<UPartySubsystem>())
+		{
+			TArray<AActor*> ActivePartyMembers;
+			Registry->GetPartyMembers(ActivePartyMembers);
+			
+			for (AActor* CombatActor : ActivePartyMembers)
+			{
+				if (const ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(CombatActor))
+				{
+					if (Participant->GetCombatTeam() == ECombatTeam::Player)
+					{
+						BattleConfig.PlayerSide.Add(CombatActor);
+						UE_LOG(LogTemp, Warning, TEXT("Encounter : 플레이어 측 캐릭터 추가 완료. Actor: %s"), *CombatActor->GetName());
+					}
+				}
+			}
+		}
 	}
+	
+	if (BattleConfig.PlayerSide.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Encounter : 레지스트리에 등록된 플레이어가 없음"));
+		//bHasTriggered = false;
+		//return;
+	}
+	
 	
 	
 	const FVector TriggerLocation = GetActorLocation();
 	float SearchRadius = 1000.0f;
 	
-	float SearchRadiusSquared = FMath::Square(SearchRadius);
+	FCollisionShape Sphere = FCollisionShape::MakeSphere(SearchRadius);
 	
-	//적 COnfig에 추가하기
-	for (TActorIterator<ACombatCharacterActor> It(GetWorld()); It; ++It)
+	FCollisionObjectQueryParams ObjectQueryParams;
+	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn); 
+	
+	TArray<FOverlapResult> ActiveEnemiesResults;
+	
+	bool bHasOverlap = GetWorld()->OverlapMultiByObjectType(
+		ActiveEnemiesResults, 
+		TriggerLocation, 
+		FQuat::Identity, 
+		ObjectQueryParams, 
+		Sphere
+	);
+	if (bHasOverlap)
 	{
-		ACombatCharacterActor* CombatActor = *It;
-
-		if (IsValid(CombatActor))
+		// TODO : 적 캐릭터 감지 개선 : 각 캐릭터당 한번만 감지되도록 바꿔야함.
+		//반경 내에 스캔된 적 COnfig에 추가하기
+		for (const FOverlapResult& Results : ActiveEnemiesResults)
 		{
-			float DistSq = FVector::DistSquared(TriggerLocation, CombatActor->GetActorLocation());
-
-			if (DistSq <= SearchRadiusSquared)
+			if (AActor* ActiveEnemy = Results.GetActor())
 			{
-				ECombatTeam Team = CombatActor->GetCombatTeam();
-			
-				if (Team == ECombatTeam::Enemy)
+				if (const ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(ActiveEnemy))
 				{
-					BattleConfig.EnemySide.Add(CombatActor);
-					UE_LOG(LogTemp, Warning, TEXT("Encounter : 적 감지 및 FBattleSessionConfig에 추가 되었음."));
+					// 팀이 Enemy이고 HP가 유효한지 검증
+					if (Participant->GetCombatTeam() == ECombatTeam::Enemy && Participant->GetHP() != nullptr)
+					{
+						BattleConfig.EnemySide.Add(ActiveEnemy);
+						UE_LOG(LogTemp, Warning, TEXT("Encounter : 적 측 캐릭터 추가 완료. Actor: %d"), BattleConfig.EnemySide.Num());
 
+					}
 				}
 			}
+			
 		}
 	}
+		
+	
 	if (BattleConfig.EnemySide.Num() == 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Encounter : 주변에 적이 없음"));
@@ -105,6 +145,8 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(AJRPGPlayerPawn* Tri
 	
 	ReadyforBattleSession(BattleConfig);
 }
+
+
 
 void AEncounterTriggerActor::ReadyforBattleSession(const FBattleSessionConfig& Config)
 {

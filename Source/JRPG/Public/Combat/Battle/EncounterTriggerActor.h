@@ -43,7 +43,7 @@ protected:
 
 private:
 	
-	void SearchCombatCharactersInRadius(AJRPGPlayerPawn* TriggeringPlayer);
+	void SearchCombatCharactersInRadius(const AActor* OverlapActor);
 	void ReadyforBattleSession(const FBattleSessionConfig& Config);
 	void CreateCombatZone();
 	
