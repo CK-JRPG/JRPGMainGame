@@ -1,4 +1,4 @@
-// Fill out your copyright notice in the Description page of Project Settings.
+﻿// Fill out your copyright notice in the Description page of Project Settings.
 
 
 #include "Combat/Battle/EncounterTriggerActor.h"
@@ -124,6 +124,9 @@ void AEncounterTriggerActor::ReadyforBattleSession(const FBattleSessionConfig& C
 		{
 			UE_LOG(LogTemp, Error, TEXT("Encounter : 배틀 세션 시작 실패"));
 			bHasTriggered = false; 
+			
+			CreateCombatZone(); // 나중에 배틀세션 기능 점검 끝나면 해당 부분 제거할 것.
+
 		}
 	}
 }

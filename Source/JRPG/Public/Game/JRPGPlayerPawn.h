@@ -10,6 +10,7 @@ class UCameraComponent;
 class ULocomotionComponent;
 class UCombatZoneTrackerComponent;
 class ACombatCharacterActor;
+class UHPComponent;
 
 UCLASS()
 class JRPG_API AJRPGPlayerPawn : public ACharacter

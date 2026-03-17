@@ -115,12 +115,16 @@ bool UBattleSessionSubsystem::BuildParticipants(const FBattleSessionConfig &Conf
 			}
 		}
 	}
-	else if (Config.bPullPartyFromPartySubsystemIfPlayerSideEmpty&&GetWorld() && GetWorld()->GetGameInstance())
+	else if (Config.bPullPartyFromPartySubsystemIfPlayerSideEmpty && GetWorld() && GetWorld()->GetGameInstance())
 	{
 		if (UPartySubsystem* Party = GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>())
 		{
 			Party->GetPartyMembers(PlayerActors);
 		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("BattleSessionSub::BuildParticipants : PlayerSide None."))
 	}
 
 	for (const TWeakObjectPtr<AActor> &W : Config.EnemySide)
@@ -128,11 +132,13 @@ bool UBattleSessionSubsystem::BuildParticipants(const FBattleSessionConfig &Conf
 		if (AActor* A = W.Get())
 		{
 			EnemyActors.Add(A);
+			UE_LOG(LogTemp, Warning, TEXT("BattleSessionSub::BuildParticipants : Add to Enemy"))
 		}
 	}
 
 	if (PlayerActors.Num() <= 0 || EnemyActors.Num() <= 0)
 	{
+		UE_LOG(LogTemp, Error, TEXT("BattleSessionSub::BuildParticipants : 플레이어 파티 또는 적의 개수가 0 이하임."))
 		return false;
 	}
 
@@ -171,6 +177,7 @@ bool UBattleSessionSubsystem::StartBattle(const FBattleSessionConfig &Config, FG
 {
 	if (bBattleActive)
 	{
+		UE_LOG(LogTemp, Error, TEXT("BattleSessionSubsystem : 배틀 세션이 이미 시작 되었음"));
 		return false;
 	}
 
@@ -179,6 +186,8 @@ bool UBattleSessionSubsystem::StartBattle(const FBattleSessionConfig &Config, FG
 	if (!BuildParticipants(Config))
 	{
 		ResetSessionState();
+		UE_LOG(LogTemp, Error, TEXT("BattleSessionSubsystem : Config 인자가 제대로 등록되지 않음(인자 확인)"));
+
 		return false;
 	}
 
