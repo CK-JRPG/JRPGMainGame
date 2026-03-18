@@ -43,6 +43,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Combat")
 	TObjectPtr<UDataTable> CharacterTable;
 	
+	UPROPERTY(EditDefaultsOnly, Category="JRPG|Combat")
+	TArray<FName> DefaultPartyIds;
+
 	void OnMove(const FInputActionValue& Value);
 	void OnSprintStarted(const FInputActionValue& Value);
 	void OnSprintCompleted(const FInputActionValue& Value);
@@ -50,6 +53,7 @@ protected:
 	
 private:
 	//테스트 중 - CombatCharacterActor와 JRPGPlayerPawn의 브릿지 함수
+	void EnsureDefaultPartyFromTable();
 	void InitallizeCombatBridge();
 	UCombatCharacterDataAsset* FindCharacterDefById(FName CharId) const;
 	

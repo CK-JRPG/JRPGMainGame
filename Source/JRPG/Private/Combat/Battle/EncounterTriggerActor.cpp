@@ -53,95 +53,121 @@ void AEncounterTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 	if (bHasTriggered || !OtherActor)
 		return;
 	
+	AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(OtherActor);
+	if (!PlayerPawn)
+		return;
+	
 	bHasTriggered = true;
 	SearchCombatCharactersInRadius(OtherActor);
 }
 
 void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* OverlapActor)
 {
-	FBattleSessionConfig BattleConfig;
-	
-	if (!IsValid(OverlapActor) || !OverlapActor->IsA<AJRPGPlayerPawn>())
+	const AJRPGPlayerPawn* PlayerPawn  = Cast<AJRPGPlayerPawn>(OverlapActor);
+	if (!IsValid(PlayerPawn))
 		return;
-	
-	
-	if (UGameInstance* GameInstance = GetGameInstance())
-	{
-		if (UPartySubsystem* Registry = GameInstance->GetSubsystem<UPartySubsystem>())
-		{
-			TArray<AActor*> ActivePartyMembers;
-			Registry->GetPartyMembers(ActivePartyMembers);
-			
-			for (AActor* CombatActor : ActivePartyMembers)
-			{
-				if (const ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(CombatActor))
-				{
-					if (Participant->GetCombatTeam() == ECombatTeam::Player)
-					{
-						BattleConfig.PlayerSide.Add(CombatActor);
-						UE_LOG(LogTemp, Warning, TEXT("Encounter : 플레이어 측 캐릭터 추가 완료. Actor: %s"), *CombatActor->GetName());
-					}
-				}
-			}
-		}
-	}
-	
-	if (BattleConfig.PlayerSide.Num() == 0)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("Encounter : 레지스트리에 등록된 플레이어가 없음"));
-		//bHasTriggered = false;
-		//return;
-	}
-	
-	
-	
-	const FVector TriggerLocation = GetActorLocation();
-	float SearchRadius = 1000.0f;
-	
-	FCollisionShape Sphere = FCollisionShape::MakeSphere(SearchRadius);
-	
-	FCollisionObjectQueryParams ObjectQueryParams;
-	ObjectQueryParams.AddObjectTypesToQuery(ECC_Pawn); 
-	
-	TArray<FOverlapResult> ActiveEnemiesResults;
-	
-	bool bHasOverlap = GetWorld()->OverlapMultiByObjectType(
-		ActiveEnemiesResults, 
-		TriggerLocation, 
-		FQuat::Identity, 
-		ObjectQueryParams, 
-		Sphere
-	);
-	if (bHasOverlap)
-	{
-		// TODO : 적 캐릭터 감지 개선 : 각 캐릭터당 한번만 감지되도록 바꿔야함.
-		//반경 내에 스캔된 적 COnfig에 추가하기
-		for (const FOverlapResult& Results : ActiveEnemiesResults)
-		{
-			if (AActor* ActiveEnemy = Results.GetActor())
-			{
-				if (const ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(ActiveEnemy))
-				{
-					// 팀이 Enemy이고 HP가 유효한지 검증
-					if (Participant->GetCombatTeam() == ECombatTeam::Enemy && Participant->GetHP() != nullptr)
-					{
-						BattleConfig.EnemySide.Add(ActiveEnemy);
-						UE_LOG(LogTemp, Warning, TEXT("Encounter : 적 측 캐릭터 추가 완료. Actor: %d"), BattleConfig.EnemySide.Num());
 
-					}
-				}
-			}
-			
-		}
-	}
-		
+	FBattleSessionConfig BattleConfig;
+	TSet<AActor*> AddedActors;
 	
-	if (BattleConfig.EnemySide.Num() == 0)
+	
+	UGameInstance* GI = GetGameInstance();
+	UCombatCharacterRegistrySubsystem* Registry = GI ? GI->GetSubsystem<UCombatCharacterRegistrySubsystem>() : nullptr;
+	UPartySubsystem* PartySys = GI ? GI->GetSubsystem<UPartySubsystem>() : nullptr;
+	
+	
+	if (!Registry || !PartySys)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Encounter : 주변에 적이 없음"));
+		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : Registry 또는 Party 서브시스템이 없음"));
 		bHasTriggered = false;
 		return;
 	}
+	
+	if (!PlayerPawn->CurrentCharacterId.IsNone())
+	{
+		ACombatCharacterActor* CurrentCombatChar = Cast<ACombatCharacterActor>(Registry->FindById(PlayerPawn->CurrentCharacterId));
+		if (CurrentCombatChar)
+		{
+			if (ICombatParticipantInterface *Particpant = Cast<ICombatParticipantInterface>(CurrentCombatChar))
+			{
+				if (Particpant->GetCombatTeam() == ECombatTeam::Player && Particpant->GetHP() && !Particpant->GetHP()->IsDead())
+				{
+					BattleConfig.PlayerSide.Add(CurrentCombatChar);
+					AddedActors.Add(CurrentCombatChar);
+					UE_LOG(LogTemp, Warning, TEXT("EncounterTrigger : 플레이어 캐릭터 %s 추가"), *PlayerPawn->CurrentCharacterId.ToString());
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("EncounterTrigger : PlayerPawn의 CurrentCharacterId에 해당하는 CombatCharacterActor를 Registry에 없음"), *PlayerPawn->CurrentCharacterId.ToString());
+		}	
+	}
+	
+	TArray<AActor*> PartyMembers;
+	PartySys->GetPartyMembers(PartyMembers);
+	
+	for (AActor* Member : PartyMembers)
+	{
+		if (!IsValid(Member) || AddedActors.Contains(Member))
+			continue;	
+		
+		if (ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(Member))
+		{
+			if (Participant->GetCombatTeam() == ECombatTeam::Player && Participant->GetHP() && !Participant->GetHP()->IsDead())
+			{
+				BattleConfig.PlayerSide.Add(Member);
+				AddedActors.Add(Member);
+				UE_LOG(LogTemp, Warning, TEXT("EncounterTrigger : 파티 멤버캐릭터  %s 추가"), *Member->GetName());
+			}
+		}
+	}
+	
+	if (BattleConfig.PlayerSide.Num()==0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EncounterTrigger : 래지스트리에 등록가능한 플레이어 파티원이 없음"));
+		bHasTriggered = false;
+		return;
+	}
+	
+	
+	
+	// 적감지
+	const FVector TriggerLocation = GetActorLocation();
+	const float SearchRadius = 1000.f; 
+	
+	FCollisionShape Sphere = FCollisionShape::MakeSphere(SearchRadius);
+	FCollisionObjectQueryParams QueryParams;
+	QueryParams.AddObjectTypesToQuery(ECC_Pawn);
+	
+	TArray<FOverlapResult> OverlapResults;
+	GetWorld()->OverlapMultiByObjectType(OverlapResults, TriggerLocation, FQuat::Identity, QueryParams, Sphere);
+	
+	//콜리전 감지 중복방지
+	for (const FOverlapResult& Result : OverlapResults)
+	{
+		AActor* Candidate = Result.GetActor();
+		if (!IsValid(Candidate) || AddedActors.Contains(Candidate))
+			continue;
+		
+		if (ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(Candidate))
+		{
+			if (Participant->GetCombatTeam() == ECombatTeam::Enemy && Participant->GetHP() && !Participant->GetHP()->IsDead())
+			{
+				BattleConfig.EnemySide.Add(Candidate);
+				AddedActors.Add(Candidate);
+				UE_LOG(LogTemp, Warning, TEXT("EncounterTrigger : 적 캐릭터 %s 추가"), *Candidate->GetName());
+			}
+		}
+	}
+	
+	if (BattleConfig.PlayerSide.Num()==0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EncounterTrigger: 주변에 적이 없음"));
+		bHasTriggered = false;
+		return;
+	}
+	
 	
 	ReadyforBattleSession(BattleConfig);
 }
@@ -150,26 +176,28 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 
 void AEncounterTriggerActor::ReadyforBattleSession(const FBattleSessionConfig& Config)
 {
-	if (UBattleSessionSubsystem* BattleSession = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+	UBattleSessionSubsystem* BattleSession = GetWorld()->GetSubsystem<UBattleSessionSubsystem>();
+	
+	if (!BattleSession)
 	{
-		FGuid SessionID;
-		bool bSuccess = BattleSession->StartBattle(Config, SessionID);
-		
-		if (bSuccess)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("Encounter : 배틀 세션 시작 성공. SessionID: %s"), *SessionID.ToString());
-			TriggerVolume->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			CreateCombatZone();
-		}
-		
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("Encounter : 배틀 세션 시작 실패"));
-			bHasTriggered = false; 
-			
-			CreateCombatZone(); // 나중에 배틀세션 기능 점검 끝나면 해당 부분 제거할 것.
-
-		}
+		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : BattleSessionSubsystem이 존재하지 않음"));
+		bHasTriggered = false;
+		return;
+	}
+	
+	FGuid SessionID;
+	const bool bSuccess = BattleSession->StartBattle(Config, SessionID);
+	
+	if (bSuccess)
+	{
+		UE_LOG(LogTemp, Log,TEXT("EncounterTrigger : BattleSession 시작. SessionID = %s"), *SessionID.ToString());
+		TriggerVolume->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		CreateCombatZone();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : BattleSession 시작 실패"));
+		bHasTriggered = false;
 	}
 }
 
