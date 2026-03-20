@@ -22,7 +22,7 @@ ACombatCharacterActor::ACombatCharacterActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	CharacterComp =CreateDefaultSubobject<UCombatCharacterComponent>(TEXT("CombatCharacterComponent"));
+	CharacterComp = CreateDefaultSubobject<UCombatCharacterComponent>(TEXT("CombatCharacterComponent"));
 
 	HPComp = CreateDefaultSubobject<UHPComponent>(TEXT("HPComponent"));
 	APComp = CreateDefaultSubobject<UAPComponent>(TEXT("APComponent"));
