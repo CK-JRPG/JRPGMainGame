@@ -6,7 +6,7 @@
 #include "JRPGCompanionPawn.generated.h"
 
 class ULocomotionComponent;
-class UCombatZoneTrackerComponent;
+//class UCombatZoneTrackerComponent;
 class ACombatCharacterActor;
 
 UCLASS()

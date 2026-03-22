@@ -74,12 +74,12 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 	
 	UGameInstance* GI = GetGameInstance();
 	
-	UPartyActorSpawnSubsystem *PartySpawnSub = GI ? GI->GetSubsystem<UPartyActorSpawnSubsystem>() : nullptr;
+	//UPartyActorSpawnSubsystem *PartySpawnSub = GI ? GI->GetSubsystem<UPartyActorSpawnSubsystem>() : nullptr;
 	UCombatCharacterRegistrySubsystem* Registry = GI ? GI->GetSubsystem<UCombatCharacterRegistrySubsystem>() : nullptr;
 	UPartySubsystem* PartySys = GI ? GI->GetSubsystem<UPartySubsystem>() : nullptr;
 	
 	
-	if (!Registry || !PartySys || !PartySpawnSub)
+	if (!Registry || !PartySys )
 	{
 		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : Registry 또는 Party, PartyActorSpawn 서브시스템이 없음"));
 		bHasTriggered = false;

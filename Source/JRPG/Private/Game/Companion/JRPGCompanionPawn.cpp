@@ -3,7 +3,7 @@
 #include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
-#include "Combat/Session/CombatZoneTrackerComponent.h"
+//#include "Combat/Session/CombatZoneTrackerComponent.h"
 
 AJRPGCompanionPawn::AJRPGCompanionPawn(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UJRPGCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -11,7 +11,7 @@ AJRPGCompanionPawn::AJRPGCompanionPawn(const FObjectInitializer& ObjectInitializ
 	PrimaryActorTick.bCanEverTick = false;
 
 	Locomotion = CreateDefaultSubobject<ULocomotionComponent>(TEXT("Locomotion"));
-	ZoneTracker = CreateDefaultSubobject<UCombatZoneTrackerComponent>(TEXT("CombatZoneTracker"));
+	//ZoneTracker = CreateDefaultSubobject<UCombatZoneTrackerComponent>(TEXT("CombatZoneTracker"));
 	
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	
