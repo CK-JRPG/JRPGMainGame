@@ -1,7 +1,6 @@
 ﻿#include "Combat/Characters/CombatCharacterActor.h"
 
 #include "Combat/Characters/CombatCharacterComponent.h"
-#include "Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 #include "Combat/Battle/CombatActionComponent.h"
 
 #include "Combat/Skills/SkillComponent.h"
@@ -9,9 +8,11 @@
 #include "Combat/Groggy/GroggyComponent.h"
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/AI/CombatAIActionSelectorComponent.h"
+#include "Combat/AI/CombatCharacterActorAIController.h"
 #include "Combat/Items/CombatItemComponent.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Motion/CombatMotionComponent.h"
+#include "Combat/Movement/LocomotionComponent.h"
 
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
@@ -22,6 +23,9 @@ ACombatCharacterActor::ACombatCharacterActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
+	AIControllerClass = ACombatCharacterActorAIController::StaticClass();
+	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
+	
 	CharacterComp = CreateDefaultSubobject<UCombatCharacterComponent>(TEXT("CombatCharacterComponent"));
 
 	HPComp = CreateDefaultSubobject<UHPComponent>(TEXT("HPComponent"));
@@ -38,6 +42,7 @@ ACombatCharacterActor::ACombatCharacterActor()
 	ItemComp = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
 	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
+	LocomotionComp = CreateDefaultSubobject<ULocomotionComponent>(TEXT("LocomotionComponent"));
 }
 
 void ACombatCharacterActor::BeginPlay()

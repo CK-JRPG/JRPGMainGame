@@ -4,6 +4,8 @@
 #include "GameFramework/PlayerController.h"
 #include "JRPGPlayerController.generated.h"
 
+class AJRPGCompanionPawn;
+class ACombatCharacterActor;
 class UInputMappingContext;
 class UInputAction;
 class UCombatCharacterDataAsset;

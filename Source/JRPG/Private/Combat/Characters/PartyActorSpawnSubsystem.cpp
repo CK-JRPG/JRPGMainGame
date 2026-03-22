@@ -3,10 +3,10 @@
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
 #include "Combat/Characters/CharacterRuntimeSubsystem.h"  // 추가
-#include "Combat/Characters/CombatCharacterComponent.h"
-#include "Combat/Characters/CombatCharacterDataAsset.h"
+#include "Combat/Characters/CombatPlayerController.h"
 #include "Engine/AssetManager.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
+#include "GameFramework/GameModeBase.h"
 
 void UPartyActorSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -274,6 +274,16 @@ void UPartyActorSpawnSubsystem::DespawnCombatActors(const TArray<ACombatCharacte
 	{
 		if (!IsValid(Actor)) continue;
 
+		// AI 컨트롤러가 있으면 먼저 제거
+		if (AController* C = Actor->GetController())
+		{
+			if (!C->IsPlayerController())
+			{
+				C->UnPossess();
+				C->Destroy();
+			}
+		}
+		
 		// SpawnedActorMap에서 제거
 		for (auto It = SpawnedActorMap.CreateIterator(); It; ++It)
 		{
@@ -330,6 +340,7 @@ void UPartyActorSpawnSubsystem::EnterCombatMode(APlayerController* PC, const FNa
 	SetCombatPlayerController(PC);
 	SetOriginalPlayerCharacterID(LeaderCharacterID);
 	CachedFieldPawn = PC->GetPawn();
+	CachedFieldController = PC;
 
 	// JRPGPlayerPawn HiddenInGame으로 변경하고 콜리전 false
 	if (APawn* FieldPawn = CachedFieldPawn.Get())
@@ -357,16 +368,52 @@ void UPartyActorSpawnSubsystem::EnterCombatMode(APlayerController* PC, const FNa
 		}
 	}
 
-	//리더인  CombatCharacterActor에 빙의시킴
-	PC->Possess(LeaderActor);
+	// 리더 CombatCharacterActor의 기존 AI 컨트롤러 제거
+	if (AController* ExistingAI = LeaderActor->GetController())
+	{
+		ExistingAI->UnPossess();
+		ExistingAI->Destroy();
+	}
 
-	UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::EnterCombatMode : 전투 모드 진입 완료 → %s"), *LeaderCharacterID.ToString());
+	// CombatPlayerController 스폰 및 컨트롤러 스왑
+	{
+		UWorld* World = GetWorld();
+		FActorSpawnParameters SpawnParams;
+		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+		APlayerController* CombatPC = World->SpawnActor<APlayerController>(ACombatPlayerController::StaticClass(), FTransform::Identity, SpawnParams);
+
+		if (CombatPC)
+		{
+			// 필드 컨트롤러 → 전투 컨트롤러로 LocalPlayer 스왑
+			if (AGameModeBase* GM = World->GetAuthGameMode())
+			{
+				GM->SwapPlayerControllers(PC, CombatPC);
+			}
+
+			CombatPC->Possess(LeaderActor);
+			SetCombatPlayerController(CombatPC);
+
+			UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::EnterCombatMode : CombatPlayerController 스왑 완료 → %s"), *LeaderCharacterID.ToString());
+			return;
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem::EnterCombatMode : CombatPlayerController 스폰 실패. 필드 PC로 폴백."));
+		}
+	}
+
+	// 폴백 : CombatPlayerController 스폰 실패 시 기존 필드 PC 사용
+	PC->Possess(LeaderActor);
+	SetCombatPlayerController(PC);
+
+	UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::EnterCombatMode : 전투 모드 진입 완료 (필드 PC 폴백) -> %s"), *LeaderCharacterID.ToString());
 }
 
 void UPartyActorSpawnSubsystem::OnPartyMemberChanged(const FName& NewCharacterID)
 {
 	UBattleSessionSubsystem* BattleSession = GetWorld()->GetSubsystem<UBattleSessionSubsystem>();
-	if (!BattleSession->IsBattleActive())
+	if (!BattleSession || !BattleSession->IsBattleActive())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem : 필드 상태에서 조작 캐릭터 전환 불가."));
 		return;
@@ -387,7 +434,24 @@ void UPartyActorSpawnSubsystem::OnPartyMemberChanged(const FName& NewCharacterID
 		return;
 	}
 
+	if (AController* ExistingAI = TargetActor->GetController())
+	{
+		if (!ExistingAI->IsPlayerController())
+		{
+			ExistingAI->UnPossess();
+			ExistingAI->Destroy();
+		}
+	}
+
+	APawn* OldPawn = CombatPlayerController->GetPawn();
+
 	CombatPlayerController->UnPossess();
+
+	if (IsValid(OldPawn))
+	{
+		OldPawn->SpawnDefaultController();
+	}
+
 	CombatPlayerController->Possess(TargetActor);
 	CurrentPlayerCharacterID = NewCharacterID;
 
@@ -402,6 +466,36 @@ void UPartyActorSpawnSubsystem::OnBattleEnded(EBattleEndReason Reason)
 		return;
 	}
 
+	// 다른 캐릭터에 빙의 중이면 주인공한테 카메라 복귀 부분
+	if (CurrentPlayerCharacterID != OriginalPlayerCharacterID && CombatPlayerController)
+	{
+		ACombatCharacterActor* LeaderActor = FindActorByCharacterID(OriginalPlayerCharacterID);
+		if (LeaderActor)
+		{
+			// 현재 빙의 중인 캐릭터 해제 → AI 복원
+			APawn* OldPawn = CombatPlayerController->GetPawn();
+			CombatPlayerController->UnPossess();
+			if (IsValid(OldPawn))
+			{
+				OldPawn->SpawnDefaultController();
+			}
+
+			// 리더의 기존 AI 제거 후 플레이어 빙의 → OnPossess에서 카메라 타겟 자동 갱신
+			if (AController* ExistingAI = LeaderActor->GetController())
+			{
+				if (!ExistingAI->IsPlayerController())
+				{
+					ExistingAI->UnPossess();
+					ExistingAI->Destroy();
+				}
+			}
+			CombatPlayerController->Possess(LeaderActor);
+			CurrentPlayerCharacterID = OriginalPlayerCharacterID;
+
+			UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::OnBattleEnded : 주인공 캐릭터에 카메라 복귀 완료 -> %s"), *OriginalPlayerCharacterID.ToString());
+		}
+	}
+	
 	// CombatCharacterActor에서 빙의 해제
 	if (CombatPlayerController)
 	{
@@ -427,15 +521,37 @@ void UPartyActorSpawnSubsystem::OnBattleEnded(EBattleEndReason Reason)
 		}
 	}
 	
+	// 전투 전용 컨트롤러 -> 필드 컨트롤러로 스왑 복원
+	APlayerController* ControllerToRestoreWith = nullptr;
+
+	if (CachedFieldController && CombatPlayerController && CombatPlayerController != CachedFieldController)
+	{
+		// CombatPlayerController를 사용했으므로 스왑 복원
+		if (AGameModeBase* GM = GetWorld()->GetAuthGameMode())
+		{
+			GM->SwapPlayerControllers(CombatPlayerController, CachedFieldController.Get());
+		}
+		ControllerToRestoreWith = CachedFieldController.Get();
+
+		// 전투 컨트롤러 파괴
+		CombatPlayerController->Destroy();
+		UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::OnBattleEnded : CombatPlayerController -> 필드 컨트롤러 스왑 복원."));
+	}
+	else
+	{
+		// 폴백 : 같은 PC를 사용한 경우
+		ControllerToRestoreWith = CombatPlayerController.Get();
+	}
+	
 	// JRPGPlayerPawn으로 다시 복원 시키고 JRPGPlayerPawn으로 빙의
-	if (IsValid(CachedFieldPawn) && CombatPlayerController)
+	if (IsValid(CachedFieldPawn) && ControllerToRestoreWith)
 	{
 		APawn* FieldPawn = CachedFieldPawn.Get();
 		FieldPawn->SetActorHiddenInGame(false);
 		FieldPawn->SetActorEnableCollision(true);
 		FieldPawn->SetActorTickEnabled(true);
 
-		CombatPlayerController->Possess(FieldPawn);
+		ControllerToRestoreWith->Possess(FieldPawn);
 
 		UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::OnBattleEnded : PlayerPawn 빙의 복원 완료."));
 	}
@@ -456,6 +572,7 @@ void UPartyActorSpawnSubsystem::OnBattleEnded(EBattleEndReason Reason)
 
 	// 나머지 상태 초기화
 	CombatPlayerController     = nullptr;
+	CachedFieldController      = nullptr;
 	OriginalPlayerCharacterID  = NAME_None;
 	CurrentPlayerCharacterID   = NAME_None;
 	CachedFieldPawn            = nullptr;

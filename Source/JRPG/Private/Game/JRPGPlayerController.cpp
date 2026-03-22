@@ -3,12 +3,10 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
-#include "Combat/Camera/CameraRigActor.h"
+
 #include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Characters/CharacterRuntimeSubsystem.h"
-#include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
-#include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 
@@ -39,6 +37,20 @@ void AJRPGPlayerController::BeginPlay()
 void AJRPGPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
+	
+	// 필드 IMC 복원 (전투 종료 후 컨트롤러 스왑 복귀 시 필요)
+	if (ULocalPlayer* LP = GetLocalPlayer())
+	{
+		if (UEnhancedInputLocalPlayerSubsystem* Subsys = LP->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+		{
+			Subsys->ClearAllMappings();
+			if (IMC_Default)
+			{
+				Subsys->AddMappingContext(IMC_Default, 0);
+			}
+		}
+	}
+	
 	UpdateCameraTargetForPawn(InPawn);
 }
 
@@ -252,9 +264,6 @@ void AJRPGPlayerController::OnLook(const FInputActionValue& Value)
 		AddPitchInput(LookAxisVector.Y * LookSensitivityY);
 	}
 }
-
-
-
 
 void AJRPGPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
 {
