@@ -27,9 +27,7 @@ struct FCharacterSpawnEntry
 
 };
 
-/**
- * 
- */
+
 UCLASS()
 class JRPG_API UPartyActorSpawnSubsystem : public UWorldSubsystem
 {
@@ -50,17 +48,23 @@ public:
 	void PreloadAssets(const TArray<FName>& PartyIds);
 
 
-	// 비동기 스폰 — 인카운터 연출 시작과 동시에 호출
+	// 비동기 스폰 — 인카운터에서 호출
 	void AsyncSpawnCombatActors(
-		const TArray<FName>& PartyIds,
+		const TArray<FName>& PartyIds, const FTransform& SpawnOrigin,
 		TFunction<void(TArray<ACombatCharacterActor*>)> OnComplete
 	);
+	
+	void OnPartyChanged(const FName& NewCharacterID);
 
-	// 전투 종료 시 일괄 Destroy
+	// 전투 종료 시 CombatChracterActor는 모두 파괴함.
 	void DespawnCombatActors(const TArray<ACombatCharacterActor*>& Actors);
 
-	// 파티 변경 시 재스폰 트리거 (전투 중이 아닐 때만)
-	void OnPartyChanged(const TArray<FName>& NewIds);
+	void SetOriginalPlayerCharacterID(const FName& CharacterID);
+	void SetCombatPlayerController(APlayerController* InController);
+
+	void OnBattleEnded();
+
+	FName GetCurrentPlayerCharacterID() const { return CurrentPlayerCharacterID; }
 
 
 	UFUNCTION()
@@ -77,10 +81,12 @@ private:
 
 	TArray<FSoftObjectPath> CollectSoftPaths(const TArray<FName>& PartyIds) const;
 
-	bool IsInBattle() const;
 
 private:
 
+	UPROPERTY()
+	TObjectPtr<APlayerController> CombatPlayerController;
+	
 	UPROPERTY()
 	TMap<FName, FCharacterSpawnEntry> SpawnEntryMap;
 
@@ -92,5 +98,7 @@ private:
 
 	TSet<FName> PendingSpawnIds;	//중복 스폰방지
 
-	
+	FName OriginalPlayerCharacterID;
+	FName CurrentPlayerCharacterID;
+
 };
