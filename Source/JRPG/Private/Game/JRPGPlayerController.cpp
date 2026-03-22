@@ -3,6 +3,8 @@
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
+#include "Combat/Camera/CameraRigActor.h"
+#include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
@@ -25,6 +27,13 @@ void AJRPGPlayerController::BeginPlay()
 		}
 	}
 	
+	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
+	{
+		if (AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(GetPawn()))
+		{
+			CamSub->SetTarget(PlayerPawn);
+		}
+	}
 	
 	EnsureDefaultPartyFromTable();
 	InitallizeCombatBridge();
@@ -232,6 +241,20 @@ void AJRPGPlayerController::OnLook(const FInputActionValue& Value)
 	{
 		AddPitchInput(LookAxisVector.Y);
 	}
+	
+	// 현재 플레이어 카메라 좌우 회전 수정중 : 가만히 있을 때는 문제가 없지만 움직일 떼 카메라 회전하면 캐릭터가 그 방향을 감.
+	// 아래 코드로 적용하면 캐릭터와 카메라 따로 노는 형상 발생, 이 부분 수정해야함.
+	// 이 부분 수정 완료 후 적용되면 ACameraRigActor::Tick(float DeltaTime)에서 SetActorRotation 없애야 함.
+	/*UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>();
+	if (!CamSub) return;
+	
+	ACameraRigActor* CameraRig = CamSub->GetCameraRig();
+	if (!CameraRig) return;
+	
+	FRotator CurrentRot = CameraRig->GetActorRotation();
+	CurrentRot.Yaw += LookAxisVector.X;
+	CurrentRot.Pitch = FMath::Clamp(CurrentRot.Pitch - LookAxisVector.Y, -60.0f, 20.0f);
+	CameraRig->SetActorRotation(CurrentRot);*/
 }
 
 
