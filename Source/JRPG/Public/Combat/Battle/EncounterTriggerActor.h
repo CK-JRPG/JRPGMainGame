@@ -46,5 +46,6 @@ private:
 	void SearchCombatCharactersInRadius(const AActor* OverlapActor);
 	void ReadyforBattleSession(const FBattleSessionConfig& Config);
 	void CreateCombatZone();
+	void OnPlayerApproach();
 	
 };
