@@ -5,10 +5,12 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Engine/StreamableManager.h"
+#include "Combat/Battle/BattleSessionTypes.h"
 #include "PartyActorSpawnSubsystem.generated.h"
 
 
 class ACombatCharacterActor;
+class AJRPGCompanionPawn;
 
 USTRUCT(BlueprintType)
 struct FCharacterSpawnEntry
@@ -24,6 +26,9 @@ struct FCharacterSpawnEntry
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FVector SpawnOffset = FVector::ZeroVector;
+
+	UPROPERTY(EditAnywhere)       
+	TSoftClassPtr<AJRPGCompanionPawn> FieldPawnClass;
 
 };
 
@@ -46,18 +51,24 @@ public:
 
 
 	void PreloadAssets(const TArray<FName>& PartyIds);
+	void SpawnFieldCompanions(const FVector& LeaderLocation, const FName& LeaderCharacterID);
+	void DespawnFieldCompanions();
 
+	TArray<AJRPGCompanionPawn*> GetSpawnedCompanions() const;
 
-	// 비동기 스폰 — 인카운터에서 호출
+	// 비동기 스폰임 : 인카운터에서 호출
 	void AsyncSpawnCombatActors(
 		const TArray<FName>& PartyIds, const FTransform& SpawnOrigin,
 		TFunction<void(TArray<ACombatCharacterActor*>)> OnComplete
 	);
 	
-	void OnPartyChanged(const FName& NewCharacterID);
+	void OnPartyMemberChanged(const FName& NewCharacterID);
 
 	// 전투 종료 시 CombatChracterActor는 모두 파괴함.
 	void DespawnCombatActors(const TArray<ACombatCharacterActor*>& Actors);
+
+	// 전투 모드 전환시키기 필드 폰 숨기고 CombatCharacterActor 빙의
+	void EnterCombatMode(APlayerController* PC, const FName& LeaderCharacterID);
 
 	void SetOriginalPlayerCharacterID(const FName& CharacterID);
 	void SetCombatPlayerController(APlayerController* InController);
@@ -88,17 +99,28 @@ private:
 	TObjectPtr<APlayerController> CombatPlayerController;
 	
 	UPROPERTY()
+	TMap<FName, TObjectPtr<AJRPGCompanionPawn>> SpawnedCompanionMap;
+	
+	UPROPERTY()
 	TMap<FName, FCharacterSpawnEntry> SpawnEntryMap;
 
 	UPROPERTY()
 	TMap<FName, TObjectPtr<ACombatCharacterActor>> SpawnedActorMap;
 
-	//Streamable 핸들 — 사전 로드 유지용 (GC 방지)
-	TSharedPtr<FStreamableHandle> PreloadHandle;
-
 	TSet<FName> PendingSpawnIds;	//중복 스폰방지
 
 	FName OriginalPlayerCharacterID;
 	FName CurrentPlayerCharacterID;
+
+	// 전투 진입 전 필드 폰 캐시용도(전투 끝나면 복구함)
+	UPROPERTY()
+	TObjectPtr<APawn> CachedFieldPawn;
+
+	// 배틀세션쪽 OnBattleEnded 델리게이트
+	void HandleBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);
+
+	//Streamable 핸들
+	TSharedPtr<FStreamableHandle> PreloadHandle;
+	TSharedPtr<FStreamableHandle> FieldPawnPreloadHandle;
 
 };

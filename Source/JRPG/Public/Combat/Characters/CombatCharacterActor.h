@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/Camera/CameraTargetInterface.h"
 #include "GameFramework/Character.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 #include "CombatCharacterActor.generated.h"
@@ -22,7 +23,7 @@ class UAPComponent;
 class USPComponent;
 
 UCLASS()
-class JRPG_API ACombatCharacterActor :public ACharacter, public ICombatParticipantInterface
+class JRPG_API ACombatCharacterActor :public ACharacter, public ICombatParticipantInterface, public ICameraTargetInterface
 {
 	GENERATED_BODY()
 
@@ -45,6 +46,8 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UHPComponent> HPComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UAPComponent> APComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<USPComponent> SPComp;
+	
+	
 
 	virtual FName GetCombatantId() const override;
 	virtual ECombatTeam GetCombatTeam() const override;
@@ -56,6 +59,14 @@ public:
 
 	virtual UActorComponent* GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const override;
 
+	
+	virtual FVector  GetCameraTargetLocation()  const override;
+	virtual FRotator GetCameraTargetRotation()  const override;
+	virtual float    GetCameraTargetArmLength() const override;
+	
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "100.0"))
+	float CombatArmLength = 300.f;
+	
 protected:
 
 	virtual void BeginPlay() override;

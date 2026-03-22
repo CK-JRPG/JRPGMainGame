@@ -20,8 +20,8 @@ public:
 	UPROPERTY(VisibleAnywhere, Category="JRPG")
 	TObjectPtr<ULocomotionComponent> Locomotion;
 
-	UPROPERTY(VisibleAnywhere, Category="JRPG")
-	TObjectPtr<UCombatZoneTrackerComponent> ZoneTracker;
+	//UPROPERTY(VisibleAnywhere, Category="JRPG")
+	//TObjectPtr<UCombatZoneTrackerComponent> ZoneTracker;
 	
 	// 캐릭터 전투 데이터 식별용 ID
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "JRPG|Combat")

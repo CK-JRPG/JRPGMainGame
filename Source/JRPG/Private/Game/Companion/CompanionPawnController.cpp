@@ -23,7 +23,7 @@ void ACompanionPawnController::OnPossess(APawn* InPawn)
 			MoveComp->bUseRVOAvoidance = false; 
 		}
 	}
-
+	
 	if (UCrowdFollowingComponent* CrowdComp = Cast<UCrowdFollowingComponent>(GetPathFollowingComponent()))
 	{
 		CrowdComp->SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::High);

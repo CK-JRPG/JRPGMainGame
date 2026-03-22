@@ -1,8 +1,10 @@
 ﻿#include "Game/Companion/JRPGCompanionPawn.h"
 
 #include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
+#include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
+#include "Game/Companion/CompanionPawnController.h"
 //#include "Combat/Session/CombatZoneTrackerComponent.h"
 
 AJRPGCompanionPawn::AJRPGCompanionPawn(const FObjectInitializer& ObjectInitializer)
@@ -13,6 +15,7 @@ AJRPGCompanionPawn::AJRPGCompanionPawn(const FObjectInitializer& ObjectInitializ
 	Locomotion = CreateDefaultSubobject<ULocomotionComponent>(TEXT("Locomotion"));
 	//ZoneTracker = CreateDefaultSubobject<UCombatZoneTrackerComponent>(TEXT("CombatZoneTracker"));
 	
+	AIControllerClass = ACompanionPawnController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	
 	bUseControllerRotationPitch = false;
@@ -30,15 +33,13 @@ AJRPGCompanionPawn::AJRPGCompanionPawn(const FObjectInitializer& ObjectInitializ
 void AJRPGCompanionPawn::UpdateCharacter(FName NewCharId)
 {
 	CurrentCharacterId = NewCharId;
-	
 	// TODO: AnimInstance나 메쉬, 스켈레톤 변경 로직을 여기에 구현
 }
 
 ACombatCharacterActor* AJRPGCompanionPawn::GetCombatCharData() const
 {
-	UCombatCharacterRegistrySubsystem* RegistrySubsystem = GetGameInstance()->GetSubsystem<UCombatCharacterRegistrySubsystem>();
-	if (!RegistrySubsystem) 	
-		return nullptr;
-	
-	return Cast<ACombatCharacterActor>(RegistrySubsystem->FindById(CurrentCharacterId));
+	if (UWorld* World = GetWorld())
+		if (UPartyActorSpawnSubsystem* SpawnSub = World->GetSubsystem<UPartyActorSpawnSubsystem>())
+			return SpawnSub->FindActorByCharacterID(CurrentCharacterId);
+	return nullptr;
 }

@@ -1,6 +1,7 @@
 ﻿#include "Game/JRPGPlayerPawn.h"
 
 #include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
+#include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Session/CombatZoneTrackerComponent.h"
@@ -50,9 +51,10 @@ void AJRPGPlayerPawn::UpdateCharacter(FName NewCharId)
 
 ACombatCharacterActor* AJRPGPlayerPawn::GetCombatCharData() const
 {
-	UCombatCharacterRegistrySubsystem* RegistrySubsystem = GetGameInstance()->GetSubsystem<UCombatCharacterRegistrySubsystem>();
-	if (!RegistrySubsystem) 	
-		return nullptr;
-	
-	return Cast<ACombatCharacterActor>(RegistrySubsystem->FindById(CurrentCharacterId));
+	// 전투 중에만 유효. 필드 상태에서는 SpawnedActorMap에 없으므로 nullptr 반환.
+
+	if (UWorld* World = GetWorld())
+		if (UPartyActorSpawnSubsystem* SpawnSub = World->GetSubsystem<UPartyActorSpawnSubsystem>())
+			return SpawnSub->FindActorByCharacterID(CurrentCharacterId);
+	return nullptr;
 }

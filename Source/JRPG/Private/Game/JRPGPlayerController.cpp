@@ -5,8 +5,11 @@
 #include "InputActionValue.h"
 #include "Combat/Camera/CameraRigActor.h"
 #include "Combat/Camera/CameraSubsystem.h"
+#include "Combat/Characters/CharacterRuntimeSubsystem.h"
 #include "Combat/Characters/CombatCharacterComponent.h"
+#include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
+#include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 
 #include "Game/JRPGPlayerPawn.h"
@@ -39,8 +42,6 @@ void AJRPGPlayerController::BeginPlay()
 	InitallizeCombatBridge();
 }
 
-//TODO : 이 부분은 나중에 게임 로드 시스템에서 관리하는게 맞는거 같았지만, 지금은 테스트 때문에 넣어둠. 또한, 각 Pawn의 컨트롤러 변경(빙의)관련해서도 고려해야함.
-
 void AJRPGPlayerController::EnsureDefaultPartyFromTable()
 {
 	if (!IsValid(CharacterTable))
@@ -49,7 +50,7 @@ void AJRPGPlayerController::EnsureDefaultPartyFromTable()
 		return;
 	}
 	
-	UPartySubsystem * PartySys = GetGameInstance()->GetSubsystem<UPartySubsystem>();
+	UPartySubsystem* PartySys = GetGameInstance()->GetSubsystem<UPartySubsystem>();
 	if (!PartySys)
 		return;
 	
@@ -88,88 +89,78 @@ void AJRPGPlayerController::EnsureDefaultPartyFromTable()
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("Bridge: 기본 파티 설정 실패."));
-	}}
+	}
+}
 
 void AJRPGPlayerController::InitallizeCombatBridge()
 {
 	UPartySubsystem* PartySubsystem = GetGameInstance()->GetSubsystem<UPartySubsystem>();
-	UCombatCharacterRegistrySubsystem* Registry = GetGameInstance()->GetSubsystem<UCombatCharacterRegistrySubsystem>();
-	
-	if (!PartySubsystem || !Registry) 
-		return;
-	
-	
-	UE_LOG(LogTemp, Error, TEXT("Bridge : 현재 파티원 수 = %d"), PartySubsystem->GetPartyIds().Num());
-		
+	if (!PartySubsystem) return;
+ 
+	UPartyActorSpawnSubsystem* SpawnSub   = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>();
+	UCharacterRuntimeSubsystem* CharacterRuntime = GetGameInstance()->GetSubsystem<UCharacterRuntimeSubsystem>();
+ 
+	if (!SpawnSub || !CharacterRuntime) return;
 
-	
-	
-	// 현재 PartySub에 등록된 파티 ID가지고 와서 레지스트리에 있는지 검사하고서 
-	// 이후 없으면 스폰해서 레지스트리에 일단 임시로 등록함.
-	for (const FName& CharId : PartySubsystem->GetPartyIds())
+	const TArray<FName>& CharIds = PartySubsystem->GetPartyIds();
+	FName LeaderId = CharIds.Num() > 0 ? CharIds[0] : NAME_None;
+
+	for (const FName& CharId : CharIds)
 	{
-		if (IsValid(Registry->FindById(CharId))) 
+		FCharacterMappingRow* Row = FindMappingRowById(CharId);
+		if (!Row)
 		{
-			UE_LOG(LogTemp, Log, TEXT("Bridge : %s는 이미 런타임에 존재함. 스폰 생략."), *CharId.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("Bridge : [%s] MappingRow 없음. 스킵."), *CharId.ToString());
 			continue;
 		}
-		UCombatCharacterDataAsset* FoundDef = FindCharacterDefById(CharId);
-		if (!FoundDef)
+ 
+		if (!Row->CharacterAsset)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("Bridge : CharId[%s]에 해당하는 DataAsset을 CharacterTable에서 찾지 못함."), *CharId.ToString());
+			UE_LOG(LogTemp, Warning, TEXT("Bridge : [%s] CharacterAsset 없음. 스킵."), *CharId.ToString());
 			continue;
 		}
-
-		ACombatCharacterActor* BackCombatCharacter = GetWorld()->SpawnActorDeferred<ACombatCharacterActor>(
-			ACombatCharacterActor::StaticClass(),  
-			FTransform::Identity,
-			nullptr, 
-			nullptr, 
-			ESpawnActorCollisionHandlingMethod::AlwaysSpawn);
-		
-		
-		if (!IsValid(BackCombatCharacter))
-		{
-			UE_LOG(LogTemp, Error,
-				TEXT("Bridge: CombatCharacterActor 스폰 실패 (%s)"), *CharId.ToString());
-			continue;
-		}
-		
-		if (IsValid(BackCombatCharacter->CharacterComp))
-		{
-			BackCombatCharacter->CharacterComp->CharacterDef = FoundDef;
-		}
-		
-		BackCombatCharacter->FinishSpawning(FTransform::Identity);
-		BackCombatCharacter->SetActorHiddenInGame(true);
-		BackCombatCharacter->SetActorEnableCollision(false);
-
-		UE_LOG(LogTemp, Log,
-		   TEXT("Bridge: 파티 데이터 등록 완료 (%s)"), *CharId.ToString());
-		
+ 
+		//인카운터 클래스 등록
+		FCharacterSpawnEntry Entry;
+		Entry.CharacterID  = CharId;
+		Entry.ActorClass   = Row->CombatActorClass;
+		Entry.SpawnOffset  = Row->SpawnOffset;
+		Entry.FieldPawnClass = Row->FieldPawnClass;
+		SpawnSub->RegisterSpawnEntry(Entry);
+ 
+		// 스냅샷 초기화로 데이터 에셋에서 직접 읽기
+		const FCharacterBaseParams& P = Row->CharacterAsset->BaseParams;
+		CharacterRuntime->InitializeSnapshotIfAbsent(CharId, P.MaxHP, P.MaxAP, P.MaxSP);
+ 
+		UE_LOG(LogTemp, Log, TEXT("Bridge : [%s] 등록 완료. HP=%.1f AP=%d SP=%d"),
+			*CharId.ToString(), P.MaxHP, P.MaxAP, P.MaxSP);
 	}
 	
-	//연결-데이터테이블에서 첫번쨰로
+	if (APawn* PlayerPawn = GetPawn())
+		SpawnSub->SpawnFieldCompanions(PlayerPawn->GetActorLocation(), LeaderId);
+ 
+	// PlayerPawn에 어태커(주인공)캐릭터 ID 연결
 	if (AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(GetPawn()))
 	{
-		const TArray<FName>& CharIds = PartySubsystem->GetPartyIds();
 		if (CharIds.Num() > 0 && PlayerPawn->CurrentCharacterId.IsNone())
 		{
 			PlayerPawn->UpdateCharacter(CharIds[0]);
-			UE_LOG(LogTemp, Log, TEXT("Bridge: PlayerPawn 리드 캐릭터 설정 → %s"), *CharIds[0].ToString());
+			UE_LOG(LogTemp, Log, TEXT("Bridge: PlayerPawn 리드 캐릭터 → %s"), *CharIds[0].ToString());
 		}
 	}
 }
 
 UCombatCharacterDataAsset* AJRPGPlayerController::FindCharacterDefById(FName CharId) const
 {
-	if (!IsValid(CharacterTable))
-		return nullptr;
-	
-	FCharacterMappingRow* Row = CharacterTable->FindRow<FCharacterMappingRow>(CharId, TEXT(" "));
+	FCharacterMappingRow* Row = FindMappingRowById(CharId);
 	return Row ? Row->CharacterAsset : nullptr;
 }
 
+FCharacterMappingRow* AJRPGPlayerController::FindMappingRowById(FName CharId) const
+{
+	if (!IsValid(CharacterTable)) return nullptr;
+	return CharacterTable->FindRow<FCharacterMappingRow>(CharId, TEXT("FindMappingRowById"));
+}
 
 
 //------Input------
