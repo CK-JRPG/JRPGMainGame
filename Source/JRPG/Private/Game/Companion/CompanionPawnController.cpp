@@ -27,14 +27,13 @@ void ACompanionPawnController::OnPossess(APawn* InPawn)
 	if (UCrowdFollowingComponent* CrowdComp = Cast<UCrowdFollowingComponent>(GetPathFollowingComponent()))
 	{
 		CrowdComp->SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::High);
-		CrowdComp->SetCrowdSeparationWeight(10.0f); // 겹침 방지 강하게
+		CrowdComp->SetCrowdSeparationWeight(10.0f);
 	}
 
 	// ---------------------------------------------------------
 	// 자기 자신의 Party Index 자동 부여 로직
 	// ---------------------------------------------------------
 	TArray<AActor*> FoundControllers;
-	// 월드에 존재하는 모든 ACompanionPawnController를 찾습니다.
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACompanionPawnController::StaticClass(), FoundControllers);
 	
 	SetPartyIndex(FoundControllers.Num());
@@ -61,8 +60,7 @@ void ACompanionPawnController::Tick(float DeltaTime)
 			return;
 		}
 	}
-
-	// 리더가 확보된 상태에서만 아래 로직 실행
+	
 	SyncMovementSpeedWithLeader();
 
 	switch (CurrentState)
@@ -115,17 +113,17 @@ void ACompanionPawnController::OnEnterState(ECompanionAdventureState State)
 		break;
 
 	case ECompanionAdventureState::FollowLeader:
-		// 쫓아가기 시작할 때의 반응 대사("같이 가!") 등 추가 가능
+
 		break;
 
 	case ECompanionAdventureState::TeleportCatchUp:
-		// 1. 카메라에 보이지 않을 때만 텔레포트 시도 (눈앞에서 뿅 나타나는 현상 방지)
+		// 1. 카메라에 보이지 않을 때만 텔레포트 시도
 		if (!IsInCameraFrustum())
 		{
 			FVector FormationPos = GetFormationLocation();
 			GetPawn()->SetActorLocation(FormationPos);
 		}
-		// 텔레포트 후 즉시 대기 상태로
+
 		SetAdventureState(ECompanionAdventureState::Idle);
 		break;
 
@@ -203,7 +201,6 @@ void ACompanionPawnController::SyncMovementSpeedWithLeader()
 	if (LeaderChar && MyChar)
 	{
 		// 리더의 걷기/뛰기 최고 속도를 동료 AI에게도 똑같이 적용
-		// TODO: LocomotionComponent에 SetSprint 같은 함수가 있다면 그걸 호출하는 것이 더 좋습니다 (MVVM)
 		MyChar->GetCharacterMovement()->MaxWalkSpeed = LeaderChar->GetCharacterMovement()->MaxWalkSpeed;
 	}
 }
@@ -212,22 +209,17 @@ FVector ACompanionPawnController::GetFormationLocation() const
 {
 	if (!IsValid(LeaderActor)) return FVector::ZeroVector;
 
-	// 제노블레이드 식 부채꼴 대형 계산 로직 (PartyIndex 기반)
-	// 예: Index 1은 리더의 왼쪽 뒤(-45도), Index 2는 오른쪽 뒤(+45도)
+	// 부채꼴 대형 계산 로직 (PartyIndex 기반)
 	FVector LeaderLocation = LeaderActor->GetActorLocation();
 	FVector LeaderForward = LeaderActor->GetActorForwardVector();
-
-	// 각도 계산 (Index 1: -45도, Index 2: 45도, Index 3: -90도 ...)
+	
 	float AngleOffset = (PartyIndex % 2 != 0) ? -45.0f : 45.0f;
 	AngleOffset *= FMath::CeilToFloat(PartyIndex / 2.0f);
-
-	// 회전 행렬을 사용해 방향 벡터 구하기
+	
 	FVector Direction = LeaderForward.RotateAngleAxis(AngleOffset, FVector::UpVector);
-
-	// 리더의 뒤쪽(음수 방향)으로 오프셋 적용
+	
 	FVector TargetPos = LeaderLocation - (Direction * FollowStopRadius);
-
-	// 내비메시 위의 유효한 좌표로 보정하여 반환
+	
 	UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld());
 	FNavLocation ProjectedLocation;
 	if (NavSys && NavSys->ProjectPointToNavigation(TargetPos, ProjectedLocation))
@@ -241,11 +233,9 @@ FVector ACompanionPawnController::GetFormationLocation() const
 bool ACompanionPawnController::IsInCameraFrustum() const
 {
 	if (!GetPawn()) return false;
-
-	// 변수 이름을 PawnLastRenderTime 등으로 변경하여 이름 충돌(Shadowing)을 피합니다.
+	
 	float PawnLastRenderTime = GetPawn()->GetLastRenderTime();
 	float CurrentTime = GetWorld()->GetTimeSeconds();
-
-	// 최근 0.2초 내에 화면에 렌더링 된 적이 있다면 true 반환
+	
 	return (CurrentTime - PawnLastRenderTime) < 0.2f;
 }

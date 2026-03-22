@@ -15,7 +15,6 @@ AJRPGCompanionPawn::AJRPGCompanionPawn(const FObjectInitializer& ObjectInitializ
 	
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
 	
-	// AI 이동 방향을 자연스럽게 바라보게 하기 위함
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
@@ -24,7 +23,6 @@ AJRPGCompanionPawn::AJRPGCompanionPawn(const FObjectInitializer& ObjectInitializ
 	{
 		MoveComp->bOrientRotationToMovement = true;
 		MoveComp->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
-		// AI가 플레이어를 따라갈 때 겹치지 않도록 RVO Avoidance 고려
 		// MoveComp->bUseRVOAvoidance = true; 
 	}
 }
