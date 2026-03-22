@@ -7,6 +7,7 @@
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
 #include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
+#include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Session/CombatZoneActor.h"
 #include "Combat/Stats/HPComponent.h"
@@ -72,13 +73,15 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 	
 	
 	UGameInstance* GI = GetGameInstance();
+	
+	UPartyActorSpawnSubsystem *PartySpawnSub = GI ? GI->GetSubsystem<UPartyActorSpawnSubsystem>() : nullptr;
 	UCombatCharacterRegistrySubsystem* Registry = GI ? GI->GetSubsystem<UCombatCharacterRegistrySubsystem>() : nullptr;
 	UPartySubsystem* PartySys = GI ? GI->GetSubsystem<UPartySubsystem>() : nullptr;
 	
 	
-	if (!Registry || !PartySys)
+	if (!Registry || !PartySys || !PartySpawnSub)
 	{
-		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : Registry 또는 Party 서브시스템이 없음"));
+		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : Registry 또는 Party, PartyActorSpawn 서브시스템이 없음"));
 		bHasTriggered = false;
 		return;
 	}
@@ -223,6 +226,15 @@ void AEncounterTriggerActor::CreateCombatZone()
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger :  CombatZone 생성 실패 (CombatZoneClass 설정 되었는지 확인할 것.)"));
+	}
+}
+
+void AEncounterTriggerActor::OnPlayerApproach()
+{
+	if (UPartyActorSpawnSubsystem*PartySpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
+	{
+		TArray<FName> PartyIds;
+		PartySpawnSub->PreloadAssets(PartyIds);
 	}
 }
 
