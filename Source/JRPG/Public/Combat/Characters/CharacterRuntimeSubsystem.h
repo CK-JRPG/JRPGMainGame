@@ -16,6 +16,9 @@ struct FCharacterResourceSnapshot
 	UPROPERTY() int32 MaxAP = 10;
 	UPROPERTY() int32 SP    = 0;
 	UPROPERTY() int32 MaxSP = 100;
+	UPROPERTY() FVector WorldLocation = FVector::ZeroVector;
+	UPROPERTY() FRotator WorldRotation = FRotator::ZeroRotator;
+	UPROPERTY() bool bHasTransformSnapshot = false;
 
 	bool IsValid() const { return HP >= 0.f; }
 };
@@ -29,6 +32,7 @@ public:
 	void SaveSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor);
 	void RestoreSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor);
 	void InitializeSnapshotIfAbsent(const FName& CharacterID, float MaxHP, int32 MaxAP, int32 MaxSP);
+	void RecoverPartyFromWipe(float HPRecoverRatio = 0.2f, float APRecoverRatio = 0.3f);
 	
 	void ModifyHP(const FName& CharacterID, float Delta);
 	void ModifyAP(const FName& CharacterID, int32 Delta);

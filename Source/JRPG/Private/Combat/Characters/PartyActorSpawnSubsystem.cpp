@@ -394,7 +394,7 @@ void UPartyActorSpawnSubsystem::OnPartyMemberChanged(const FName& NewCharacterID
 	UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem : 빙의 전환 완료 → %s"), *NewCharacterID.ToString());
 }
 
-void UPartyActorSpawnSubsystem::OnBattleEnded()
+void UPartyActorSpawnSubsystem::OnBattleEnded(EBattleEndReason Reason)
 {
 	if (OriginalPlayerCharacterID.IsNone())
 	{
@@ -413,7 +413,20 @@ void UPartyActorSpawnSubsystem::OnBattleEnded()
 	for (auto& Pair : SpawnedActorMap)
 		if (Pair.Value.Get()) CurrentActors.Add(Pair.Value.Get());
 	DespawnCombatActors(CurrentActors);
-
+	if (Reason == EBattleEndReason::Defeat)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			if (UGameInstance* GI = World->GetGameInstance())
+			{
+				if (UCharacterRuntimeSubsystem* CharacterRuntime = GI->GetSubsystem<UCharacterRuntimeSubsystem>())
+				{
+					CharacterRuntime->RecoverPartyFromWipe();
+				}
+			}
+		}
+	}
+	
 	// JRPGPlayerPawn으로 다시 복원 시키고 JRPGPlayerPawn으로 빙의
 	if (IsValid(CachedFieldPawn) && CombatPlayerController)
 	{
@@ -450,9 +463,9 @@ void UPartyActorSpawnSubsystem::OnBattleEnded()
 	UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem : 전투 종료 처리 완료. 필드 모드 복원."));
 }
 
-void UPartyActorSpawnSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason /*Reason*/)
+void UPartyActorSpawnSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/,EBattleEndReason Reason)
 {
-	OnBattleEnded();
+	OnBattleEnded(Reason);
 }
 
 TArray<ACombatCharacterActor*> UPartyActorSpawnSubsystem::GetSpawnedActors() const

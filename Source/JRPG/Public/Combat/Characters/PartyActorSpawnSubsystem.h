@@ -73,8 +73,7 @@ public:
 	void SetOriginalPlayerCharacterID(const FName& CharacterID);
 	void SetCombatPlayerController(APlayerController* InController);
 
-	void OnBattleEnded();
-
+	void OnBattleEnded(EBattleEndReason Reason);
 	FName GetCurrentPlayerCharacterID() const { return CurrentPlayerCharacterID; }
 
 
