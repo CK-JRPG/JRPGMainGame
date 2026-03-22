@@ -1,11 +1,9 @@
 ﻿#include "Game/JRPGPlayerPawn.h"
 
-#include "Camera/CameraComponent.h"
 #include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Session/CombatZoneTrackerComponent.h"
-#include "GameFramework/SpringArmComponent.h"
 
 AJRPGPlayerPawn::AJRPGPlayerPawn(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UJRPGCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
@@ -23,16 +21,24 @@ AJRPGPlayerPawn::AJRPGPlayerPawn(const FObjectInitializer& ObjectInitializer)
 		MoveComp->bOrientRotationToMovement = true;
 		MoveComp->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
 	}
+}
+
+FVector AJRPGPlayerPawn::GetCameraTargetLocation() const
+{
+	return GetActorLocation() + FVector(0.0f, 0.0f, 60.0f);
+}
+
+FRotator AJRPGPlayerPawn::GetCameraTargetRotation() const
+{
+	if (AController* C = GetController())
+		return C->GetControlRotation();
 	
-	CameraBoom = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
-	CameraBoom->SetupAttachment(RootComponent);
-	CameraBoom->TargetArmLength = 400.0f;
-	CameraBoom->bUsePawnControlRotation = true;
-	
-	FollowCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("FollowCamera"));
-	FollowCamera->SetupAttachment(CameraBoom, USpringArmComponent::SocketName);
-	FollowCamera->bUsePawnControlRotation = false;
-	
+	return GetActorRotation();
+}
+
+float AJRPGPlayerPawn::GetCameraTargetArmLength() const
+{
+	return 400.0f; // 필드용 기본 값, 나중에 변경할 수 있음
 }
 
 void AJRPGPlayerPawn::UpdateCharacter(FName NewCharId)
