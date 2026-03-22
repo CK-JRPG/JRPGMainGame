@@ -38,7 +38,9 @@ class JRPG_API AJRPGPlayerController : public APlayerController
 protected:
 	virtual void BeginPlay() override;
 	virtual void SetupInputComponent() override;
-
+	virtual void OnPossess(APawn* InPawn) override;
+	virtual void OnUnPossess() override;
+	
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputMappingContext> IMC_Default;
 
@@ -68,9 +70,9 @@ protected:
 	void OnSprintStarted(const FInputActionValue& Value);
 	void OnSprintCompleted(const FInputActionValue& Value);
 	void OnLook(const FInputActionValue& Value);
+	void UpdateCameraTargetForPawn(APawn* InPawn) const;
 	
 private:
-	//테스트 중 - CombatCharacterActor와 JRPGPlayerPawn의 브릿지 함수
 	void EnsureDefaultPartyFromTable();
 	void InitallizeCombatBridge();
 	UCombatCharacterDataAsset* FindCharacterDefById(FName CharId) const;

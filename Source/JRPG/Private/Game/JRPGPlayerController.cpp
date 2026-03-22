@@ -30,16 +30,21 @@ void AJRPGPlayerController::BeginPlay()
 		}
 	}
 	
-	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
-	{
-		if (AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(GetPawn()))
-		{
-			CamSub->SetTarget(PlayerPawn);
-		}
-	}
-	
+
+	UpdateCameraTargetForPawn(GetPawn());
 	EnsureDefaultPartyFromTable();
 	InitallizeCombatBridge();
+}
+
+void AJRPGPlayerController::OnPossess(APawn* InPawn)
+{
+	Super::OnPossess(InPawn);
+	UpdateCameraTargetForPawn(InPawn);
+}
+
+void AJRPGPlayerController::OnUnPossess()
+{
+	Super::OnUnPossess();
 }
 
 void AJRPGPlayerController::EnsureDefaultPartyFromTable()
@@ -194,28 +199,42 @@ void AJRPGPlayerController::OnMove(const FInputActionValue& Value)
 {
 	const FVector2D Move = Value.Get<FVector2D>();
 
-	if (AJRPGPlayerPawn* P = Cast<AJRPGPlayerPawn>(GetPawn()))
+	APawn* ControlledPawn = GetPawn(); 
+	if (ULocomotionComponent* Locomotion = ControlledPawn->FindComponentByClass<ULocomotionComponent>())
 	{
-		if (P->Locomotion)
-		{
-			P->Locomotion->SetMoveInput(Move);
-		}
+		Locomotion->SetMoveInput(Move);
+		return;
+	}
+	
+	if (ACharacter* Char = Cast<ACharacter>(ControlledPawn))
+	{
+		const FRotator YawRot(0.f, GetControlRotation().Yaw, 0.f);
+		const FVector Forward = FRotationMatrix(YawRot).GetUnitAxis(EAxis::X);
+		const FVector Right = FRotationMatrix(YawRot).GetUnitAxis(EAxis::Y);
+		Char->AddMovementInput(Forward, Move.Y);
+		Char->AddMovementInput(Right, Move.X);
 	}
 }
 
 void AJRPGPlayerController::OnSprintStarted(const FInputActionValue& /*Value*/)
 {
-	if (AJRPGPlayerPawn* P = Cast<AJRPGPlayerPawn>(GetPawn()))
+	if (APawn* ControlledPawn = GetPawn())
 	{
-		if (P->Locomotion) P->Locomotion->SetSprint(true);
+		if (ULocomotionComponent* Locomotion = ControlledPawn->FindComponentByClass<ULocomotionComponent>())
+		{
+			Locomotion->SetSprint(true);
+		}
 	}
 }
 
 void AJRPGPlayerController::OnSprintCompleted(const FInputActionValue& /*Value*/)
 {
-	if (AJRPGPlayerPawn* P = Cast<AJRPGPlayerPawn>(GetPawn()))
+	if (APawn* ControlledPawn = GetPawn())
 	{
-		if (P->Locomotion) P->Locomotion->SetSprint(false);
+		if (ULocomotionComponent* Locomotion = ControlledPawn->FindComponentByClass<ULocomotionComponent>())
+		{
+			Locomotion->SetSprint(false);
+		}
 	}
 }
 
@@ -236,3 +255,13 @@ void AJRPGPlayerController::OnLook(const FInputActionValue& Value)
 
 
 
+
+void AJRPGPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
+{
+	if (!GetWorld()) return;
+	
+	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
+	{
+		CamSub->SetTarget(InPawn);
+	}
+}
