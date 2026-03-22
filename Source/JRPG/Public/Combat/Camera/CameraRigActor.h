@@ -42,4 +42,9 @@ private:
 	float ArmLengthInterpSpeed = 5.0f;
 	
 	bool bLockRotation = false;
+	
+public:
+	float GetLocationInterpSpeed() const { return LocationInterpSpeed; }
+	float GetRotationInterpSpeed() const { return RotationInterpSpeed; }
+	float GetArmLengthInterpSpeed() const { return ArmLengthInterpSpeed; }
 };

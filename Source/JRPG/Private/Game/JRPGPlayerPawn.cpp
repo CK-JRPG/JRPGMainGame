@@ -12,7 +12,6 @@ AJRPGPlayerPawn::AJRPGPlayerPawn(const FObjectInitializer& ObjectInitializer)
 	Locomotion = CreateDefaultSubobject<ULocomotionComponent>(TEXT("Locomotion"));
 	ZoneTracker = CreateDefaultSubobject<UCombatZoneTrackerComponent>(TEXT("CombatZoneTracker"));
 	
-	// 카메라 설정
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;

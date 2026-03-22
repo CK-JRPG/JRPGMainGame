@@ -51,6 +51,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_Look;
 	
+	// 카메라 설정
+	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Camera")
+	float LookSensitivityX = 1.0f;
+
+	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Camera")
+	float LookSensitivityY = 1.0f;
+	
 	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Combat")
 	TObjectPtr<UDataTable> CharacterTable;
 	
