@@ -1,4 +1,5 @@
 ﻿#include"Combat/Characters/CombatCharacterComponent.h"
+
 #include"Combat/Characters/CombatCharacterDataAsset.h"
 #include"Combat/Characters/CombatCharacterRegistrySubsystem.h"
 

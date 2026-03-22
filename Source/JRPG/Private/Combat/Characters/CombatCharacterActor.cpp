@@ -65,3 +65,22 @@ UActorComponent* ACombatCharacterActor::GetOptionalComponentByClass(TSubclassOf<
 	return CompClass ? GetComponentByClass(CompClass) : nullptr;
 }
 
+
+//-----ICameraTargetInterface
+FVector ACombatCharacterActor::GetCameraTargetLocation() const
+{
+	return GetActorLocation() + FVector(0.f, 0.f, 60.f);
+}
+
+FRotator ACombatCharacterActor::GetCameraTargetRotation() const
+{
+	if (AController* C = GetController())
+		return C->GetControlRotation();
+	return GetActorRotation();
+}
+
+float ACombatCharacterActor::GetCameraTargetArmLength() const
+{
+	return CombatArmLength;
+}
+

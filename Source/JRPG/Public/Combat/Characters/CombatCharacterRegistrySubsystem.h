@@ -3,6 +3,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "CombatCharacterRegistrySubsystem.generated.h"
 
+
 UCLASS()
 class JRPG_API UCombatCharacterRegistrySubsystem : public UGameInstanceSubsystem
 {

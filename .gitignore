@@ -2,11 +2,13 @@
 .vs/
 .idea/
 
+
 # Compiled Object files
 *.slo
 *.lo
 *.o
 *.obj
+*.DotSettings.user
 
 # Precompiled Headers
 *.gch

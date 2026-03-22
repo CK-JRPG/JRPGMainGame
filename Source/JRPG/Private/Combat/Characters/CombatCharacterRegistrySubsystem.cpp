@@ -5,6 +5,7 @@ void UCombatCharacterRegistrySubsystem::RegisterCharacter(FName CharacterId, AAc
 	if (CharacterId.IsNone() || !Actor)
 		return;
 	Map.Add(CharacterId,Actor);
+	
 }
 void UCombatCharacterRegistrySubsystem::UnregisterCharacter(FName CharacterId, AActor *Actor)
 {

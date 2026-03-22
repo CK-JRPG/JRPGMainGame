@@ -17,6 +17,17 @@ struct FCharacterMappingRow : public FTableRowBase
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite)
 	TObjectPtr<UCombatCharacterDataAsset> CharacterAsset;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftClassPtr<ACombatCharacterActor> CombatActorClass;
+	
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	TSoftClassPtr<AJRPGCompanionPawn> FieldPawnClass;
+	
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite)
+	FVector SpawnOffset = FVector::ZeroVector;
 };
 
 UCLASS()
@@ -56,5 +67,6 @@ private:
 	void EnsureDefaultPartyFromTable();
 	void InitallizeCombatBridge();
 	UCombatCharacterDataAsset* FindCharacterDefById(FName CharId) const;
-	
+	FCharacterMappingRow*      FindMappingRowById(FName CharId) const;
+
 };
