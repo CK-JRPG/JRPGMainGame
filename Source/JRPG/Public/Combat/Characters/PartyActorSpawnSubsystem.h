@@ -7,6 +7,7 @@
 #include "PartyActorSpawnSubsystem.generated.h"
 
 
+class ACombatPlayerController;
 class ACombatCharacterActor;
 class AJRPGCompanionPawn;
 
