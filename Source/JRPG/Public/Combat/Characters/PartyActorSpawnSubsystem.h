@@ -1,6 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
@@ -14,7 +12,6 @@ class AJRPGCompanionPawn;
 
 USTRUCT(BlueprintType)
 struct FCharacterSpawnEntry
-
 {
 	GENERATED_BODY()
 
@@ -29,7 +26,6 @@ struct FCharacterSpawnEntry
 
 	UPROPERTY(EditAnywhere)       
 	TSoftClassPtr<AJRPGCompanionPawn> FieldPawnClass;
-
 };
 
 
@@ -39,7 +35,6 @@ class JRPG_API UPartyActorSpawnSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
-
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Deinitialize() override;
 
@@ -83,19 +78,19 @@ public:
 	UFUNCTION()
 	ACombatCharacterActor* FindActorByCharacterID(const FName& CharacterID) const;
 
-
 private:
-
 	//로드된 놈을 실제로 월드에 스폰처리 
 	ACombatCharacterActor* SpawnSingleActor(TSubclassOf<ACombatCharacterActor> ActorClass,const FTransform& SpawnTransform);
 
 	TArray<FSoftObjectPath> CollectSoftPaths(const TArray<FName>& PartyIds) const;
 
-
 private:
-
 	UPROPERTY()
 	TObjectPtr<APlayerController> CombatPlayerController;
+	
+	// 전투 진입 전 필드 컨트롤러 캐시 (전투 종료 후 복원)
+	UPROPERTY()
+	TObjectPtr<APlayerController> CachedFieldController;
 	
 	UPROPERTY()
 	TMap<FName, TObjectPtr<AJRPGCompanionPawn>> SpawnedCompanionMap;
@@ -121,5 +116,4 @@ private:
 	//Streamable 핸들
 	TSharedPtr<FStreamableHandle> PreloadHandle;
 	TSharedPtr<FStreamableHandle> FieldPawnPreloadHandle;
-
 };

@@ -96,11 +96,19 @@ void ULocomotionComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 
 void ULocomotionComponent::ApplyMoveInput()
 {
-	if (!CanAcceptMoveInput()) return;
-
-	if (FMath::Abs(MoveInput.X) < InputDeadZone && FMath::Abs(MoveInput.Y) < InputDeadZone)
+	if (!CanAcceptMoveInput())
+	{
+		bMoveBasisYawLocked = false;
 		return;
-
+	}
+ 
+	const bool bHasMoveInput = FMath::Abs(MoveInput.X) >= InputDeadZone || FMath::Abs(MoveInput.Y) >= InputDeadZone;
+	if (!bHasMoveInput)
+	{
+		bMoveBasisYawLocked = false;
+		return;
+	}
+ 
 	AController* C = OwnerCharacter->GetController();
 	if (!C)
 	{
@@ -108,17 +116,22 @@ void ULocomotionComponent::ApplyMoveInput()
 		OwnerCharacter->AddMovementInput(FVector::RightVector, MoveInput.X);
 		return;
 	}
-
+ 
 	FRotator BasisRot = FRotator::ZeroRotator;
 	if (bUseControllerYawForMove)
 	{
-		const FRotator ControlRot = C->GetControlRotation();
-		BasisRot = FRotator(0.f, ControlRot.Yaw, 0.f);
+		if (!bMoveBasisYawLocked)
+		{
+			const FRotator ControlRot = C->GetControlRotation();
+			LockedMoveBasisYaw = ControlRot.Yaw;
+			bMoveBasisYawLocked = true;
+		}
+		BasisRot = FRotator(0.f, LockedMoveBasisYaw, 0.f);
 	}
-
+ 
 	const FVector Forward = FRotationMatrix(BasisRot).GetUnitAxis(EAxis::X);
 	const FVector Right   = FRotationMatrix(BasisRot).GetUnitAxis(EAxis::Y);
-
+ 
 	OwnerCharacter->AddMovementInput(Forward, MoveInput.Y);
 	OwnerCharacter->AddMovementInput(Right, MoveInput.X);
 }

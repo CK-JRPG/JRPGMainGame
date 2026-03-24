@@ -17,6 +17,7 @@ class UCombatAIActionSelectorComponent;
 class UCombatItemComponent;
 class UCombatPresentationComponent;
 class UCombatMotionComponent;
+class ULocomotionComponent;
 
 class UHPComponent;
 class UAPComponent;
@@ -42,7 +43,8 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatItemComponent> ItemComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPresentationComponent> PresentationComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatMotionComponent> MotionComp;
-
+	UPROPERTY(VisibleAnywhere) TObjectPtr<ULocomotionComponent> LocomotionComp;
+	
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UHPComponent> HPComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UAPComponent> APComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<USPComponent> SPComp;

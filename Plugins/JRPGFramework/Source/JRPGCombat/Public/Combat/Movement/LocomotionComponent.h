@@ -61,6 +61,9 @@ private:
 	UPROPERTY(EditAnywhere, Category="JRPG|Locomotion")
 	bool bUseControllerYawForMove = true;
 
+	bool bMoveBasisYawLocked = false;
+	float LockedMoveBasisYaw = 0.f;
+	
 	void CacheOwnerRefs();
 	void ApplyMoveInput();
 	void UpdateMoveSpeed();
