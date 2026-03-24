@@ -61,8 +61,9 @@ private:
 	UPROPERTY(EditAnywhere, Category="JRPG|Locomotion")
 	bool bUseControllerYawForMove = true;
 
-	bool bMoveBasisYawLocked = false;
-	float LockedMoveBasisYaw = 0.f;
+	// 해당 코드 임시로 주석
+	// bool bMoveBasisYawLocked = false;
+	// float LockedMoveBasisYaw = 0.f;
 	
 	void CacheOwnerRefs();
 	void ApplyMoveInput();

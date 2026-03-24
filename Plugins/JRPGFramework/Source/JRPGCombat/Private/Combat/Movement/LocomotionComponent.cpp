@@ -96,7 +96,9 @@ void ULocomotionComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 
 void ULocomotionComponent::ApplyMoveInput()
 {
-	if (!CanAcceptMoveInput())
+	// 현재 코드 문제점 : 이 코드를 사용하면 배그 주변 둘러보기 느낌으로 움직임.
+	// Todo : 해당 코드를 bool형을 이용해서 주변 둘러보기 모드를 만들기. 키 바인딩 : ALT
+	/*if (!CanAcceptMoveInput())
 	{
 		bMoveBasisYawLocked = false;
 		return;
@@ -132,6 +134,32 @@ void ULocomotionComponent::ApplyMoveInput()
 	const FVector Forward = FRotationMatrix(BasisRot).GetUnitAxis(EAxis::X);
 	const FVector Right   = FRotationMatrix(BasisRot).GetUnitAxis(EAxis::Y);
  
+	OwnerCharacter->AddMovementInput(Forward, MoveInput.Y);
+	OwnerCharacter->AddMovementInput(Right, MoveInput.X);*/
+	
+	if (!CanAcceptMoveInput()) return;
+
+	if (FMath::Abs(MoveInput.X) < InputDeadZone && FMath::Abs(MoveInput.Y) < InputDeadZone)
+		return;
+
+	AController* C = OwnerCharacter->GetController();
+	if (!C)
+	{
+		OwnerCharacter->AddMovementInput(FVector::ForwardVector, MoveInput.Y);
+		OwnerCharacter->AddMovementInput(FVector::RightVector, MoveInput.X);
+		return;
+	}
+
+	FRotator BasisRot = FRotator::ZeroRotator;
+	if (bUseControllerYawForMove)
+	{
+		const FRotator ControlRot = C->GetControlRotation();
+		BasisRot = FRotator(0.f, ControlRot.Yaw, 0.f);
+	}
+
+	const FVector Forward = FRotationMatrix(BasisRot).GetUnitAxis(EAxis::X);
+	const FVector Right   = FRotationMatrix(BasisRot).GetUnitAxis(EAxis::Y);
+
 	OwnerCharacter->AddMovementInput(Forward, MoveInput.Y);
 	OwnerCharacter->AddMovementInput(Right, MoveInput.X);
 }
