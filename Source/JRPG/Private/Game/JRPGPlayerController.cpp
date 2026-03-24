@@ -208,7 +208,7 @@ void AJRPGPlayerController::SetupInputComponent()
 	
 	if (IA_LookAround)
 	{
-		EIC->BindAction(IA_LookAround, ETriggerEvent::Triggered, this, &AJRPGPlayerController::OnLookAround);
+		EIC->BindAction(IA_LookAround, ETriggerEvent::Started, this, &AJRPGPlayerController::OnLookAround);
 		EIC->BindAction(IA_LookAround, ETriggerEvent::Completed, this, &AJRPGPlayerController::OnLookAroundCompleted);
 	}
 }
