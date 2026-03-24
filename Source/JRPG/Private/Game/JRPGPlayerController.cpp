@@ -205,6 +205,12 @@ void AJRPGPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(IA_Look, ETriggerEvent::Triggered, this, &AJRPGPlayerController::OnLook);
 	}
+	
+	if (IA_LookAround)
+	{
+		EIC->BindAction(IA_LookAround, ETriggerEvent::Triggered, this, &AJRPGPlayerController::OnLookAround);
+		EIC->BindAction(IA_LookAround, ETriggerEvent::Completed, this, &AJRPGPlayerController::OnLookAroundCompleted);
+	}
 }
 
 void AJRPGPlayerController::OnMove(const FInputActionValue& Value)
@@ -262,6 +268,24 @@ void AJRPGPlayerController::OnLook(const FInputActionValue& Value)
 	if (LookAxisVector.Y != 0.0f)
 	{
 		AddPitchInput(LookAxisVector.Y * LookSensitivityY);
+	}
+}
+
+void AJRPGPlayerController::OnLookAround()
+{
+	APawn* ControlledPawn = GetPawn(); 
+	if (ULocomotionComponent* Locomotion = ControlledPawn->FindComponentByClass<ULocomotionComponent>())
+	{
+		Locomotion->SetLookAroundMode(true);
+	}
+}
+
+void AJRPGPlayerController::OnLookAroundCompleted()
+{
+	APawn* ControlledPawn = GetPawn(); 
+	if (ULocomotionComponent* Locomotion = ControlledPawn->FindComponentByClass<ULocomotionComponent>())
+	{
+		Locomotion->SetLookAroundMode(false);
 	}
 }
 
