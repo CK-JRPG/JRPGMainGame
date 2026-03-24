@@ -1,4 +1,4 @@
-#include "Combat/Characters/CharacterRuntimeSubsystem.h"
+﻿#include "Combat/Characters/CharacterRuntimeSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
@@ -140,6 +140,8 @@ void UCharacterRuntimeSubsystem::RecoverPartyFromWipe(float HPRecoverRatio, floa
 			
 		const float RecoveredHP = FMath::Max(1.f, Snap.MaxHP * ClampedHPRatio);
 		Snap.HP = FMath::Clamp(RecoveredHP, 1.f, Snap.MaxHP);
+
+		//반올림
 		Snap.AP = FMath::Clamp(FMath::RoundToInt((float)Snap.MaxAP * ClampedAPRatio), 0, Snap.MaxAP);
 	}
 	
