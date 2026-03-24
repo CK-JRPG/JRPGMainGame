@@ -32,6 +32,9 @@ public:
 
 	void SetMovementEnabled(bool bEnabled);
 	bool CanAcceptMoveInput() const;
+	
+	void SetLookAroundMode(bool bEnabled);
+	bool IsLookAroundMode() const { return bLookAroundMode; }
 
 protected:
 	virtual void BeginPlay() override;
@@ -61,9 +64,8 @@ private:
 	UPROPERTY(EditAnywhere, Category="JRPG|Locomotion")
 	bool bUseControllerYawForMove = true;
 
-	// 해당 코드 임시로 주석
-	// bool bMoveBasisYawLocked = false;
-	// float LockedMoveBasisYaw = 0.f;
+	bool bLookAroundMode = false;
+	float LockedMoveBasisYaw = 0.f; // LookAround 진입 시점의 Yaw 고정용
 	
 	void CacheOwnerRefs();
 	void ApplyMoveInput();

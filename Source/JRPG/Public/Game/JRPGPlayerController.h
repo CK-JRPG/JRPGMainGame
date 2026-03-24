@@ -55,6 +55,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_Look;
 	
+	// 주변 둘러보기 키
+	UPROPERTY(EditDefaultsOnly, Category="Input")
+	TObjectPtr<UInputAction> IA_LookAround;  // 임시 바인딩 마우스 버튼 5
+	
 	// 카메라 설정
 	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Camera")
 	float LookSensitivityX = 1.0f;
@@ -72,6 +76,8 @@ protected:
 	void OnSprintStarted(const FInputActionValue& Value);
 	void OnSprintCompleted(const FInputActionValue& Value);
 	void OnLook(const FInputActionValue& Value);
+	void OnLookAround();
+	void OnLookAroundCompleted();
 	void UpdateCameraTargetForPawn(APawn* InPawn) const;
 	
 private:

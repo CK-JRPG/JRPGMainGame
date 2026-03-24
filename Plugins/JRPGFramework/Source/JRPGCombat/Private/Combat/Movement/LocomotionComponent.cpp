@@ -86,6 +86,23 @@ bool ULocomotionComponent::CanAcceptMoveInput() const
 	return true;
 }
 
+void ULocomotionComponent::SetLookAroundMode(bool bEnabled)
+{
+	if (bLookAroundMode == bEnabled) return;
+	
+	bLookAroundMode = bEnabled;
+	
+	// 둘러보기 진입 시, 현재 컨트롤러 Yaw를 이동 기준으로 고정
+	if (bLookAroundMode)
+	{
+		if (OwnerCharacter)
+		{
+			if (AController* C = OwnerCharacter->GetController())
+				LockedMoveBasisYaw = C->GetControlRotation().Yaw;
+		}
+	}
+}
+
 void ULocomotionComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -96,47 +113,6 @@ void ULocomotionComponent::TickComponent(float DeltaTime, ELevelTick TickType, F
 
 void ULocomotionComponent::ApplyMoveInput()
 {
-	// 현재 코드 문제점 : 이 코드를 사용하면 배그 주변 둘러보기 느낌으로 움직임.
-	// Todo : 해당 코드를 bool형을 이용해서 주변 둘러보기 모드를 만들기. 키 바인딩 : ALT
-	/*if (!CanAcceptMoveInput())
-	{
-		bMoveBasisYawLocked = false;
-		return;
-	}
- 
-	const bool bHasMoveInput = FMath::Abs(MoveInput.X) >= InputDeadZone || FMath::Abs(MoveInput.Y) >= InputDeadZone;
-	if (!bHasMoveInput)
-	{
-		bMoveBasisYawLocked = false;
-		return;
-	}
- 
-	AController* C = OwnerCharacter->GetController();
-	if (!C)
-	{
-		OwnerCharacter->AddMovementInput(FVector::ForwardVector, MoveInput.Y);
-		OwnerCharacter->AddMovementInput(FVector::RightVector, MoveInput.X);
-		return;
-	}
- 
-	FRotator BasisRot = FRotator::ZeroRotator;
-	if (bUseControllerYawForMove)
-	{
-		if (!bMoveBasisYawLocked)
-		{
-			const FRotator ControlRot = C->GetControlRotation();
-			LockedMoveBasisYaw = ControlRot.Yaw;
-			bMoveBasisYawLocked = true;
-		}
-		BasisRot = FRotator(0.f, LockedMoveBasisYaw, 0.f);
-	}
- 
-	const FVector Forward = FRotationMatrix(BasisRot).GetUnitAxis(EAxis::X);
-	const FVector Right   = FRotationMatrix(BasisRot).GetUnitAxis(EAxis::Y);
- 
-	OwnerCharacter->AddMovementInput(Forward, MoveInput.Y);
-	OwnerCharacter->AddMovementInput(Right, MoveInput.X);*/
-	
 	if (!CanAcceptMoveInput()) return;
 
 	if (FMath::Abs(MoveInput.X) < InputDeadZone && FMath::Abs(MoveInput.Y) < InputDeadZone)
@@ -153,8 +129,8 @@ void ULocomotionComponent::ApplyMoveInput()
 	FRotator BasisRot = FRotator::ZeroRotator;
 	if (bUseControllerYawForMove)
 	{
-		const FRotator ControlRot = C->GetControlRotation();
-		BasisRot = FRotator(0.f, ControlRot.Yaw, 0.f);
+		const float UseYaw = bLookAroundMode ? LockedMoveBasisYaw : C->GetControlRotation().Yaw;
+		BasisRot = FRotator(0.f, UseYaw, 0.f);
 	}
 
 	const FVector Forward = FRotationMatrix(BasisRot).GetUnitAxis(EAxis::X);
