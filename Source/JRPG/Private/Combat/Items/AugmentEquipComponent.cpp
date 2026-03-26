@@ -1,4 +1,4 @@
-// Source/JRPGCombat/Private/Combat/Items/AugmentEquipComponent.cpp
+﻿// Source/JRPGCombat/Private/Combat/Items/AugmentEquipComponent.cpp
 #include "Combat/Items/AugmentEquipComponent.h"
 #include "Combat/Items/ItemDatabaseAsset.h"
 #include "Combat/Items/ItemDataAsset.h"
@@ -48,22 +48,22 @@ bool UAugmentEquipComponent::HasUniqueGroupEquipped(FName UniqueGroup) const
 
 FItemOp UAugmentEquipComponent::ValidateEquip(const UItemDataAsset* Def, EAugmentEquipSlot Slot) const
 {
-	if (!Def) return FItemOp::Fail("Reject.ItemNotFound");
-	if (!Def->IsAugment()) return FItemOp::Fail("Reject.ItemTypeNotAugment");
-	if (!Def->IsSlotAllowed(Slot)) return FItemOp::Fail("Reject.SlotInvalid");
+	if (!Def) return FItemOp::Fail("Equip.InstanceInvalid");
+	if (!Def->IsAugment()) return FItemOp::Fail("Equip.SlotInvalid");
+	if (!Def->IsSlotAllowed(Slot)) return FItemOp::Fail("Equip.SlotInvalid");
 
 	if (Def->RequiredLevel > 0)
 	{
-		if (!LevelProvider) return FItemOp::Fail("Reject.LevelProviderMissing");
+		if (!LevelProvider) return FItemOp::Fail("Preview.Failed");
 		const int32 CurLv = LevelProvider->GetCharacterLevel(GetOwner());
-		if (CurLv < Def->RequiredLevel) return FItemOp::Fail("Reject.LevelTooLow");
+		if (CurLv < Def->RequiredLevel) return FItemOp::Fail("Equip.LevelTooLow");
 	}
 
 	if (!Def->IsRoleAllowed(Role))
-		return FItemOp::Fail("Reject.RoleNotAllowed");
+		return FItemOp::Fail("Equip.RoleMismatch");
 
 	if (!Def->UniqueEquipGroup.IsNone() && HasUniqueGroupEquipped(Def->UniqueEquipGroup))
-		return FItemOp::Fail("Reject.UniqueConflict");
+		return FItemOp::Fail("Equip.SlotInvalid");
 
 	return FItemOp::Ok();
 }
@@ -71,13 +71,13 @@ FItemOp UAugmentEquipComponent::ValidateEquip(const UItemDataAsset* Def, EAugmen
 FItemOp UAugmentEquipComponent::TryEquipFromInventory(UInventorySubsystem* Inventory, FGuid InstanceId,
                                                       EAugmentEquipSlot Slot)
 {
-	if (!Inventory) return FItemOp::Fail("Reject.NoInventory");
+	if (!Inventory) return FItemOp::Fail("Equip.InstanceInvalid");
 
 	FItemInstance Inst;
 	if (!Inventory->TryGetInstance(InstanceId, Inst))
 	{
-		OnAugmentEquipRejected.Broadcast(CharacterId, NAME_None, "Reject.InstanceNotFound");
-		return FItemOp::Fail("Reject.InstanceNotFound");
+		OnAugmentEquipRejected.Broadcast(CharacterId, NAME_None, "Equip.InstanceInvalid");
+		return FItemOp::Fail("Equip.InstanceInvalid");
 	}
 
 	const UItemDataAsset* Def = FindDef(Inst.ItemId);
@@ -117,10 +117,10 @@ FItemOp UAugmentEquipComponent::TryEquipFromInventory(UInventorySubsystem* Inven
 
 FItemOp UAugmentEquipComponent::TryUnequipToInventory(UInventorySubsystem* Inventory, EAugmentEquipSlot Slot)
 {
-	if (!Inventory) return FItemOp::Fail("Reject.NoInventory");
+	if (!Inventory) return FItemOp::Fail("Equip.InstanceInvalid");
 
 	FAugmentSlotState* S = Slots.Find(Slot);
-	if (!S || !S->bOccupied) return FItemOp::Fail("Reject.SlotEmpty");
+	if (!S || !S->bOccupied) return FItemOp::Fail("Equip.SlotInvalid");
 
 	const FItemOp Restore = Inventory->RestoreInstance(S->StoredInstance, "Unequip.RestoreInstance");
 	if (!Restore.bOk) return Restore;
@@ -239,8 +239,8 @@ void UAugmentEquipComponent::ExportSaveData(FAugmentEquipSaveData& Out) const
 
 FItemOp UAugmentEquipComponent::ImportSaveData(UInventorySubsystem* Inventory, const FAugmentEquipSaveData& In)
 {
-	if (!Inventory) return FItemOp::Fail("Reject.NoInventory");
-	if (In.CharacterId != CharacterId) return FItemOp::Fail("Reject.CharacterIdMismatch");
+	if (!Inventory) return FItemOp::Fail("Equip.InstanceInvalid");
+	if (In.CharacterId != CharacterId) return FItemOp::Fail("Equip.InstanceInvalid");
 
 	// 먼저 전부 비우기(인벤 복원 포함)
 	for (auto& KV : Slots)
@@ -259,7 +259,7 @@ FItemOp UAugmentEquipComponent::ImportSaveData(UInventorySubsystem* Inventory, c
 		// 인벤에서 해당 InstanceId를 찾는다
 		FItemInstance Found;
 		if (!Inventory->TryGetInstance(Inst.InstanceId, Found))
-			return FItemOp::Fail("Reject.MissingInstanceInInventory");
+			return FItemOp::Fail("Equip.InstanceInvalid");
 
 		return TryEquipFromInventory(Inventory, Inst.InstanceId, Slot);
 	};

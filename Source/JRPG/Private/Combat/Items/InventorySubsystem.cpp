@@ -1,4 +1,4 @@
-// Source/JRPGCombat/Private/Combat/Items/InventorySubsystem.cpp
+﻿// Source/JRPGCombat/Private/Combat/Items/InventorySubsystem.cpp
 #include "Combat/Items/InventorySubsystem.h"
 #include "Combat/Items/ItemDatabaseAsset.h"
 #include "Combat/Items/ItemDataAsset.h"
@@ -80,15 +80,15 @@ bool UInventorySubsystem::CanAcceptItem(FName ItemId, int32 Quantity, int32* Out
 FItemOp UInventorySubsystem::AddItem(FName ItemId, int32 Quantity, FName SourceTag, TArray<FGuid>* OutTouchedInstances)
 {
 	if (ItemId.IsNone() || Quantity <= 0)
-		return FItemOp::Fail("Reject.InvalidItemOrQty");
+		return FItemOp::Fail("Inv.ItemNotFound");
 
 	const UItemDataAsset* Def = FindDef(ItemId);
 	if (!Def)
-		return FItemOp::Fail("Reject.ItemNotFound");
+		return FItemOp::Fail("Inv.ItemNotFound");
 
 	int32 NeedSlots = 0;
 	if (!CanAcceptItem(ItemId, Quantity, &NeedSlots))
-		return FItemOp::Fail("Reject.InventoryFull");
+		return FItemOp::Fail("Inv.InventoryFull");
 
 	const int32 MaxStack = FMath::Max(1, Def->MaxStack);
 	int32 Remaining = Quantity;
@@ -125,18 +125,25 @@ FItemOp UInventorySubsystem::AddItem(FName ItemId, int32 Quantity, FName SourceT
 	}
 
 	OnItemAdded.Broadcast(ItemId, Quantity, SourceTag);
+	if (OutTouchedInstances)
+	{
+		for (const FGuid& Id : *OutTouchedInstances)
+		{
+			OnInventoryChanged.Broadcast(EInventoryChangeType::Added, Id, Quantity, SourceTag);
+		}
+	}
 	return FItemOp::Ok();
 }
 
 FItemOp UInventorySubsystem::RemoveItemByInstance(FGuid InstanceId, int32 Quantity, FName ReasonTag)
 {
 	if (!InstanceId.IsValid() || Quantity <= 0)
-		return FItemOp::Fail("Reject.InvalidInstanceOrQty");
+		return FItemOp::Fail("Inv.ItemNotFound");
 
 	FItemInstance* I = Instances.Find(InstanceId);
-	if (!I) return FItemOp::Fail("Reject.InstanceNotFound");
-	if (I->bLocked) return FItemOp::Fail("Reject.ItemLocked");
-	if (I->Quantity < Quantity) return FItemOp::Fail("Reject.InvalidQuantity");
+	if (!I) return FItemOp::Fail("Inv.ItemNotFound");
+	if (I->bLocked) return FItemOp::Fail("Inv.ItemLocked");
+	if (I->Quantity < Quantity) return FItemOp::Fail("Inv.StackUnderflow");
 
 	I->Quantity -= Quantity;
 	const FName ItemId = I->ItemId;
@@ -144,7 +151,7 @@ FItemOp UInventorySubsystem::RemoveItemByInstance(FGuid InstanceId, int32 Quanti
 	if (I->Quantity <= 0)
 		Instances.Remove(InstanceId);
 
-	OnItemRemoved.Broadcast(ItemId, Quantity, ReasonTag);
+	OnInventoryChanged.Broadcast(EInventoryChangeType::Removed, InstanceId, -Quantity, ReasonTag);
 	return FItemOp::Ok();
 }
 
@@ -152,33 +159,33 @@ bool UInventorySubsystem::CanRestoreInstance(const FItemInstance& Instance, FNam
 {
 	if (!Instance.InstanceId.IsValid() || Instance.ItemId.IsNone() || Instance.Quantity <= 0)
 	{
-		OutReason = "Reject.InvalidInstance";
+		OutReason = "Inv.ItemNotFound";
 		return false;
 	}
 	if (Instances.Contains(Instance.InstanceId))
 	{
-		OutReason = "Reject.DuplicateInstanceId";
+		OutReason = "Inv.ItemNotFound";
 		return false;
 	}
 
 	const UItemDataAsset* Def = FindDef(Instance.ItemId);
 	if (!Def)
 	{
-		OutReason = "Reject.ItemNotFound";
+		OutReason = "Inv.ItemNotFound";
 		return false;
 	}
 
 	// Restore는 “인스턴스 보존”이 목적이라 스택 합치지 않고 “슬롯 1개”로 복원한다.
 	if ((GetUsedSlots() + 1) > MaxSlots)
 	{
-		OutReason = "Reject.InventoryFull";
+		OutReason = "Inv.InventoryFull";
 		return false;
 	}
 
 	const int32 MaxStack = FMath::Max(1, Def->MaxStack);
 	if (Instance.Quantity > MaxStack)
 	{
-		OutReason = "Reject.QuantityExceedsMaxStack";
+		OutReason = "Inv.StackUnderflow";
 		return false;
 	}
 
@@ -193,17 +200,18 @@ FItemOp UInventorySubsystem::RestoreInstance(const FItemInstance& Instance, FNam
 
 	Instances.Add(Instance.InstanceId, Instance);
 	OnItemAdded.Broadcast(Instance.ItemId, Instance.Quantity, SourceTag);
+	OnInventoryChanged.Broadcast(EInventoryChangeType::Added, Instance.InstanceId, Instance.Quantity, SourceTag);
 	return FItemOp::Ok();
 }
 
 FItemOp UInventorySubsystem::SetLocked(FGuid InstanceId, bool bLocked)
 {
 	FItemInstance* I = Instances.Find(InstanceId);
-	if (!I) return FItemOp::Fail("Reject.InstanceNotFound");
+	if (!I) return FItemOp::Fail("Inv.ItemNotFound");
 
 	const UItemDataAsset* Def = FindDef(I->ItemId);
 	if (!Def || !Def->bLockable)
-		return FItemOp::Fail("Reject.NotLockable");
+		return FItemOp::Fail("Inv.ItemLocked");
 
 	I->bLocked = bLocked;
 	return FItemOp::Ok();
@@ -218,6 +226,47 @@ void UInventorySubsystem::NotifyUnequipped(FGuid InstanceId)
 {
 	if (InstanceId.IsValid()) EquippedInstances.Remove(InstanceId);
 }
+
+FItemOp UInventorySubsystem::SetFavorite(FGuid InstanceId, bool bFavorite)
+{
+	FItemInstance* I = Instances.Find(InstanceId);
+	if (!I) return FItemOp::Fail("Inv.ItemNotFound");
+
+	I->bFavorite = bFavorite;
+	OnInventoryChanged.Broadcast(EInventoryChangeType::Updated, InstanceId, 0, "Inv.FlagFavorite");
+	return FItemOp::Ok();
+}
+
+FItemOp UInventorySubsystem::SortByRarity(bool bDescending)
+{
+	TArray<FItemInstance> Sorted;
+	Instances.GenerateValueArray(Sorted);
+	Sorted.Sort([this, bDescending](const FItemInstance& A, const FItemInstance& B)
+		{
+			const UItemDataAsset* ADef = FindDef(A.ItemId);
+			const UItemDataAsset* BDef = FindDef(B.ItemId);
+			const int32 ARarity = ADef ? static_cast<int32>(ADef->Rarity) : 0;
+			const int32 BRarity = BDef ? static_cast<int32>(BDef->Rarity) : 0;
+			return bDescending ? ARarity > BRarity : ARarity < BRarity;
+		});
+
+	Instances.Reset();
+	for (const FItemInstance& Inst : Sorted)
+	{
+		Instances.Add(Inst.InstanceId, Inst);
+	}
+	OnInventoryChanged.Broadcast(EInventoryChangeType::Sorted, FGuid(), 0, "Inv.Sort");
+	return FItemOp::Ok();
+}
+
+void UInventorySubsystem::ClearInventory()
+{
+	Instances.Reset();
+	EquippedInstances.Reset();
+	OnInventoryChanged.Broadcast(EInventoryChangeType::Cleared, FGuid(), 0, "Inv.ClearInventory");
+}
+
+
 
 void UInventorySubsystem::ExportSaveData(FInventorySaveData& Out) const
 {

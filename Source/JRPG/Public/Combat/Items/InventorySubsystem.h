@@ -1,4 +1,4 @@
-// Source/JRPGCombat/Public/Combat/Items/InventorySubsystem.h
+﻿// Source/JRPGCombat/Public/Combat/Items/InventorySubsystem.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -18,6 +18,8 @@ struct FItemInstance
 	UPROPERTY() FName ItemId = NAME_None;
 	UPROPERTY() int32 Quantity = 1;
 	UPROPERTY() bool bLocked = false;
+	UPROPERTY() bool bFavorite = false;
+	UPROPERTY() FDateTime AcquiredAt;
 
 // 강화/랜덤옵션 확장 대비(현재 미사용)
 	UPROPERTY() int32 EnhanceLevel = 0;
@@ -29,12 +31,14 @@ struct FItemInstance
 		I.InstanceId = FGuid::NewGuid();
 		I.ItemId = InItemId;
 		I.Quantity = Qty;
+		I.AcquiredAt = FDateTime::UtcNow();
 		return I;
 	}
 };
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnItemAdded, FName /*ItemId*/, int32 /*Qty*/, FName /*SourceTag*/);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnItemRemoved, FName /*ItemId*/, int32 /*Qty*/, FName /*ReasonTag*/);
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnInventoryChanged, EInventoryChangeType /*ChangeType*/, FGuid /*InstanceId*/, int32 /*Delta*/, FName /*ReasonTag*/);
 
 UCLASS()
 class JRPG_API UInventorySubsystem : public UGameInstanceSubsystem
@@ -47,6 +51,7 @@ public:
 
 	FOnItemAdded OnItemAdded;
 	FOnItemRemoved OnItemRemoved;
+	FOnInventoryChanged OnInventoryChanged;
 
 	FItemOp AddItem(FName ItemId, int32 Quantity, FName SourceTag, /*out*/ TArray<FGuid>* OutTouchedInstances = nullptr);
 	FItemOp RemoveItemByInstance(FGuid InstanceId, int32 Quantity, FName ReasonTag);
@@ -55,6 +60,7 @@ public:
 	FItemOp RestoreInstance(const FItemInstance& Instance, FName SourceTag);
 	
 	FItemOp SetLocked(FGuid InstanceId, bool bLocked);
+	FItemOp setFavorite(FGuid InstanceId, bool bFavorite);
 
 	bool HasItem(FName ItemId, int32 RequiredQty) const;
 	int32 CountItem(FName ItemId) const;
@@ -70,6 +76,9 @@ public:
 	bool IsEquipped(FGuid InstanceId) const { return EquippedInstances.Contains(InstanceId); }
 
 	const UItemDataAsset* FindDef(FName ItemId) const;
+
+	FItemOp SortByRarity(bool bDescending);
+	void ClearInventory();
 
 	// Save/Load
 	void ExportSaveData(struct FInventorySaveData& Out) const;

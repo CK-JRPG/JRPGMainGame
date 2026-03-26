@@ -1,4 +1,4 @@
-// Source/JRPGCombat/Public/Combat/Items/ItemTypes.h
+﻿// Source/JRPGCombat/Public/Combat/Items/ItemTypes.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -8,6 +8,7 @@
 UENUM()
 enum class EItemType : uint8
 {
+	Weapon,
 	Augment,
 	Consumable,
 	Material,
@@ -51,6 +52,26 @@ enum class EAugmentSlotMask : uint8
 	All          = AugmentSlot1 | AugmentSlot2 | AugmentSlot3
 };
 ENUM_CLASS_FLAGS(EAugmentSlotMask);
+
+UENUM()
+enum class EInventoryChangeType : uint8
+{
+	Added,
+	Removed,
+	Updated,
+	Sorted,
+	Filtered,
+	Cleared
+};
+
+UENUM()
+enum class EEquipmentSlotType : uint8
+{
+	Weapon,
+	Augment1,
+	Augment2,
+	Augment3
+};
 
 USTRUCT()
 struct FItemOp

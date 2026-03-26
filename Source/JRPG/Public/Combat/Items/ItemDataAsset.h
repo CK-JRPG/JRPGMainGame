@@ -1,4 +1,4 @@
-// Source/JRPGCombat/Public/Combat/Items/ItemDataAsset.h
+﻿// Source/JRPGCombat/Public/Combat/Items/ItemDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -84,6 +84,7 @@ public:
 	int32 MaxEnhanceLevel = 0;
 
 public:
+	bool IsWeapon() const { return ItemType == EItemType::Weapon; }
 	bool IsAugment() const { return ItemType == EItemType::Augment; }
 	bool IsConsumable() const { return ItemType == EItemType::Consumable; }
 	bool IsKeyItem() const { return ItemType == EItemType::KeyItem; }
