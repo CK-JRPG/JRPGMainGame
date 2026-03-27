@@ -31,6 +31,11 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_Look;
 	
+	// 카메라 줌 In/Out 키
+	// 키보드 : 마우스 휠 / 패드 : R1 + R_Stick
+	UPROPERTY(EditDefaultsOnly, Category="Input")
+	TObjectPtr<UInputAction> IA_CameraZoom;
+	
 	// 임시로 Q, E로 바인딩 했음.
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_SwitchPrev;   // Q : 이전 파티원으로 전환
@@ -44,5 +49,6 @@ private:
 	void OnSwitchPrev(const FInputActionValue& Value);
 	void OnSwitchNext(const FInputActionValue& Value);
 	void SwitchCombatCharacter(int32 Direction);
+	void OnCameraZoom(const FInputActionValue& Value);	
 	void UpdateCameraTargetForPawn(APawn* InPawn) const;
 };
