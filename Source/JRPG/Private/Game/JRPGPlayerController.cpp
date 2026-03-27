@@ -119,6 +119,12 @@ void AJRPGPlayerController::InitallizeCombatBridge()
  
 	if (!SpawnSub || !CharacterRuntime) return;
 
+	// BP에서 설정한 전투 전용 컨트롤러 클래스 전달
+	if (CombatControllerClass)
+	{
+		SpawnSub->SetCombatControllerClass(CombatControllerClass);
+	}
+
 	const TArray<FName>& CharIds = PartySubsystem->GetPartyIds();
 	FName LeaderId = CharIds.Num() > 0 ? CharIds[0] : NAME_None;
 

@@ -321,6 +321,12 @@ void UPartyActorSpawnSubsystem::SetCombatPlayerController(APlayerController* InC
 	CombatPlayerController = InController;
 }
 
+void UPartyActorSpawnSubsystem::SetCombatControllerClass(TSubclassOf<APlayerController> InClass)
+{
+	CombatControllerClass = InClass;
+	UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem : CombatControllerClass 설정 → %s"), *GetNameSafe(InClass));
+}
+
 void UPartyActorSpawnSubsystem::EnterCombatMode(APlayerController* PC, const FName& LeaderCharacterID)
 {
 	if (!PC)
@@ -381,7 +387,9 @@ void UPartyActorSpawnSubsystem::EnterCombatMode(APlayerController* PC, const FNa
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
-		APlayerController* CombatPC = World->SpawnActor<APlayerController>(ACombatPlayerController::StaticClass(), FTransform::Identity, SpawnParams);
+		UClass* ClassToSpawn = CombatControllerClass.Get() ? CombatControllerClass.Get() : ACombatPlayerController::StaticClass();
+
+		APlayerController* CombatPC = World->SpawnActor<APlayerController>(ClassToSpawn, FTransform::Identity, SpawnParams);
 
 		if (CombatPC)
 		{

@@ -69,6 +69,8 @@ public:
 	void SetOriginalPlayerCharacterID(const FName& CharacterID);
 	void SetCombatPlayerController(APlayerController* InController);
 
+	void SetCombatControllerClass(TSubclassOf<APlayerController> InClass);
+
 	void OnBattleEnded(EBattleEndReason Reason);
 	FName GetCurrentPlayerCharacterID() const { return CurrentPlayerCharacterID; }
 
@@ -89,6 +91,10 @@ private:
 	UPROPERTY()
 	TObjectPtr<APlayerController> CombatPlayerController;
 	
+	// BP에서 파생된 CombatPlayerController 클래스 (미설정 시 C++ 기본 클래스 사용)
+	UPROPERTY()
+	TSubclassOf<APlayerController> CombatControllerClass;
+
 	// 전투 진입 전 필드 컨트롤러 캐시 (전투 종료 후 복원)
 	UPROPERTY()
 	TObjectPtr<APlayerController> CachedFieldController;

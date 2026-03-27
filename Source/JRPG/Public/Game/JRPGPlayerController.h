@@ -72,6 +72,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="JRPG|Combat")
 	TArray<FName> DefaultPartyIds;
 
+	// 전투 전용 PlayerController BP 클래스 (BP_CombatPlayerController 등)
+	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Combat")
+	TSubclassOf<APlayerController> CombatControllerClass;
+
 	void OnMove(const FInputActionValue& Value);
 	void OnSprintStarted(const FInputActionValue& Value);
 	void OnSprintCompleted(const FInputActionValue& Value);
