@@ -15,7 +15,7 @@ struct FCameraFieldSnapshot
 	
 	UPROPERTY() FVector  FLocation = FVector::ZeroVector;
 	UPROPERTY() FRotator FRotator = FRotator::ZeroRotator;
-	UPROPERTY() float	 ArmLength = 400.0f;
+	UPROPERTY() float	 ArmLength = 550.0f;
 	
 	UPROPERTY() TWeakObjectPtr<AActor> Target;
 	
@@ -40,6 +40,11 @@ public:
 	// 전투 종료 후
 	void RestoreFieldSnapshot();
 	
+	// 카메라 줌 인/아웃 관련
+	void AdjustZoom(float NormalizedDelta);
+	void ResetZoom();
+	
+	// Getter/Setter
 	ACameraRigActor* GetCameraRig() const { return CameraRig.Get(); }
 	
 protected:

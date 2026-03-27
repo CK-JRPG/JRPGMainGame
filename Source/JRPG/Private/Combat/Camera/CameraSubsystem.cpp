@@ -98,9 +98,22 @@ void UCameraSubsystem::RestoreFieldSnapshot()
     if (CameraRig->SpringArm)
         CameraRig->SpringArm->TargetArmLength = FieldSnapshot.ArmLength;
 
+    ResetZoom(); // 전투 종료 후 카메라 줌 초기화
     SetTarget(FieldSnapshot.Target.Get());
 
     UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 필드 카메라 스냅샷 복원 완료"));
+}
+
+void UCameraSubsystem::AdjustZoom(float NormalizedDelta)
+{
+    if (CameraRig.IsValid())
+        CameraRig->AdjustZoom(NormalizedDelta * CameraRig->GetZoomStep());
+}
+
+void UCameraSubsystem::ResetZoom()
+{
+    if (CameraRig.IsValid())
+        CameraRig->ResetZoom();
 }
 
 void UCameraSubsystem::OnBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason /*Reason*/)
