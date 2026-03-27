@@ -9,7 +9,7 @@
 class UItemDatabaseAsset;
 class UItemDataAsset;
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FItemInstance
 {
 	GENERATED_BODY()
@@ -60,7 +60,7 @@ public:
 	FItemOp RestoreInstance(const FItemInstance& Instance, FName SourceTag);
 	
 	FItemOp SetLocked(FGuid InstanceId, bool bLocked);
-	FItemOp setFavorite(FGuid InstanceId, bool bFavorite);
+	FItemOp SetFavorite(FGuid InstanceId, bool bFavorite);
 
 	bool HasItem(FName ItemId, int32 RequiredQty) const;
 	int32 CountItem(FName ItemId) const;

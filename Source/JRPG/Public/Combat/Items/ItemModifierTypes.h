@@ -77,7 +77,7 @@ struct FSkillParamModifierAccumulator
 	UPROPERTY() TMap<FName, float> PctBySkillTag;
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FAugmentModifierSet
 {
 	GENERATED_BODY()

@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Combat/Items/InventorySubsystem.h"
 #include "Combat/Items/ItemTypes.h"
+#include "Combat/Items/InventoryTypes.h"
 #include "ItemSaveTypes.generated.h"
 
 USTRUCT()

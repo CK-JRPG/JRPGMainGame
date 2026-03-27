@@ -5,7 +5,7 @@
 #include "Combat/Core/RoleTypes.h"
 #include "ItemTypes.generated.h"
 
-UENUM()
+UENUM(BlueprintType)
 enum class EItemType : uint8
 {
 	Weapon,
@@ -73,7 +73,7 @@ enum class EEquipmentSlotType : uint8
 	Augment3
 };
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FItemOp
 {
 	GENERATED_BODY()
