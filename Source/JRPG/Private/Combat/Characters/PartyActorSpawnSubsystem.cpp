@@ -7,6 +7,7 @@
 #include "Engine/AssetManager.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
 #include "GameFramework/GameModeBase.h"
+#include "GameFramework/HUD.h"
 
 void UPartyActorSpawnSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -397,6 +398,12 @@ void UPartyActorSpawnSubsystem::EnterCombatMode(APlayerController* PC, const FNa
 			if (AGameModeBase* GM = World->GetAuthGameMode())
 			{
 				GM->SwapPlayerControllers(PC, CombatPC);
+				
+				// 스왑 직후 전투 컨트롤러에 명시적으로 HUD 생성 명령
+				if (GM->HUDClass)
+				{
+					CombatPC->ClientSetHUD(GM->HUDClass);
+				}
 			}
 
 			CombatPC->Possess(LeaderActor);
@@ -538,6 +545,12 @@ void UPartyActorSpawnSubsystem::OnBattleEnded(EBattleEndReason Reason)
 		if (AGameModeBase* GM = GetWorld()->GetAuthGameMode())
 		{
 			GM->SwapPlayerControllers(CombatPlayerController, CachedFieldController.Get());
+			
+			// 원래 컨트롤러로 돌아온 직후 탐험용 HUD 생성 명령
+		  	if (GM->HUDClass)
+		  	{
+		  		CachedFieldController.Get()->ClientSetHUD(GM->HUDClass);
+		  	}
 		}
 		ControllerToRestoreWith = CachedFieldController.Get();
 
