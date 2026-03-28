@@ -38,55 +38,51 @@ class JRPG_API UPartyActorSpawnSubsystem : public UWorldSubsystem
 public:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	virtual void Deinitialize() override;
-
-	UFUNCTION()
-	void RegisterSpawnEntry(const FCharacterSpawnEntry& Entry);
-
-	UFUNCTION()
-	void RegisterSpawnEntries(const TArray<FCharacterSpawnEntry>& Entries);
-
-
-	void PreloadAssets(const TArray<FName>& PartyIds);
-	void SpawnFieldCompanions(const FVector& LeaderLocation, const FName& LeaderCharacterID);
-	void DespawnFieldCompanions();
-
-	TArray<AJRPGCompanionPawn*> GetSpawnedCompanions() const;
-
-	// 비동기 스폰임 : 인카운터에서 호출
-	void AsyncSpawnCombatActors(
-		const TArray<FName>& PartyIds, const FTransform& SpawnOrigin,
-		TFunction<void(TArray<ACombatCharacterActor*>)> OnComplete
-	);
 	
-	// 필드 폰 위치/회전 기반 비동기 스폰 (끊김 없는 전환용)
+	// 필드 폰 위치/회전 기반 비동기 스폰 
 	void AsyncSpawnCombatActorsAtFieldPositions(
 		const TArray<FName>& PartyIds,
 		const TMap<FName, FTransform>& FieldTransforms,
 		TFunction<void(TArray<ACombatCharacterActor*>)> OnComplete
 	);
-	
-	void OnPartyMemberChanged(const FName& NewCharacterID);
 
-	// 전투 종료 시 CombatChracterActor는 모두 파괴함.
-	void DespawnCombatActors(const TArray<ACombatCharacterActor*>& Actors);
+	UFUNCTION()
+	void RegisterSpawnEntry(const FCharacterSpawnEntry& Entry);
+	
+
+	UFUNCTION()
+	void RegisterSpawnEntries(const TArray<FCharacterSpawnEntry>& Entries);
+	
+	void PreloadAssets(const TArray<FName>& PartyIds);
+	
+	void SpawnFieldCompanions(const FVector& LeaderLocation, const FName& LeaderCharacterID);
+	void DespawnFieldCompanions();
+	void OnPartyMemberChanged(const FName& NewCharacterID);
 
 	// 전투 모드 전환시키기 필드 폰 숨기고 CombatCharacterActor 빙의
 	void EnterCombatMode(APlayerController* PC, const FName& LeaderCharacterID);
-
-	void SetOriginalPlayerCharacterID(const FName& CharacterID);
-	void SetCombatPlayerController(APlayerController* InController);
-
-	void SetCombatControllerClass(TSubclassOf<APlayerController> InClass);
-
+	
+	// 전투 종료 시 CombatChracterActor는 모두 파괴함.
+	void DespawnCombatActors(const TArray<ACombatCharacterActor*>& Actors);
 	void OnBattleEnded(EBattleEndReason Reason);
-	FName GetCurrentPlayerCharacterID() const { return CurrentPlayerCharacterID; }
 
-
-	UFUNCTION()
-	TArray<ACombatCharacterActor*> GetSpawnedActors() const;
-
+	
+	
+	//유틸함수
 	UFUNCTION()
 	ACombatCharacterActor* FindActorByCharacterID(const FName& CharacterID) const;
+	
+	void SetOriginalPlayerCharacterID(const FName& CharacterID);
+	FName GetCurrentPlayerCharacterID() const { return CurrentPlayerCharacterID; }
+	
+	void SetCombatPlayerController(APlayerController* InController);
+	void SetCombatControllerClass(TSubclassOf<APlayerController> InClass);
+	
+	UFUNCTION()
+	TArray<ACombatCharacterActor*> GetSpawnedActors() const;
+	
+	UFUNCTION()
+	TArray<AJRPGCompanionPawn*> GetSpawnedCompanions() const;
 
 private:
 	//로드된 놈을 실제로 월드에 스폰처리 
