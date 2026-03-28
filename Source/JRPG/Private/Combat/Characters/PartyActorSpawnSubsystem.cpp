@@ -538,45 +538,69 @@ void UPartyActorSpawnSubsystem::OnBattleEnded(EBattleEndReason Reason)
 	
 	// 전투 전용 컨트롤러 -> 필드 컨트롤러로 스왑 복원
 	APlayerController* ControllerToRestoreWith = nullptr;
+	APlayerController* CombatPCToDestroy = nullptr;
 
-	if (CachedFieldController && CombatPlayerController && CombatPlayerController != CachedFieldController)
+	if (IsValid(CachedFieldController) && IsValid(CombatPlayerController) && CombatPlayerController != CachedFieldController)
 	{
 		// CombatPlayerController를 사용했으므로 스왑 복원
 		if (AGameModeBase* GM = GetWorld()->GetAuthGameMode())
 		{
-			GM->SwapPlayerControllers(CombatPlayerController, CachedFieldController.Get());
+			GM->SwapPlayerControllers(CombatPlayerController.Get(), CachedFieldController.Get());
 			
 			// 원래 컨트롤러로 돌아온 직후 탐험용 HUD 생성 명령
 		  	if (GM->HUDClass)
 		  	{
-		  		CachedFieldController.Get()->ClientSetHUD(GM->HUDClass);
+		  		CachedFieldController->ClientSetHUD(GM->HUDClass);
 		  	}
 		}
 		ControllerToRestoreWith = CachedFieldController.Get();
 
 		// 전투 컨트롤러 파괴
-		CombatPlayerController->Destroy();
+		// 전투 컨트롤러 파괴는 필드 폰 복원 후에 수행 (Destroy 부작용 방지)
+		CombatPCToDestroy = CombatPlayerController.Get();
 		UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::OnBattleEnded : CombatPlayerController -> 필드 컨트롤러 스왑 복원."));
 	}
-	else
+	else if (IsValid(CombatPlayerController))
 	{
 		// 폴백 : 같은 PC를 사용한 경우
 		ControllerToRestoreWith = CombatPlayerController.Get();
 	}
+	else if (IsValid(CachedFieldController))
+	{
+		// 폴백 : CombatPlayerController 없을 때 CachedFieldController 사용
+		ControllerToRestoreWith = CachedFieldController.Get();
+		UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem::OnBattleEnded : CombatPlayerController 유효하지 않음. CachedFieldController로 폴백."));
+	}
 	
-	// JRPGPlayerPawn으로 다시 복원 시키고 JRPGPlayerPawn으로 빙의
-	if (IsValid(CachedFieldPawn) && ControllerToRestoreWith)
+	// JRPGPlayerPawn 필드 복원 (항상 수행)
+	if (IsValid(CachedFieldPawn))
 	{
 		APawn* FieldPawn = CachedFieldPawn.Get();
 		FieldPawn->SetActorHiddenInGame(false);
 		FieldPawn->SetActorEnableCollision(true);
 		FieldPawn->SetActorTickEnabled(true);
 
-		ControllerToRestoreWith->Possess(FieldPawn);
-
-		UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::OnBattleEnded : PlayerPawn 빙의 복원 완료."));
+		if (ControllerToRestoreWith)
+		{
+			ControllerToRestoreWith->Possess(FieldPawn);
+			UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::OnBattleEnded : PlayerPawn 빙의 복원 완료."));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem::OnBattleEnded : 복원할 컨트롤러 없음. PlayerPawn 가시성만 복원 (빙의 안 됨)."));
+		}		
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem::OnBattleEnded : CachedFieldPawn이 유효하지 않음. 필드 폰 복원 불가."));
 	}
 
+	// 필드 폰 복원 완료 후 전투 컨트롤러 파괴
+	if (CombatPCToDestroy)
+	{
+		CombatPCToDestroy->Destroy();
+	}
+	
 	// CompanionPawn 복원시킴
 	for (auto& Pair : SpawnedCompanionMap)
 	{
