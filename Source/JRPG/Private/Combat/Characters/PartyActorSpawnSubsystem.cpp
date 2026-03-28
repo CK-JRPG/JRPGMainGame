@@ -1,8 +1,9 @@
 ﻿#include "Combat/Characters/PartyActorSpawnSubsystem.h"
 
 #include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
-#include "Combat/Characters/CharacterRuntimeSubsystem.h"  // 추가
+#include "Combat/Characters/CharacterRuntimeSubsystem.h" 
 #include "Combat/Characters/CombatPlayerController.h"
 #include "Engine/AssetManager.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
@@ -264,6 +265,112 @@ void UPartyActorSpawnSubsystem::AsyncSpawnCombatActors(const TArray<FName>& Part
 	);
 }
 
+void UPartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions(
+	const TArray<FName>& PartyIds,
+	const TMap<FName, FTransform>& FieldTransforms,
+	TFunction<void(TArray<ACombatCharacterActor*>)> OnComplete)
+{
+	if (PartyIds.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions : 실패 - PartyIds가 비어 있음."));
+		if (OnComplete) OnComplete({});
+		return;
+	}
+
+	TWeakObjectPtr<UPartyActorSpawnSubsystem> WeakThis(this);
+
+	auto DoSpawn = [WeakThis, PartyIds, FieldTransforms, OnComplete]()
+	{
+		UPartyActorSpawnSubsystem* Self = WeakThis.Get();
+		if (!Self)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem : 에러 - 스폰 완료 전 Subsystem 소멸."));
+			return;
+		}
+
+		UWorld* World = Self->GetWorld();
+		if (!World)
+		{
+			UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem : 에러 - 스폰 완료 시 World 없음."));
+			return;
+		}
+
+		UCharacterRuntimeSubsystem* CharacterRuntime = nullptr;
+		if (UGameInstance* GI = World->GetGameInstance())
+			CharacterRuntime = GI->GetSubsystem<UCharacterRuntimeSubsystem>();
+
+		TArray<ACombatCharacterActor*> SpawnedActors;
+		SpawnedActors.Reserve(PartyIds.Num());
+
+		for (const FName& ID : PartyIds)
+		{
+			const FCharacterSpawnEntry* Entry = Self->SpawnEntryMap.Find(ID);
+			if (!Entry)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem : 에러 - SpawnEntry 없음. ID: %s"), *ID.ToString());
+				continue;
+			}
+
+			TSubclassOf<ACombatCharacterActor> LoadedClass =
+				TSoftClassPtr<ACombatCharacterActor>(Entry->ActorClass.ToSoftObjectPath()).Get();
+			if (!LoadedClass)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem : 에러 - 클래스 로드 실패. ID: %s"), *ID.ToString());
+				continue;
+			}
+
+			// 필드 폰 위치가 있으면 그 위치에, 없으면 폴백
+			FTransform ActorTransform;
+			if (const FTransform* FieldTransform = FieldTransforms.Find(ID))
+			{
+				ActorTransform = *FieldTransform;
+			}
+			else
+			{
+				ActorTransform = FTransform::Identity;
+				ActorTransform.AddToTranslation(Entry->SpawnOffset);
+				UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem : 필드 트랜스폼 없음, 폴백 사용 - %s"), *ID.ToString());
+			}
+
+			ACombatCharacterActor* SpawnedActor = Self->SpawnSingleActor(LoadedClass, ActorTransform);
+			if (!IsValid(SpawnedActor))
+			{
+				UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem : 스폰 실패 - %s"), *ID.ToString());
+				continue;
+			}
+
+			Self->SpawnedActorMap.Add(ID, SpawnedActor);
+			SpawnedActors.Add(SpawnedActor);
+
+			if (CharacterRuntime)
+				CharacterRuntime->RestoreSnapshot(ID, SpawnedActor);
+
+			UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem : 필드 위치 기반 스폰 성공 - %s"), *ID.ToString());
+		}
+
+		if (OnComplete) OnComplete(SpawnedActors);
+	};
+
+	if (PreloadHandle.IsValid() && PreloadHandle->HasLoadCompleted())
+	{
+		DoSpawn();
+		return;
+	}
+
+	TArray<FSoftObjectPath> Paths = CollectSoftPaths(PartyIds);
+	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
+
+	if (PreloadHandle.IsValid())
+		PreloadHandle->ReleaseHandle();
+
+	PreloadHandle = StreamableManager.RequestAsyncLoad(
+		Paths,
+		[DoSpawn]() { DoSpawn(); },
+		FStreamableManager::AsyncLoadHighPriority
+	);
+}
+
+
 void UPartyActorSpawnSubsystem::DespawnCombatActors(const TArray<ACombatCharacterActor*>& Actors)
 {
 	UCharacterRuntimeSubsystem* CharacterRuntime = nullptr;
@@ -349,6 +456,12 @@ void UPartyActorSpawnSubsystem::EnterCombatMode(APlayerController* PC, const FNa
 	CachedFieldPawn = PC->GetPawn();
 	CachedFieldController = PC;
 
+	// 카메라 스냅샷 저장 (전투 종료 후 복원용)
+	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
+	{
+		CamSub->SaveFieldSnapshot();
+	}
+	
 	// JRPGPlayerPawn HiddenInGame으로 변경하고 콜리전 false
 	if (APawn* FieldPawn = CachedFieldPawn.Get())
 	{
@@ -394,6 +507,9 @@ void UPartyActorSpawnSubsystem::EnterCombatMode(APlayerController* PC, const FNa
 
 		if (CombatPC)
 		{
+			// 필드 컨트롤러의 카메라 회전값을 전투 컨트롤러에 동기화 (끊김 방지)
+			CombatPC->SetControlRotation(PC->GetControlRotation());
+			
 			// 필드 컨트롤러 → 전투 컨트롤러로 LocalPlayer 스왑
 			if (AGameModeBase* GM = World->GetAuthGameMode())
 			{
@@ -542,6 +658,8 @@ void UPartyActorSpawnSubsystem::OnBattleEnded(EBattleEndReason Reason)
 
 	if (IsValid(CachedFieldController) && IsValid(CombatPlayerController) && CombatPlayerController != CachedFieldController)
 	{
+		CachedFieldController->SetControlRotation(CombatPlayerController->GetControlRotation());
+		
 		// CombatPlayerController를 사용했으므로 스왑 복원
 		if (AGameModeBase* GM = GetWorld()->GetAuthGameMode())
 		{
@@ -555,7 +673,6 @@ void UPartyActorSpawnSubsystem::OnBattleEnded(EBattleEndReason Reason)
 		}
 		ControllerToRestoreWith = CachedFieldController.Get();
 
-		// 전투 컨트롤러 파괴
 		// 전투 컨트롤러 파괴는 필드 폰 복원 후에 수행 (Destroy 부작용 방지)
 		CombatPCToDestroy = CombatPlayerController.Get();
 		UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::OnBattleEnded : CombatPlayerController -> 필드 컨트롤러 스왑 복원."));

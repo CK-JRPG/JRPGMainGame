@@ -2,7 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "Combat/Camera/CameraTargetInterface.h"
-#include "Combat/Characters/CombatCharacterActor.h"
 #include "GameFramework/Character.h"
 #include "JRPGPlayerPawn.generated.h"
 

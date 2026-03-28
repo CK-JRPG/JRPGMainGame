@@ -27,6 +27,9 @@ public:
 	void SetCameraTarget(AActor* NewTarget);
 	AActor* GetCurrentTarget() const { return TargetActor.Get(); }
 	
+	// 타겟만 변경하고 카메라 위치/회전은 보간으로 전환 (끊김 없는 전환용)
+	void SetCameraTargetSmooth(AActor* NewTarget);
+	
 private:
 	UPROPERTY()
 	TWeakObjectPtr<AActor> TargetActor;

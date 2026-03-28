@@ -144,6 +144,6 @@ void ACombatPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
 
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
 	{
-		CamSub->SetTarget(InPawn);
+		CamSub->SetTargetSmooth(InPawn);
 	}
 }

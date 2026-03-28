@@ -34,8 +34,12 @@ public:
 	// 타겟 전환
 	void SetTarget(AActor* NewTarget);
 	
+	// 타겟 전환 (끊김 없는 보간 전환)
+	void SetTargetSmooth(AActor* NewTarget);
+	
 	// 인카운터 진입 직전
 	void SaveFieldSnapshot();
+	
 	
 	// 전투 종료 후
 	void RestoreFieldSnapshot();

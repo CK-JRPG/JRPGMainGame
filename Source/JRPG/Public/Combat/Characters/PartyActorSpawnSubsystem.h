@@ -58,6 +58,13 @@ public:
 		TFunction<void(TArray<ACombatCharacterActor*>)> OnComplete
 	);
 	
+	// 필드 폰 위치/회전 기반 비동기 스폰 (끊김 없는 전환용)
+	void AsyncSpawnCombatActorsAtFieldPositions(
+		const TArray<FName>& PartyIds,
+		const TMap<FName, FTransform>& FieldTransforms,
+		TFunction<void(TArray<ACombatCharacterActor*>)> OnComplete
+	);
+	
 	void OnPartyMemberChanged(const FName& NewCharacterID);
 
 	// 전투 종료 시 CombatChracterActor는 모두 파괴함.
