@@ -6,8 +6,17 @@
 #include "Engine/World.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 
-// 로그를 쉽게 찍기 위한 매크로 정의
-#define HUD_LOG(Format, ...) UE_LOG(LogTemp, Warning, TEXT("[JRPGHUD_DEBUG] " Format), ##__VA_ARGS__)
+// =========================================================
+// [디버그 로그 스위치]
+// 1로 설정하면 로그가 출력되고, 0으로 설정하면 모든 HUD_LOG가 무시됩니다.
+#define ENABLE_HUD_DEBUG_LOG 0
+// =========================================================
+
+#if ENABLE_HUD_DEBUG_LOG
+    #define HUD_LOG(Format, ...) UE_LOG(LogTemp, Warning, TEXT("[JRPGHUD_DEBUG] " Format), ##__VA_ARGS__)
+#else
+    #define HUD_LOG(Format, ...)
+#endif
 
 void AJRPGHUD::BeginPlay()
 {
@@ -71,8 +80,9 @@ void AJRPGHUD::BeginPlay()
 
 void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    HUD_LOG("=== EndPlay 호출됨! 파괴 원인: %d ===", (int32)EndPlayReason);
+    HUD_LOG("=== EndPlay 호출됨! 위젯 청소 및 파괴 원인: %d ===", (int32)EndPlayReason);
     
+    // 델리게이트 바인딩 해제 (메모리 누수 방지)
     if (UWorld* World = GetWorld())
     {
         if (UBattleSessionSubsystem* BattleSub = World->GetSubsystem<UBattleSessionSubsystem>())
@@ -81,6 +91,20 @@ void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
             BattleSub->OnBattleEnded.RemoveAll(this);
         }
     }
+
+    // 뷰포트에 남아있는 고아 위젯들을 강제로 제거
+    if (ExplorationWidget)
+    {
+        ExplorationWidget->RemoveFromParent();
+        ExplorationWidget = nullptr;
+    }
+
+    if (CombatWidget)
+    {
+        CombatWidget->RemoveFromParent();
+        CombatWidget = nullptr;
+    }
+
     Super::EndPlay(EndPlayReason);
 }
 
