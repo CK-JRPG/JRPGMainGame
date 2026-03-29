@@ -81,3 +81,9 @@ void ACameraRigActor::ResetZoom()
 {
 	ArmLength = DefaultArmLength;
 }
+
+void ACameraRigActor::SetCameraTargetSmooth(AActor* NewTarget)
+{
+	TargetActor = NewTarget;
+	// 위치/회전/ArmLength는 Tick에서 보간으로 자연스럽게 전환
+}

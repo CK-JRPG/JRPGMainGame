@@ -1,6 +1,5 @@
 ﻿#include "Game/JRPGPlayerPawn.h"
 
-#include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"

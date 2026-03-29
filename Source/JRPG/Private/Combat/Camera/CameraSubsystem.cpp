@@ -69,6 +69,37 @@ void UCameraSubsystem::SetTarget(AActor* NewTarget)
     }
 }
 
+
+void UCameraSubsystem::SetTargetSmooth(AActor* NewTarget)
+{
+    if (!CameraRig.IsValid())
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UCameraSubsystem::SetTargetSmooth - CameraRig 없음"));
+        return;
+    }
+
+    if (NewTarget && !Cast<ICameraTargetInterface>(NewTarget))
+    {
+        UE_LOG(LogTemp, Warning,
+            TEXT("UCameraSubsystem::SetTargetSmooth - %s 가 ICameraTargetInterface를 구현하지 않음"),
+            *GetNameSafe(NewTarget));
+        return;
+    }
+
+    // 위치/회전/ArmLength 스냅 없이 타겟만 변경 (Tick에서 보간 처리)
+    CameraRig->SetCameraTargetSmooth(NewTarget);
+    
+    if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+    {
+        FViewTargetTransitionParams Params;
+        Params.BlendTime = 0.0f;
+        PC->SetViewTarget(CameraRig.Get(), Params);
+        
+        UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem : ViewTarget -> CameraRig (스무스 전환), 추적 대상 -> %s"), *GetNameSafe(NewTarget));
+    }
+}
+
+
 void UCameraSubsystem::SaveFieldSnapshot()
 {
     if (!CameraRig.IsValid()) return;
@@ -92,9 +123,8 @@ void UCameraSubsystem::RestoreFieldSnapshot()
         return;
     }
 
-    // CameraRig 위치/회전 즉시 복원
+    // CameraRig 위치/회전 즉시 복원 (박용석 : 회전은 ControlRotation 동기화쪽에서 전환)
     CameraRig->SetActorLocation(FieldSnapshot.FLocation);
-    CameraRig->SetActorRotation(FieldSnapshot.FRotator);
     if (CameraRig->SpringArm)
         CameraRig->SpringArm->TargetArmLength = FieldSnapshot.ArmLength;
 

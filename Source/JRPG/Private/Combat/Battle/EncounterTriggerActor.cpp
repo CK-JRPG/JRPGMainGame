@@ -3,7 +3,6 @@
 
 #include "Combat/Battle/EncounterTriggerActor.h"
 
-#include "EngineUtils.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
@@ -13,6 +12,7 @@
 #include "Components/BoxComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Game/JRPGPlayerPawn.h"
+#include "Game/Companion/JRPGCompanionPawn.h"
 
 // Sets default values
 AEncounterTriggerActor::AEncounterTriggerActor()
@@ -139,7 +139,24 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 
 	FName LeaderCharID = PartyIds[0];
 
-	SpawnSub->AsyncSpawnCombatActors(PartyIds, GetActorTransform(),
+	// 필드 폰 위치/회전 수집 (끊김 없는 전환용)
+	TMap<FName, FTransform> FieldTransforms;
+	
+	// 리더: JRPGPlayerPawn의 위치/회전
+	if (const AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(OverlapActor))
+	{
+		FieldTransforms.Add(LeaderCharID, PlayerPawn->GetActorTransform());
+	}
+
+	// 나머지 파티원: CompanionPawn의 위치/회전
+	TArray<AJRPGCompanionPawn*> Companions = SpawnSub->GetSpawnedCompanions();
+	for (AJRPGCompanionPawn* Companion : Companions)
+	{
+		if (!IsValid(Companion)) continue;
+		FieldTransforms.Add(Companion->CurrentCharacterId, Companion->GetActorTransform());
+	}
+
+	SpawnSub->AsyncSpawnCombatActorsAtFieldPositions(PartyIds, FieldTransforms,
 		[WeakThis, BattleConfig, WeakPC, LeaderCharID](TArray<ACombatCharacterActor*> SpawnedActors) mutable
 		{
 			AEncounterTriggerActor* Self = WeakThis.Get();
