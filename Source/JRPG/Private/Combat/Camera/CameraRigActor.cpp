@@ -11,7 +11,7 @@ ACameraRigActor::ACameraRigActor()
 	
 	SpringArm = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArm"));
 	RootComponent = SpringArm;
-	SpringArm->TargetArmLength = 400.0f;
+	SpringArm->TargetArmLength = DefaultArmLength;
 	SpringArm->bUsePawnControlRotation = false;
 	SpringArm->bDoCollisionTest = true; // 카메라 콜리전 설정해줘야 함. 플레이어어와 다른 객체라서 부딪힘.
 	
@@ -47,7 +47,7 @@ void ACameraRigActor::Tick(float DeltaTime)
 	
 	SpringArm->TargetArmLength = FMath::FInterpTo(
 		SpringArm->TargetArmLength,
-		Target->GetCameraTargetArmLength(),
+		ArmLength,
 		DeltaTime,
 		ArmLengthInterpSpeed
 	);
@@ -63,7 +63,21 @@ void ACameraRigActor::SetCameraTarget(AActor* NewTarget)
 		{
 			SetActorLocation(T->GetCameraTargetLocation());
 			SetActorRotation(T->GetCameraTargetRotation());
+			
+			// 타겟 전환 시 그 타겟의 기본 ArmLength로 리셋할지 여부
+			// -> 타겟마다 다르면 이 라인 살리고, 아니면 제거
 			SpringArm->TargetArmLength = T->GetCameraTargetArmLength();
 		}
 	}
+}
+
+void ACameraRigActor::AdjustZoom(float Delta)
+{
+	ArmLength = FMath::Clamp(ArmLength + Delta, MinArmLength, MaxArmLength);
+	UE_LOG(LogTemp, Warning, TEXT("Adjusting : Delta=%f , Zoom=%f"), Delta, ArmLength);
+}
+
+void ACameraRigActor::ResetZoom()
+{
+	ArmLength = DefaultArmLength;
 }

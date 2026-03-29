@@ -67,7 +67,7 @@ public:
 	virtual float    GetCameraTargetArmLength() const override;
 	
 	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "100.0"))
-	float CombatArmLength = 300.f;
+	float CombatArmLength = 550.f;
 	
 protected:
 

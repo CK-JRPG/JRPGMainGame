@@ -211,6 +211,11 @@ void AJRPGPlayerController::SetupInputComponent()
 		EIC->BindAction(IA_LookAround, ETriggerEvent::Started, this, &AJRPGPlayerController::OnLookAround);
 		EIC->BindAction(IA_LookAround, ETriggerEvent::Completed, this, &AJRPGPlayerController::OnLookAroundCompleted);
 	}
+	
+	if (IA_CameraZoom)
+	{
+		EIC->BindAction(IA_CameraZoom, ETriggerEvent::Started, this, &AJRPGPlayerController::OnCameraZoom);
+	}
 }
 
 void AJRPGPlayerController::OnMove(const FInputActionValue& Value)
@@ -286,6 +291,21 @@ void AJRPGPlayerController::OnLookAroundCompleted()
 	if (ULocomotionComponent* Locomotion = ControlledPawn->FindComponentByClass<ULocomotionComponent>())
 	{
 		Locomotion->SetLookAroundMode(false);
+	}
+}
+
+void AJRPGPlayerController::OnCameraZoom(const FInputActionValue& Value)
+{
+	const float AxisValue = Value.Get<float>(); // 휠업 = +1, 휠다운 = -1 (스틱도 동일 함)
+	if (FMath::IsNearlyZero(AxisValue))
+		return;
+	
+	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
+	{
+		// ZoomStep은 CameraRigActor 기준
+		// 스틱은 0~1 연속값이라 스텝 곱해서 전달 했음
+		// 부호 : 위로 댕기면 + = 줌인 ArmLength 감소
+		CamSub->AdjustZoom(-AxisValue);
 	}
 }
 

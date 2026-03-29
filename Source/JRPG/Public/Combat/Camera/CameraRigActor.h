@@ -27,6 +27,16 @@ public:
 	void SetCameraTarget(AActor* NewTarget);
 	AActor* GetCurrentTarget() const { return TargetActor.Get(); }
 	
+	// Getter/Setter
+	float GetLocationInterpSpeed() const { return LocationInterpSpeed; }
+	float GetRotationInterpSpeed() const { return RotationInterpSpeed; }
+	float GetArmLengthInterpSpeed() const { return ArmLengthInterpSpeed; }
+	float GetZoomStep() const { return ZoomStep; }
+
+public:
+	void AdjustZoom(float Delta);
+	void ResetZoom();
+	
 private:
 	UPROPERTY()
 	TWeakObjectPtr<AActor> TargetActor;
@@ -41,10 +51,16 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "1.0"))
 	float ArmLengthInterpSpeed = 5.0f;
 	
-	bool bLockRotation = false;
+	// 카메라 설정
+	float ArmLength = 550.0f;
+	float DefaultArmLength = 550.0f;
+	float ZoomStep = 80.0f;
 	
-public:
-	float GetLocationInterpSpeed() const { return LocationInterpSpeed; }
-	float GetRotationInterpSpeed() const { return RotationInterpSpeed; }
-	float GetArmLengthInterpSpeed() const { return ArmLengthInterpSpeed; }
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "50.0"))
+	float MinArmLength = 150.0f;
+	
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "100.0"))
+	float MaxArmLength = 550.0f;
+	
+	bool bLockRotation = false;
 };

@@ -38,7 +38,7 @@ FRotator AJRPGPlayerPawn::GetCameraTargetRotation() const
 
 float AJRPGPlayerPawn::GetCameraTargetArmLength() const
 {
-	return 400.0f; // 필드용 기본 값, 나중에 변경할 수 있음
+	return 550.0f; // 필드용 기본 값, 나중에 변경할 수 있음
 }
 
 void AJRPGPlayerPawn::UpdateCharacter(FName NewCharId)
