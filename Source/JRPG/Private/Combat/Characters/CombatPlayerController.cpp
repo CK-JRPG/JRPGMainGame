@@ -56,8 +56,6 @@ void ACombatPlayerController::OnPossess(APawn* InPawn)
 			LP->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 		{
 			Subsys->ClearAllMappings();
-
-			// ↓ 이거 찍어보세요
 			UE_LOG(LogTemp, Log, TEXT("IMC_Combat 유효 여부: %s"), IMC_Combat ? TEXT("유효") : TEXT("NULL"));
 
 			if (IMC_Combat)
