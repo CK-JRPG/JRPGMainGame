@@ -296,6 +296,11 @@ void UPartyActorSpawnSubsystem::DespawnCombatActors(const TArray<ACombatCharacte
 				C->UnPossess();
 				C->Destroy();
 			}
+			else
+			{
+				UE_LOG(LogTemp, Warning, TEXT("DespawnCombatActors : PlayerController 빙의 중 Destroy 시도 - %s"), *Actor->GetName());
+				C->UnPossess();
+			}
 		}
 		
 		// SpawnedActorMap에서 제거

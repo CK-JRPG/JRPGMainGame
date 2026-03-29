@@ -45,19 +45,24 @@ void ACombatPlayerController::SetupInputComponent()
 	}
 }
 
+
 void ACombatPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
 
-	if (ULocalPlayer* LP = GetLocalPlayer())
+	if(ULocalPlayer * LP = GetLocalPlayer())
 	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsys = LP->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
+		if (UEnhancedInputLocalPlayerSubsystem* Subsys =
+			LP->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
 		{
 			Subsys->ClearAllMappings();
+
+			// ↓ 이거 찍어보세요
+			UE_LOG(LogTemp, Log, TEXT("IMC_Combat 유효 여부: %s"), IMC_Combat ? TEXT("유효") : TEXT("NULL"));
+
 			if (IMC_Combat)
-			{
 				Subsys->AddMappingContext(IMC_Combat, 0);
-			}
+
 		}
 	}
 

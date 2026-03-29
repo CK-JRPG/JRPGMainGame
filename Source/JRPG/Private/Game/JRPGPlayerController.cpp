@@ -17,18 +17,6 @@ void AJRPGPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
-	if (ULocalPlayer* LP = GetLocalPlayer())
-	{
-		if (UEnhancedInputLocalPlayerSubsystem* Subsys = LP->GetSubsystem<UEnhancedInputLocalPlayerSubsystem>())
-		{
-			if (IMC_Default)
-			{
-				Subsys->AddMappingContext(IMC_Default, 0);
-			}
-		}
-	}
-	
-
 	UpdateCameraTargetForPawn(GetPawn());
 	EnsureDefaultPartyFromTable();
 	InitallizeCombatBridge();

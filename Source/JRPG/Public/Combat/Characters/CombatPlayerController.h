@@ -6,7 +6,9 @@
 
 class UInputMappingContext;
 class UInputAction;
+class ULocalPlayer;
 struct FInputActionValue;
+
 
 /**
  * 전투 전용 플레이어 컨트롤러
