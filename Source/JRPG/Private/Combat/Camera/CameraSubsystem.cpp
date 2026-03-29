@@ -187,7 +187,10 @@ void UCameraSubsystem::LockOnEnemy()
     LockedOnEnemy = CachedEnemies[LockedOnEnemyIndex].Get();
     bLockedOn = true;
 
-    SetTargetSmooth(LockedOnEnemy.Get());
+    if (CameraRig.IsValid())
+    {
+        CameraRig->SetLockOnTarget(LockedOnEnemy.Get());
+    }
 
     UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 적 포커싱 시작 -> %s (인덱스 %d/%d)"),
         *GetNameSafe(LockedOnEnemy.Get()), LockedOnEnemyIndex + 1, CachedEnemies.Num());
