@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -30,6 +30,11 @@ public:
 	// 타겟만 변경하고 카메라 위치/회전은 보간으로 전환 (끊김 없는 전환용)
 	void SetCameraTargetSmooth(AActor* NewTarget);
 	
+	// 락온
+	void SetLockOnTarget(AActor* Target);
+	void ClearLockOnTarget();
+	bool HasLockOnTarget() const { return LockOnTarget.IsValid(); }
+
 	// Getter/Setter
 	float GetLocationInterpSpeed() const { return LocationInterpSpeed; }
 	float GetRotationInterpSpeed() const { return RotationInterpSpeed; }
@@ -43,6 +48,9 @@ public:
 private:
 	UPROPERTY()
 	TWeakObjectPtr<AActor> TargetActor;
+
+	UPROPERTY()
+	TWeakObjectPtr<AActor> LockOnTarget;
 	
 	// 보간 속도
 	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "1.0"))
@@ -65,5 +73,8 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "100.0"))
 	float MaxArmLength = 550.0f;
 	
+	// 락온 시 적의 위치에 더할 수직 오프셋 (가슴/머리 높이)
+	float LockOnVerticalOffset = 60.0f;
+
 	bool bLockRotation = false;
 };

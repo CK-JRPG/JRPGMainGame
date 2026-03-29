@@ -89,7 +89,11 @@ private:
 	ACombatCharacterActor* SpawnSingleActor(TSubclassOf<ACombatCharacterActor> ActorClass,const FTransform& SpawnTransform);
 
 	TArray<FSoftObjectPath> CollectSoftPaths(const TArray<FName>& PartyIds) const;
-
+	
+	//이동 입력시 속도 동기화
+	void SyncMovementStateToLeader(APawn* FieldPawn, ACombatCharacterActor* LeaderActor);
+	void SyncMovementStateToFieldPawn(ACombatCharacterActor* LeaderActor, APawn* FieldPawn);
+	
 private:
 	UPROPERTY()
 	TObjectPtr<APlayerController> CombatPlayerController;

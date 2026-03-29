@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "GameFramework/PlayerController.h"
@@ -28,16 +28,19 @@ protected:
 	TObjectPtr<UInputMappingContext> IMC_Combat;
 
 	UPROPERTY(EditDefaultsOnly, Category="Input")
-	TObjectPtr<UInputAction> IA_Move;     // Value: Vector2D
+	TObjectPtr<UInputAction> IA_Move;
 
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_Look;
 	
-	// 카메라 줌 In/Out 키
-	// 키보드 : 마우스 휠 / 패드 : R1 + R_Stick
+	// 카메라 줌 In/Out, 키보드 : 마우스 휠 / 패드 : R1 + R_Stick
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_CameraZoom;
 	
+	// 적 포커싱, 키보드 : 마우스 휠 클릭 / 패드 : LStick 클릭 
+	UPROPERTY(EditDefaultsOnly, Category="Input")
+	TObjectPtr<UInputAction> IA_TargetLockOn;
+
 	// 임시로 Q, E로 바인딩 했음.
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_SwitchPrev;   // Q : 이전 파티원으로 전환
@@ -51,6 +54,7 @@ private:
 	void OnSwitchPrev(const FInputActionValue& Value);
 	void OnSwitchNext(const FInputActionValue& Value);
 	void SwitchCombatCharacter(int32 Direction);
-	void OnCameraZoom(const FInputActionValue& Value);	
+	void OnCameraZoom(const FInputActionValue& Value);
+	void OnTargetLockOn(const FInputActionValue& Value);
 	void UpdateCameraTargetForPawn(APawn* InPawn) const;
 };

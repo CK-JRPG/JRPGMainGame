@@ -1,5 +1,7 @@
 ﻿#include "Combat/Characters/PartyActorSpawnSubsystem.h"
 
+#include "Combat/Movement/LocomotionComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
@@ -421,7 +423,7 @@ void UPartyActorSpawnSubsystem::EnterCombatMode(APlayerController* PC, const FNa
 			// 필드 컨트롤러의 카메라 회전값을 전투 컨트롤러에 동기화 (끊김 방지)
 			CombatPC->SetControlRotation(PC->GetControlRotation());
 			
-			// 필드 컨트롤러 → 전투 컨트롤러로 LocalPlayer 스왑
+			// 필드 컨트롤러 -> 전투 컨트롤러로 LocalPlayer 스왑
 			if (AGameModeBase* GM = World->GetAuthGameMode())
 			{
 				GM->SwapPlayerControllers(PC, CombatPC);
@@ -436,6 +438,9 @@ void UPartyActorSpawnSubsystem::EnterCombatMode(APlayerController* PC, const FNa
 			CombatPC->Possess(LeaderActor);
 			SetCombatPlayerController(CombatPC);
 
+			//필드 캐릭터 -> 전투 액터로 전환시 이동, 입력속도 동기화
+			SyncMovementStateToLeader(CachedFieldPawn.Get(), LeaderActor);
+			
 			UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::EnterCombatMode : CombatPlayerController 스왑 완료 → %s"), *LeaderCharacterID.ToString());
 			return;
 		}
@@ -448,8 +453,61 @@ void UPartyActorSpawnSubsystem::EnterCombatMode(APlayerController* PC, const FNa
 	// 폴백 : CombatPlayerController 스폰 실패 시 기존 필드 PC 사용
 	PC->Possess(LeaderActor);
 	SetCombatPlayerController(PC);
+	
+	//폴백시에도 이동속도 동기화
+	SyncMovementStateToLeader(CachedFieldPawn.Get(), LeaderActor);
 
 	UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem::EnterCombatMode : 전투 모드 진입 완료 (필드 PC 폴백) -> %s"), *LeaderCharacterID.ToString());
+}
+
+void UPartyActorSpawnSubsystem::SyncMovementStateToLeader(APawn* FieldPawn, ACombatCharacterActor* LeaderActor)
+{
+	if (!FieldPawn || !LeaderActor) return;
+
+	if (ACharacter* FieldChar = Cast<ACharacter>(FieldPawn))
+	{
+		if (UCharacterMovementComponent* FieldCMC = FieldChar->GetCharacterMovement())
+		{
+			if (UCharacterMovementComponent* CombatCMC = LeaderActor->GetCharacterMovement())
+			{
+				CombatCMC->Velocity = FieldCMC->Velocity;
+			}
+		}
+	}
+
+	if (ULocomotionComponent* FieldLoco = FieldPawn->FindComponentByClass<ULocomotionComponent>())
+	{
+		if (ULocomotionComponent* CombatLoco = LeaderActor->FindComponentByClass<ULocomotionComponent>())
+		{
+			CombatLoco->SetMoveInput(FieldLoco->GetMoveInput());
+			CombatLoco->SetSprint(FieldLoco->IsSprinting());
+		}
+	}
+}
+
+void UPartyActorSpawnSubsystem::SyncMovementStateToFieldPawn(ACombatCharacterActor* LeaderActor, APawn* FieldPawn)
+{
+	if (!LeaderActor || !FieldPawn) return;
+
+	if (ACharacter* FieldChar = Cast<ACharacter>(FieldPawn))
+	{
+		if (UCharacterMovementComponent* CombatCMC = LeaderActor->GetCharacterMovement())
+		{
+			if (UCharacterMovementComponent* FieldCMC = FieldChar->GetCharacterMovement())
+			{
+				FieldCMC->Velocity = CombatCMC->Velocity;
+			}
+		}
+	}
+
+	if (ULocomotionComponent* CombatLoco = LeaderActor->FindComponentByClass<ULocomotionComponent>())
+	{
+		if (ULocomotionComponent* FieldLoco = FieldPawn->FindComponentByClass<ULocomotionComponent>())
+		{
+			FieldLoco->SetMoveInput(CombatLoco->GetMoveInput());
+			FieldLoco->SetSprint(CombatLoco->IsSprinting());
+		}
+	}
 }
 
 void UPartyActorSpawnSubsystem::OnPartyMemberChanged(const FName& NewCharacterID)
@@ -544,6 +602,23 @@ void UPartyActorSpawnSubsystem::OnBattleEnded(EBattleEndReason Reason)
 		CombatPlayerController->UnPossess();
 	}
 
+	// 리더 CombatCharacterActor의 최종 위치/회전 저장 (필드 폰 복원 시 동기화용)
+	FVector LeaderFinalLocation = FVector::ZeroVector;
+	FRotator LeaderFinalRotation = FRotator::ZeroRotator;
+	bool bHasLeaderTransform = false;
+	if (ACombatCharacterActor* LeaderForRestore = FindActorByCharacterID(OriginalPlayerCharacterID))
+	{
+		LeaderFinalLocation = LeaderForRestore->GetActorLocation();
+		LeaderFinalRotation = LeaderForRestore->GetActorRotation();
+		bHasLeaderTransform = true;
+		
+		// 전투 액터 -> 필드 폰 이동 속도/입력 동기화 (파괴 전에 수행)
+		if (IsValid(CachedFieldPawn))
+		{
+			SyncMovementStateToFieldPawn(LeaderForRestore, CachedFieldPawn.Get());
+		}
+	}
+	
 	// CombatCharacterActor 스냅샷 저장 후 파괴
 	TArray<ACombatCharacterActor*> CurrentActors;
 	for (auto& Pair : SpawnedActorMap)
@@ -604,6 +679,14 @@ void UPartyActorSpawnSubsystem::OnBattleEnded(EBattleEndReason Reason)
 	if (IsValid(CachedFieldPawn))
 	{
 		APawn* FieldPawn = CachedFieldPawn.Get();
+		
+		// CombatCharacterActor의 최종 위치와 회전을 필드쪽 캐릭터에 동기화
+		if (bHasLeaderTransform)
+		{
+			FieldPawn->SetActorLocation(LeaderFinalLocation);
+			FieldPawn->SetActorRotation(LeaderFinalRotation);
+		}
+		
 		FieldPawn->SetActorHiddenInGame(false);
 		FieldPawn->SetActorEnableCollision(true);
 		FieldPawn->SetActorTickEnabled(true);

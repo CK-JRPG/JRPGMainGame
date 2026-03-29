@@ -1,4 +1,4 @@
-#include "Combat/Characters/CombatPlayerController.h"
+﻿#include "Combat/Characters/CombatPlayerController.h"
 
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
@@ -33,6 +33,11 @@ void ACombatPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(IA_CameraZoom, ETriggerEvent::Started, this, &ACombatPlayerController::OnCameraZoom);
 	}
+
+	if (IA_TargetLockOn)
+	{
+		EIC->BindAction(IA_TargetLockOn, ETriggerEvent::Started, this, &ACombatPlayerController::OnTargetLockOn);
+	}
 	
 	if (IA_SwitchPrev)
 	{
@@ -61,6 +66,15 @@ void ACombatPlayerController::OnPossess(APawn* InPawn)
 			if (IMC_Combat)
 				Subsys->AddMappingContext(IMC_Combat, 0);
 
+		}
+	}
+
+	// 파티원 전환 시 적 포커싱 해제
+	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
+	{
+		if (CamSub->IsLockedOn())
+		{
+			CamSub->ClearLockOn();
 		}
 	}
 
@@ -99,6 +113,13 @@ void ACombatPlayerController::OnMove(const FInputActionValue& Value)
 
 void ACombatPlayerController::OnLook(const FInputActionValue& Value)
 {
+	// 락온 포커싱 중이면 카메라 회전 입력 차단
+	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
+	{
+		if (CamSub->IsLockedOn())
+			return;
+	}
+
 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
 
 	if (LookAxisVector.X != 0.0f)
@@ -158,6 +179,27 @@ void ACombatPlayerController::OnCameraZoom(const FInputActionValue& Value)
 		// 스틱은 0~1 연속값이라 스텝 곱해서 전달 했음
 		// 부호 : 위로 댕기면 + = 줌인 ArmLength 감소
 		CamSub->AdjustZoom(-AxisValue);
+	}
+}
+
+void ACombatPlayerController::OnTargetLockOn(const FInputActionValue& Value)
+{
+	if (!GetWorld())
+		return;
+
+	UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>();
+	if (!CamSub)
+		return;
+
+	if (CamSub->IsLockedOn())
+	{
+		// 이미 포커싱 중이면 다음 적으로 순환
+		CamSub->ClearLockOn();
+	}
+	else
+	{
+		// 포커싱 시작 (가장 가까운 적)
+		CamSub->LockOnEnemy();
 	}
 }
 
