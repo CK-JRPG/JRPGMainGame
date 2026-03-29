@@ -11,7 +11,6 @@ class UInputAction;
 class UCombatCharacterDataAsset;
 struct FInputActionValue;
 
-//해당 구조체 방식이 맞는가에 대해 점검중.
 USTRUCT(BlueprintType)
 struct FCharacterMappingRow : public FTableRowBase
 {
