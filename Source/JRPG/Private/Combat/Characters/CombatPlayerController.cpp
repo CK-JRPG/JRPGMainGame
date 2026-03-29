@@ -5,7 +5,7 @@
 #include "InputActionValue.h"
 
 #include "Combat/Camera/CameraSubsystem.h"
-#include "Combat/Characters/PartyActorSpawnSubsystem.h"
+#include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Movement/LocomotionComponent.h"
 
@@ -126,15 +126,15 @@ void ACombatPlayerController::SwitchCombatCharacter(int32 Direction)
 {
 	if (!GetWorld() || !GetGameInstance()) return;
 
-	UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>();
+	UCombatTransitionSubsystem* TransitionSub = GetWorld()->GetSubsystem<UCombatTransitionSubsystem>();
 	UPartySubsystem* PartySub = GetGameInstance()->GetSubsystem<UPartySubsystem>();
 
-	if (!SpawnSub || !PartySub) return;
+	if (!TransitionSub || !PartySub) return;
 
 	const TArray<FName>& PartyIds = PartySub->GetPartyIds();
 	if (PartyIds.Num() <= 1) return;
 
-	const FName CurrentId = SpawnSub->GetCurrentPlayerCharacterID();
+	const FName CurrentId = TransitionSub->GetCurrentPlayerCharacterID();
 	if (CurrentId.IsNone()) return;
 
 	const int32 CurrentIndex = PartyIds.IndexOfByKey(CurrentId);
@@ -143,7 +143,7 @@ void ACombatPlayerController::SwitchCombatCharacter(int32 Direction)
 	const int32 NewIndex = (CurrentIndex + Direction + PartyIds.Num()) % PartyIds.Num();
 	const FName NewId = PartyIds[NewIndex];
 
-	SpawnSub->OnPartyMemberChanged(NewId);
+	TransitionSub->OnPartyMemberChanged(NewId);
 }
 
 void ACombatPlayerController::OnCameraZoom(const FInputActionValue& Value)

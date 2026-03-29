@@ -5,6 +5,7 @@
 
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
+#include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Session/CombatZoneActor.h"
@@ -12,6 +13,7 @@
 #include "Components/BoxComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Game/JRPGPlayerPawn.h"
+#include "Game/Companion/FieldCompanionSubsystem.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
 
 // Sets default values
@@ -75,7 +77,8 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 
 	UPartySubsystem* PartySys = GI->GetSubsystem<UPartySubsystem>();
 	UPartyActorSpawnSubsystem* SpawnSub = World->GetSubsystem<UPartyActorSpawnSubsystem>();
-
+	UFieldCompanionSubsystem* CompanionSub = World->GetSubsystem<UFieldCompanionSubsystem>();
+	
 	if (!PartySys || !SpawnSub)
 	{
 		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : Party 또는 PartyActorSpawn 서브시스템이 없음"));
@@ -83,7 +86,7 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 		return;
 	}
 
-	// ── 1. 적 감지 (월드에 이미 배치된 CombatCharacterActor) ──
+	// 적 감지 (월드에 이미 배치된 CombatCharacterActor)
 	FBattleSessionConfig BattleConfig;
 	TSet<AActor*> AddedActors;
 	AddedActors.Add(const_cast<AActor*>(OverlapActor));   // 플레이어 Pawn 제외
@@ -104,6 +107,7 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 		if (!IsValid(Candidate) || AddedActors.Contains(Candidate))
 			continue;
 
+		// ICombatParticipantInterface을 부모로 가지고 있는 액터 중 Enemy이면서 살아있는 캐릭터만 추가
 		if (ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(Candidate))
 		{
 			if (Participant->GetCombatTeam() == ECombatTeam::Enemy && Participant->GetHP() && !Participant->GetHP()->IsDead())
@@ -122,7 +126,7 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 		return;
 	}
 
-	// ── 2. 플레이어 파티 전투 액터 비동기 스폰 ──
+	// 플레이어 파티 전투 액터 비동기 스폰
 	const TArray<FName>& PartyIds = PartySys->GetPartyIds();
 	if (PartyIds.IsEmpty())
 	{
@@ -139,17 +143,20 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 
 	FName LeaderCharID = PartyIds[0];
 
-	// 필드 폰 위치/회전 수집 (끊김 없는 전환용)
+	// 각 필드에 있는 폰의 위치와 회전 수집할 Map
 	TMap<FName, FTransform> FieldTransforms;
 	
-	// 리더: JRPGPlayerPawn의 위치/회전
+	// JRPGPlayerPawn의 위치/회전
 	if (const AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(OverlapActor))
 	{
 		FieldTransforms.Add(LeaderCharID, PlayerPawn->GetActorTransform());
 	}
 
-	// 나머지 파티원: CompanionPawn의 위치/회전
-	TArray<AJRPGCompanionPawn*> Companions = SpawnSub->GetSpawnedCompanions();
+	// 나머지 파티원들도 
+	TArray<AJRPGCompanionPawn*> Companions;
+	if (CompanionSub)
+		Companions = CompanionSub->GetSpawnedCompanions();	
+	
 	for (AJRPGCompanionPawn* Companion : Companions)
 	{
 		if (!IsValid(Companion)) continue;
@@ -159,6 +166,9 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 	SpawnSub->AsyncSpawnCombatActorsAtFieldPositions(PartyIds, FieldTransforms,
 		[WeakThis, BattleConfig, WeakPC, LeaderCharID](TArray<ACombatCharacterActor*> SpawnedActors) mutable
 		{
+			//스폰은 PartyActorSpawnSubsystem이 하고, 결과만 람다로 받아서 EncounterTriggerActor가 처리
+			//PartyActorSpawnSubsystem에서 OnComplete(SpawnedActors)가 호출되어야(실제 스폰이 완료되어야) 아래 등록이 실행됨. 
+			// 즉, SpawnedActors가 만들어지는 곳이 PartyActorSpawnSubsystem의 DoSpawn() 안쪽임 (람다 구현하다가 나도 헷갈려서 적어둠...)
 			AEncounterTriggerActor* Self = WeakThis.Get();
 			if (!Self) return;
 
@@ -175,13 +185,13 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 				return;
 			}
 
-			// 전투 모드 진입: 필드 폰 숨김 → CombatCharacterActor 빙의
+			// 배틀세션 진입 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
 			APlayerController* PC = WeakPC.Get();
 			if (PC)
 			{
-				if (UPartyActorSpawnSubsystem* SpawnSubInner = Self->GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
+				if (UCombatTransitionSubsystem* TransitionSub = Self->GetWorld()->GetSubsystem<UCombatTransitionSubsystem>())
 				{
-					SpawnSubInner->EnterCombatMode(PC, LeaderCharID);
+					TransitionSub->EnterCombatMode(PC, LeaderCharID);
 				}
 			}
 
