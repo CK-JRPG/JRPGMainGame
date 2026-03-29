@@ -1,4 +1,4 @@
-#include "Combat/Camera/CameraRigActor.h"
+﻿#include "Combat/Camera/CameraRigActor.h"
 
 #include "Camera/CameraComponent.h"
 #include "Combat/Camera/CameraTargetInterface.h"
@@ -37,10 +37,23 @@ void ACameraRigActor::Tick(float DeltaTime)
 		DeltaTime,
 		LocationInterpSpeed
 	));
+
+	FRotator DesiredRotation;
+	if (LockOnTarget.IsValid())
+	{
+		const FVector MyLoc = GetActorLocation();
+		// 적의 발 위치보다 약간 위쪽을 바라보게 오프셋 설정함
+		const FVector EnemyLoc = LockOnTarget->GetActorLocation() + FVector(0.f, 0.f, LockOnVerticalOffset);
+		DesiredRotation = (EnemyLoc - MyLoc).Rotation();
+	}
+	else
+	{
+		DesiredRotation = Target->GetCameraTargetRotation();
+	}
 	
 	SetActorRotation(FMath::RInterpTo(
 		GetActorRotation(),
-		Target->GetCameraTargetRotation(),
+		DesiredRotation,
 		DeltaTime,
 		RotationInterpSpeed
 	));
@@ -86,4 +99,14 @@ void ACameraRigActor::SetCameraTargetSmooth(AActor* NewTarget)
 {
 	TargetActor = NewTarget;
 	// 위치/회전/ArmLength는 Tick에서 보간으로 자연스럽게 전환
+}
+
+void ACameraRigActor::SetLockOnTarget(AActor* Target)
+{
+	LockOnTarget = Target;
+}
+
+void ACameraRigActor::ClearLockOnTarget()
+{
+	LockOnTarget.Reset();
 }

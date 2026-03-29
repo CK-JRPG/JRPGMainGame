@@ -1,4 +1,4 @@
-#include "Combat/Camera/CameraSubsystem.h"
+﻿#include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Camera/CameraRigActor.h"
 #include "Combat/Camera/CameraTargetInterface.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
@@ -146,12 +146,181 @@ void UCameraSubsystem::ResetZoom()
         CameraRig->ResetZoom();
 }
 
+void UCameraSubsystem::LockOnEnemy()
+{
+    RefreshEnemyList();
+
+    if (CachedEnemies.Num() == 0)
+    {
+        UE_LOG(LogTemp, Warning, TEXT("UCameraSubsystem::FocusEnemy : 락온할 적이 없음"));
+        return;
+    }
+
+    // 플레이어 폰 기준으로 가장 가까운 적 선택
+    AActor* PlayerPawn = nullptr;
+    if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+    {
+        PlayerPawn = PC->GetPawn();
+    }
+
+    int32 BestIndex = 0;
+    if (PlayerPawn)
+    {
+        float BestDistSq = FLT_MAX;
+        const FVector PlayerLoc = PlayerPawn->GetActorLocation();
+
+        for (int32 i = 0; i < CachedEnemies.Num(); ++i)
+        {
+            if (AActor* Enemy = CachedEnemies[i].Get())
+            {
+                const float DistSq = FVector::DistSquared(PlayerLoc, Enemy->GetActorLocation());
+                if (DistSq < BestDistSq)
+                {
+                    BestDistSq = DistSq;
+                    BestIndex = i;
+                }
+            }
+        }
+    }
+
+    LockedOnEnemyIndex = BestIndex;
+    LockedOnEnemy = CachedEnemies[LockedOnEnemyIndex].Get();
+    bLockedOn = true;
+
+    SetTargetSmooth(LockedOnEnemy.Get());
+
+    UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 적 포커싱 시작 -> %s (인덱스 %d/%d)"),
+        *GetNameSafe(LockedOnEnemy.Get()), LockedOnEnemyIndex + 1, CachedEnemies.Num());
+}
+
+void UCameraSubsystem::CycleLockOnEnemy(int32 Direction)
+{
+    if (!bLockedOn) 
+        return;
+
+    RefreshEnemyList();
+
+    if (CachedEnemies.Num() == 0)
+    {
+        ClearLockOn();
+        return;
+    }
+
+    // 현재 락온 중인 적이 죽었거나 유효하지 않으면 인덱스 조정
+    if (!LockedOnEnemy.IsValid())
+    {
+        LockedOnEnemyIndex = FMath::Clamp(LockedOnEnemyIndex, 0, CachedEnemies.Num() - 1);
+    }
+    else
+    {
+        // 새 목록에서 현재 적의 인덱스를 다시 찾기
+        const int32 NewIdx = CachedEnemies.IndexOfByPredicate([this](const TWeakObjectPtr<AActor>& Elem) 
+            { 
+                return Elem.Get() == LockedOnEnemy.Get(); 
+            });
+
+        if (NewIdx != INDEX_NONE)
+        {
+            LockedOnEnemyIndex = NewIdx;
+        }
+        else
+        {
+            LockedOnEnemyIndex = FMath::Clamp(LockedOnEnemyIndex, 0, CachedEnemies.Num() - 1);
+        }
+    }
+
+    // 순환 인덱스: +Num으로 음수 Direction 처리
+    const int32 EnemyCount = CachedEnemies.Num();
+    if (EnemyCount == 0) { ClearLockOn(); return; }
+    LockedOnEnemyIndex = (LockedOnEnemyIndex + Direction + EnemyCount) % EnemyCount;
+    LockedOnEnemy = CachedEnemies[LockedOnEnemyIndex].Get();
+
+    // 락온 타겟 전환
+    if (CameraRig.IsValid())
+    {
+        CameraRig->SetLockOnTarget(LockedOnEnemy.Get());
+    }
+
+    UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 적 락온 순환 -> %s (인덱스 %d/%d)"),
+        *GetNameSafe(LockedOnEnemy.Get()), LockedOnEnemyIndex + 1, CachedEnemies.Num());
+}
+
+void UCameraSubsystem::ClearLockOn()
+{
+    if (!bLockedOn) return;
+
+    bLockedOn = false;
+    LockedOnEnemyIndex = INDEX_NONE;
+    LockedOnEnemy.Reset();
+    CachedEnemies.Empty();
+
+    // 락온 해제 (카메라 타겟은 플레이어에 이미 있으므로 전환 불필요)
+    if (CameraRig.IsValid())
+        CameraRig->ClearLockOnTarget();
+
+    UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 적 락온 해제"));
+}
+
+void UCameraSubsystem::RefreshEnemyList()
+{
+    CachedEnemies.Empty();
+
+    UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+    if (!Battle || !Battle->IsBattleActive()) 
+        return;
+
+    APlayerController* PC = GetWorld()->GetFirstPlayerController();
+    if (!PC)
+        return;
+
+    APawn* PlayerPawn = PC->GetPawn();
+    if (!PlayerPawn)
+        return;
+
+    TArray<AActor*> Opponents;
+    Battle->GetOpponentsFor(PlayerPawn, Opponents);
+
+    // ICameraTargetInterface를 구현한 적만 필터링
+    for (AActor* Enemy : Opponents)
+    {
+        if (Enemy && Enemy->Implements<UCameraTargetInterface>())
+        {
+            CachedEnemies.Add(Enemy);
+        }
+    }
+
+    // 플레이어와의 거리 기준 정렬 (const T& 패턴 — UE5 Sort 호환)
+    const FVector PlayerLoc = PlayerPawn->GetActorLocation();
+    CachedEnemies.Sort([&PlayerLoc](const TWeakObjectPtr<AActor>& A, const TWeakObjectPtr<AActor>& B)
+        {
+            const AActor* ActorA = A.Get();
+            const AActor* ActorB = B.Get();
+            if (!ActorA || !ActorB) 
+                return (ActorA != nullptr) && (ActorB == nullptr);
+
+            return FVector::DistSquared(PlayerLoc, ActorA->GetActorLocation()) < FVector::DistSquared(PlayerLoc, ActorB->GetActorLocation());
+        });
+}
+
 void UCameraSubsystem::OnBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason /*Reason*/)
 {
+    bLockedOn = false;
+    LockedOnEnemyIndex = INDEX_NONE;
+    LockedOnEnemy.Reset();
+    CachedEnemies.Empty();
+
+    if (CameraRig.IsValid())
+    {
+        CameraRig->ClearLockOnTarget();
+    }
+
     RestoreFieldSnapshot();
 }
 
 void UCameraSubsystem::OnCharacterPossessed(AActor* NewCharacter)
 {
+    if (bLockedOn)
+        return;
+
     SetTarget(NewCharacter);
 }
