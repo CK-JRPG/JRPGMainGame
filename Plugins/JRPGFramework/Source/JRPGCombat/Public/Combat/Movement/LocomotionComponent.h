@@ -35,6 +35,9 @@ public:
 	
 	void SetLookAroundMode(bool bEnabled);
 	bool IsLookAroundMode() const { return bLookAroundMode; }
+	
+	FVector2D GetMoveInput() const { return MoveInput; }
+	bool IsSprinting() const { return bSprint; }
 
 protected:
 	virtual void BeginPlay() override;
