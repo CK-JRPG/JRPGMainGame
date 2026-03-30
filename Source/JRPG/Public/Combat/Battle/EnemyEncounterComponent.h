@@ -26,7 +26,10 @@ private:
 						  UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
 						  bool bFromSweep, const FHitResult& SweepResult);
 	
-	void SearchCombatCharactersInRadius(const AActor* PlayerActor);
+	void SearchCombatEnemyCharactersInRadius(const AActor* PlayerActor);
+	void SpawnCombatPartyCharacters( UPartySubsystem* PartySys,
+		UPartyActorSpawnSubsystem* SpawnSub,
+		FBattleSessionConfig& BattleConfig);
 	void ReadyForBattleSession(const FBattleSessionConfig& Config);
 	void CreateCombatZone();
 		

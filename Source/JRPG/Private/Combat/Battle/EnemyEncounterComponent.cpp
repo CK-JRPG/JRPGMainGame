@@ -4,8 +4,11 @@
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
+#include "Combat/Characters/PartyActorSpawnSubsystem.h"
+#include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Components/SphereComponent.h"
+#include "Engine/OverlapResult.h"
 #include "Game/JRPGPlayerPawn.h"
 
 UEnemyEncounterComponent::UEnemyEncounterComponent()
@@ -59,11 +62,32 @@ void UEnemyEncounterComponent::OnTriggerOverlap(UPrimitiveComponent* OverlappedC
 	if (!PlayerPawn) return;
 
 	bHasTriggered = true;
-	SearchCombatCharactersInRadius(OtherActor);
+	SearchCombatEnemyCharactersInRadius(OtherActor);
 }
 
-void UEnemyEncounterComponent::SearchCombatCharactersInRadius(const AActor* PlayerActor)
+void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor* PlayerActor)
 {
+	if (!IsValid(PlayerActor))
+		return; 
+	
+	UWorld* World = GetWorld();
+	UGameInstance* GI = GetOwner()->GetGameInstance();
+	if (!World || !GI)
+	{
+		bHasTriggered = false;
+		return;
+	}
+	
+	UPartySubsystem* PartySys = GI->GetSubsystem<UPartySubsystem>();
+	UPartyActorSpawnSubsystem* SpawnSub = World->GetSubsystem<UPartyActorSpawnSubsystem>();
+	UPhysicsFieldComponent* CompanionSub = World->GetSubsystem<UPhysicsFieldComponent>();
+	
+	if (!PartySys || !SpawnSub || !CompanionSub)
+	{
+		bHasTriggered = false;
+		return;
+	}
+	
 	FBattleSessionConfig BattleConfig;
 	TSet<const AActor*> AddedActors;
 	AddedActors.Add(PlayerActor); 
@@ -78,8 +102,59 @@ void UEnemyEncounterComponent::SearchCombatCharactersInRadius(const AActor* Play
 			AddedActors.Add(Owner);
 		}
 	}
+	
+	const FVector TriggerLocation = GetOwner()->GetActorLocation();
+	FCollisionShape Sphere = FCollisionShape::MakeSphere(EnemySearchRadius);
+	FCollisionObjectQueryParams QueryParams;
+	QueryParams.AddObjectTypesToQuery(ECC_Pawn);
+	
+	TArray<FOverlapResult> OverlapResults;
+	World->OverlapMultiByObjectType(OverlapResults, TriggerLocation, FQuat::Identity, QueryParams,Sphere);
+	
+	for (const FOverlapResult& Result : OverlapResults)
+	{
+		AActor* Candidate = Result.GetActor();
+		if (!IsValid(Candidate) || AddedActors.Contains(Candidate))
+			continue;
+		
+		if (ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(Candidate))
+		{
+			if (Participant->GetCombatTeam() == ECombatTeam::Enemy && Participant->GetHP() && !Participant->GetHP()->IsDead())
+			{
+				BattleConfig.EnemySide.Add(Candidate);
+				AddedActors.Add(Candidate);
+			}
+		}
+	}
+	
+	if (BattleConfig.EnemySide.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EncounterComp : 주변에 적이 없음."))
+		bHasTriggered = false;
+		return;
+	}
+	
+	SpawnCombatPartyCharacters(PartySys, SpawnSub, BattleConfig);
 
 }
+
+void UEnemyEncounterComponent::SpawnCombatPartyCharacters(UPartySubsystem* PartySys,
+	UPartyActorSpawnSubsystem* SpawnSub, FBattleSessionConfig& BattleConfig)
+{
+	const TArray<FName>& PartyIds = PartySys->GetPartyIds();
+	if (PartyIds.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("EncounterTrigger : 파티 멤버가 없음"));
+		bHasTriggered = false;
+		return;
+	}
+	
+	TWeakObjectPtr<UEnemyEncounterComponent> WeakThis(this);
+	TWeakObjectPtr<APlayerController> WeakPC;
+	if (const APawn* Pawn = Cast<APawn>(Overlap))
+	
+}
+
 
 void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig& Config)
 {
