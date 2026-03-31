@@ -14,6 +14,7 @@
 #include "Game/JRPGPlayerPawn.h"
 #include "Game/Companion/FieldCompanionSubsystem.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
+#include "Components/CapsuleComponent.h"
 
 UEnemyEncounterComponent::UEnemyEncounterComponent()
 {
@@ -251,8 +252,8 @@ void UEnemyEncounterComponent::CreateCombatZone()
 
 		SpawnedZone = GetWorld()->SpawnActor<ACombatZoneActor>(
 			CombatZoneClass,
-			GetOwner()->GetActorLocation(),
-			GetOwner()->GetActorRotation(),
+			this->GetOwner()->GetActorLocation(),
+			this->GetOwner()->GetActorRotation(),
 			Params
 		);
 
@@ -264,6 +265,7 @@ void UEnemyEncounterComponent::CreateCombatZone()
 		{
 			UE_LOG(LogTemp, Error, TEXT("EncounterComponent :  생성 실패"))
 		}
+
 
 	}
 }

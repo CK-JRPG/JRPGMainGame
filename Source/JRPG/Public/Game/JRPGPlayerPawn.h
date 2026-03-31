@@ -9,6 +9,7 @@ class USpringArmComponent;
 class UCameraComponent;
 class ULocomotionComponent;
 class ACombatCharacterActor;
+class UZoneTrackerComponent;
 
 UCLASS()
 class JRPG_API AJRPGPlayerPawn : public ACharacter, public ICameraTargetInterface
@@ -20,6 +21,8 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category="JRPG")
 	TObjectPtr<ULocomotionComponent> Locomotion;
+	UPROPERTY(VisibleAnywhere, Category = "JRPG")
+	TObjectPtr<UZoneTrackerComponent> ZoneComp;
 
 	// ICameraTargetInterface
 	virtual FVector GetCameraTargetLocation() const override;
