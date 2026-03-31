@@ -7,6 +7,7 @@
 #include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
+#include "Combat/Infrastructure/CombatTacticalModeSubsystem.h"
 #include "Combat/Movement/LocomotionComponent.h"
 
 #include "GameFramework/Character.h"
@@ -47,6 +48,11 @@ void ACombatPlayerController::SetupInputComponent()
 	if (IA_SwitchNext)
 	{
 		EIC->BindAction(IA_SwitchNext, ETriggerEvent::Started, this, &ACombatPlayerController::OnSwitchNext);
+	}
+	
+	if (IA_TacticalMode)
+	{
+		EIC->BindAction(IA_TacticalMode, ETriggerEvent::Started, this, &ACombatPlayerController::OnTacticalModePressed);
 	}
 }
 
@@ -210,5 +216,27 @@ void ACombatPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
 	{
 		CamSub->SetTargetSmooth(InPawn);
+	}
+}
+
+void ACombatPlayerController::OnTacticalModePressed(const FInputActionValue& Value)
+{
+	if (!GetWorld()) return;
+	
+	UCombatTacticalModeSubsystem* TacticalSub = GetWorld()->GetSubsystem<UCombatTacticalModeSubsystem>();
+	if (!TacticalSub) return;
+
+	if (TacticalSub->IsActive())
+	{
+		TacticalSub->TryExitTactical(FName("Input.ManualExit"));
+	}
+	else
+	{
+		FJRPGOpResult Result = TacticalSub->TryEnterTactical();
+        
+		if (!Result.bOk)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("ACombatPlayerController::OnTacticalModePressed: 전술 모드 진입 거부됨: %s - %s"), *Result.Reason.Tag.ToString(), *Result.Reason.Message.ToString());
+		}
 	}
 }
