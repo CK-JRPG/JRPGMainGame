@@ -19,7 +19,8 @@
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
 #include "Combat/Stats/CombatStatsComponent.h"
-#include "Combat/Battle/EnemyEncounterComponent.h"
+#include "Combat/Session/CombatZoneTrackerComponent.h"
+
 
 ACombatCharacterActor::ACombatCharacterActor()
 {
@@ -46,6 +47,8 @@ ACombatCharacterActor::ACombatCharacterActor()
 	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
 	LocomotionComp = CreateDefaultSubobject<ULocomotionComponent>(TEXT("LocomotionComponent"));
 	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));
+	ZoneTrackerComp = CreateDefaultSubobject<UCombatZoneTrackerComponent>(TEXT("CombatZoneTracker"));
+
 }
 
 void ACombatCharacterActor::BeginPlay()

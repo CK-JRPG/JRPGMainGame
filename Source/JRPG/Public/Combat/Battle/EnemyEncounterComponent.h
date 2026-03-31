@@ -31,10 +31,6 @@ private:
 						  bool bFromSweep, const FHitResult& SweepResult);
 	
 	void SearchCombatEnemyCharactersInRadius(const AActor* PlayerActor);
-	void SpawnCombatPartyCharacters( UPartySubsystem* PartySys,
-		UPartyActorSpawnSubsystem* SpawnSub,
-		FBattleSessionConfig& BattleConfig,
-		AActor* OverlapActor);
 	void ReadyForBattleSession(const FBattleSessionConfig& Config);
 	void CreateCombatZone();
 		
@@ -42,7 +38,7 @@ private:
 public:
 	
 	UPROPERTY(EditAnywhere, Category = "Encounter")
-	float DetectionRadius = 150.0f;
+	float DetectionRadius = 70.0f;
 	
 	UPROPERTY(EditAnywhere, Category = "Encounter")
 	float EnemySearchRadius = 1000.0f;

@@ -8,7 +8,6 @@
 class USpringArmComponent;
 class UCameraComponent;
 class ULocomotionComponent;
-class UCombatZoneTrackerComponent;
 class ACombatCharacterActor;
 
 UCLASS()
@@ -22,9 +21,6 @@ public:
 	UPROPERTY(VisibleAnywhere, Category="JRPG")
 	TObjectPtr<ULocomotionComponent> Locomotion;
 
-	UPROPERTY(VisibleAnywhere, Category="JRPG")
-	TObjectPtr<UCombatZoneTrackerComponent> ZoneTracker;
-	
 	// ICameraTargetInterface
 	virtual FVector GetCameraTargetLocation() const override;
 	virtual FRotator GetCameraTargetRotation() const override;
