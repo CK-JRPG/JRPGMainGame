@@ -18,6 +18,7 @@ class UCombatItemComponent;
 class UCombatPresentationComponent;
 class UCombatMotionComponent;
 class ULocomotionComponent;
+class UEnemyEncounterComponent;
 
 class UHPComponent;
 class UAPComponent;
@@ -48,6 +49,8 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UHPComponent> HPComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UAPComponent> APComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<USPComponent> SPComp;
+
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UEnemyEncounterComponent> EnemyEncounterComp;
 	
 	
 

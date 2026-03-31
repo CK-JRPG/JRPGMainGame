@@ -9,6 +9,7 @@
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/AI/CombatAIActionSelectorComponent.h"
 #include "Combat/AI/CombatCharacterActorAIController.h"
+#include "Combat/Battle/EnemyEncounterComponent.h"
 #include "Combat/Items/CombatItemComponent.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Motion/CombatMotionComponent.h"
@@ -18,6 +19,7 @@
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
 #include "Combat/Stats/CombatStatsComponent.h"
+#include "Combat/Battle/EnemyEncounterComponent.h"
 
 ACombatCharacterActor::ACombatCharacterActor()
 {
@@ -43,6 +45,7 @@ ACombatCharacterActor::ACombatCharacterActor()
 	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
 	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
 	LocomotionComp = CreateDefaultSubobject<ULocomotionComponent>(TEXT("LocomotionComponent"));
+	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));
 }
 
 void ACombatCharacterActor::BeginPlay()

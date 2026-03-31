@@ -1,4 +1,4 @@
-
+﻿
 #pragma once
 
 #include "CoreMinimal.h"
@@ -7,6 +7,10 @@
 
 class ACombatZoneActor;
 class USphereComponent;
+class UPartySubsystem;
+class UPartyActorSpawnSubsystem;
+struct FBattleSessionConfig;
+
 
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
@@ -29,7 +33,8 @@ private:
 	void SearchCombatEnemyCharactersInRadius(const AActor* PlayerActor);
 	void SpawnCombatPartyCharacters( UPartySubsystem* PartySys,
 		UPartyActorSpawnSubsystem* SpawnSub,
-		FBattleSessionConfig& BattleConfig);
+		FBattleSessionConfig& BattleConfig,
+		AActor* OverlapActor);
 	void ReadyForBattleSession(const FBattleSessionConfig& Config);
 	void CreateCombatZone();
 		
