@@ -7,8 +7,8 @@
 #include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
-#include "Combat/Infrastructure/CombatTacticalModeSubsystem.h"
 #include "Combat/Movement/LocomotionComponent.h"
+#include "Combat/Tactical/TacticalModeSubsystem.h"
 
 #include "GameFramework/Character.h"
 
@@ -222,21 +222,25 @@ void ACombatPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
 void ACombatPlayerController::OnTacticalModePressed(const FInputActionValue& Value)
 {
 	if (!GetWorld()) return;
-	
-	UCombatTacticalModeSubsystem* TacticalSub = GetWorld()->GetSubsystem<UCombatTacticalModeSubsystem>();
+
+	// Source/JRPG에 위치한 TacticalModeSubsystem 호출
+	UTacticalModeSubsystem* TacticalSub = GetWorld()->GetSubsystem<UTacticalModeSubsystem>();
 	if (!TacticalSub) return;
 
 	if (TacticalSub->IsActive())
 	{
-		TacticalSub->TryExitTactical(FName("Input.ManualExit"));
+		// 이미 전술 모드라면 수동 종료
+		TacticalSub->ExitTacticalMode(FName("Input.ManualExit"));
 	}
 	else
 	{
-		FJRPGOpResult Result = TacticalSub->TryEnterTactical();
-        
-		if (!Result.bOk)
+		// 꺼져 있다면 현재 조종 중인 폰을 Requester로 하여 진입 시도
+		bool bSuccess = TacticalSub->TryEnterTacticalMode(GetPawn(), FName("Input.Tab"));
+		
+		if (!bSuccess)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("ACombatPlayerController::OnTacticalModePressed: 전술 모드 진입 거부됨: %s - %s"), *Result.Reason.Tag.ToString(), *Result.Reason.Message.ToString());
+			// Zone 밖이거나 조건이 안 맞아서 거부된 경우
+			UE_LOG(LogTemp, Warning, TEXT("전술 모드 진입 거부됨! (전투 구역 외부이거나 권한 없음)"));
 		}
 	}
 }
