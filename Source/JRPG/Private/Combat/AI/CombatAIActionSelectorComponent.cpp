@@ -44,7 +44,7 @@ void UCombatAIActionSelectorComponent::TickComponent(float DeltaTime, ELevelTick
 	if (!Battle->CanActorExecuteAction(GetOwner())) return;
 
 	ICombatParticipantInterface* P = Cast<ICombatParticipantInterface>(GetOwner());
-	if (!P || P->GetCombatTeam() != ECombatTeam::Enemy) return;
+	if (!P || P->GetCombatTeam() == ECombatTeam::Neutral) return;
 
 	ThinkAndAct();
 }
