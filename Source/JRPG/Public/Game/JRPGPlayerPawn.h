@@ -8,8 +8,8 @@
 class USpringArmComponent;
 class UCameraComponent;
 class ULocomotionComponent;
-class UCombatZoneTrackerComponent;
 class ACombatCharacterActor;
+class UCombatZoneTrackerComponent;
 
 UCLASS()
 class JRPG_API AJRPGPlayerPawn : public ACharacter, public ICameraTargetInterface
@@ -21,16 +21,14 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category="JRPG")
 	TObjectPtr<ULocomotionComponent> Locomotion;
+	UPROPERTY(VisibleAnywhere, Category = "JRPG")
+	TObjectPtr<UCombatZoneTrackerComponent> ZoneComp;
 
-	UPROPERTY(VisibleAnywhere, Category="JRPG")
-	TObjectPtr<UCombatZoneTrackerComponent> ZoneTracker;
-	
 	// ICameraTargetInterface
 	virtual FVector GetCameraTargetLocation() const override;
 	virtual FRotator GetCameraTargetRotation() const override;
 	virtual float GetCameraTargetArmLength() const override;
 	
-	// 해당 접근 방식이 맞는지에 대해서 점검중.(CharacterId로 CombatCharacterActor 찾아서 브릿지 역할 하는 방식)
 	UPROPERTY(VisibleAnywhere, Category = "JRPG|Combat")
 	FName CurrentCharacterId;
 	

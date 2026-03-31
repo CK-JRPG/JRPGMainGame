@@ -9,23 +9,29 @@
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/AI/CombatAIActionSelectorComponent.h"
 #include "Combat/AI/CombatCharacterActorAIController.h"
+#include "Combat/Battle/EnemyEncounterComponent.h"
 #include "Combat/Items/CombatItemComponent.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Motion/CombatMotionComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
+#include "Combat/Movement/JRPGCharacterMovementComponent.h"
 
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
 #include "Combat/Stats/CombatStatsComponent.h"
+#include "Combat/Session/CombatZoneTrackerComponent.h"
 
-ACombatCharacterActor::ACombatCharacterActor()
+
+
+ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UJRPGCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	PrimaryActorTick.bCanEverTick = false;
 
 	AIControllerClass = ACombatCharacterActorAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-	
+
 	CharacterComp = CreateDefaultSubobject<UCombatCharacterComponent>(TEXT("CombatCharacterComponent"));
 
 	HPComp = CreateDefaultSubobject<UHPComponent>(TEXT("HPComponent"));
@@ -43,6 +49,9 @@ ACombatCharacterActor::ACombatCharacterActor()
 	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
 	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
 	LocomotionComp = CreateDefaultSubobject<ULocomotionComponent>(TEXT("LocomotionComponent"));
+	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));
+	ZoneTrackerComp = CreateDefaultSubobject<UCombatZoneTrackerComponent>(TEXT("CombatZoneTracker"));
+
 }
 
 void ACombatCharacterActor::BeginPlay()
