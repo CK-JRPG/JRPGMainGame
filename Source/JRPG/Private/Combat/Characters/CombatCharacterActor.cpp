@@ -14,6 +14,7 @@
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Motion/CombatMotionComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
+#include "Combat/Movement/JRPGCharacterMovementComponent.h"
 
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Stats/APComponent.h"
@@ -22,13 +23,15 @@
 #include "Combat/Session/CombatZoneTrackerComponent.h"
 
 
-ACombatCharacterActor::ACombatCharacterActor()
+
+ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer.SetDefaultSubobjectClass<UJRPGCharacterMovementComponent>(ACharacter::CharacterMovementComponentName))
 {
 	PrimaryActorTick.bCanEverTick = false;
 
 	AIControllerClass = ACombatCharacterActorAIController::StaticClass();
 	AutoPossessAI = EAutoPossessAI::PlacedInWorldOrSpawned;
-	
+
 	CharacterComp = CreateDefaultSubobject<UCombatCharacterComponent>(TEXT("CombatCharacterComponent"));
 
 	HPComp = CreateDefaultSubobject<UHPComponent>(TEXT("HPComponent"));

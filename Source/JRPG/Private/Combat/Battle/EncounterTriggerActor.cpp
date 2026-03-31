@@ -1,7 +1,4 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-
-#include "Combat/Battle/EncounterTriggerActor.h"
+﻿#include "Combat/Battle/EncounterTriggerActor.h"
 
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
@@ -20,19 +17,19 @@
 AEncounterTriggerActor::AEncounterTriggerActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
-	
+
 	TriggerVolume = CreateDefaultSubobject<UBoxComponent>(TEXT("TriggerVolume"));
 	RootComponent = TriggerVolume;
-	
+
 	TriggerVolume->SetCollisionProfileName(TEXT("Trigger"));
 	TriggerVolume->SetCollisionObjectType(ECC_WorldStatic);
 	TriggerVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
 	TriggerVolume->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
-	
+
 	TriggerVolume->SetBoxExtent(FVector(150.0f, 150.0f, 100.0f));
-	
+
 	//디버깅(나중엔 지울것)
-	TriggerVolume->SetHiddenInGame(false); 
+	TriggerVolume->SetHiddenInGame(false);
 	TriggerVolume->ShapeColor = FColor::Red;
 }
 
@@ -53,11 +50,11 @@ void AEncounterTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 {
 	if (bHasTriggered || !OtherActor)
 		return;
-	
+
 	AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(OtherActor);
 	if (!PlayerPawn)
 		return;
-	
+
 	bHasTriggered = true;
 	SearchCombatCharactersInRadius(OtherActor);
 }
@@ -78,7 +75,7 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 	UPartySubsystem* PartySys = GI->GetSubsystem<UPartySubsystem>();
 	UPartyActorSpawnSubsystem* SpawnSub = World->GetSubsystem<UPartyActorSpawnSubsystem>();
 	UFieldCompanionSubsystem* CompanionSub = World->GetSubsystem<UFieldCompanionSubsystem>();
-	
+
 	if (!PartySys || !SpawnSub)
 	{
 		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : Party 또는 PartyActorSpawn 서브시스템이 없음"));
@@ -89,7 +86,7 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 	// 적 감지 (월드에 이미 배치된 CombatCharacterActor)
 	FBattleSessionConfig BattleConfig;
 	TSet<AActor*> AddedActors;
-	AddedActors.Add(const_cast<AActor*>(OverlapActor));   // 플레이어 Pawn 제외
+	AddedActors.Add(const_cast<AActor*>(OverlapActor));   
 
 	const FVector TriggerLocation = GetActorLocation();
 	const float SearchRadius = 1000.f;
@@ -145,7 +142,7 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 
 	// 각 필드에 있는 폰의 위치와 회전 수집할 Map
 	TMap<FName, FTransform> FieldTransforms;
-	
+
 	// JRPGPlayerPawn의 위치/회전
 	if (const AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(OverlapActor))
 	{
@@ -155,8 +152,8 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 	// 나머지 파티원들도 
 	TArray<AJRPGCompanionPawn*> Companions;
 	if (CompanionSub)
-		Companions = CompanionSub->GetSpawnedCompanions();	
-	
+		Companions = CompanionSub->GetSpawnedCompanions();
+
 	for (AJRPGCompanionPawn* Companion : Companions)
 	{
 		if (!IsValid(Companion)) continue;
@@ -185,6 +182,9 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 				return;
 			}
 
+			// CombatZone 먼저 생성 (빙의 전에 Zone이 월드에 있어야 오버랩 이벤트로 Zone 자동 적용)
+			Self->CreateCombatZone();
+
 			// 배틀세션 진입 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
 			APlayerController* PC = WeakPC.Get();
 			if (PC)
@@ -195,6 +195,7 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 				}
 			}
 
+			// 배틀 세션 시작
 			Self->ReadyforBattleSession(BattleConfig);
 		});
 }
@@ -204,27 +205,33 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 void AEncounterTriggerActor::ReadyforBattleSession(const FBattleSessionConfig& Config)
 {
 	UBattleSessionSubsystem* BattleSession = GetWorld()->GetSubsystem<UBattleSessionSubsystem>();
-	
+
 	if (!BattleSession)
 	{
 		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : BattleSessionSubsystem이 존재하지 않음"));
 		bHasTriggered = false;
 		return;
 	}
-	
+
 	FGuid SessionID;
 	const bool bSuccess = BattleSession->StartBattle(Config, SessionID);
-	
+
 	if (bSuccess)
 	{
-		UE_LOG(LogTemp, Log,TEXT("EncounterTrigger : BattleSession 시작. SessionID = %s"), *SessionID.ToString());
+		UE_LOG(LogTemp, Log, TEXT("EncounterTrigger : BattleSession 시작. SessionID = %s"), *SessionID.ToString());
 		TriggerVolume->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		CreateCombatZone();
 	}
 	else
 	{
 		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : BattleSession 시작 실패"));
 		bHasTriggered = false;
+
+		// 배틀 시작 실패 시 이미 생성된 CombatZone 정리
+		if (SpawnedZone)
+		{
+			SpawnedZone->Destroy();
+			SpawnedZone = nullptr;
+		}
 	}
 }
 
@@ -236,9 +243,9 @@ void AEncounterTriggerActor::CreateCombatZone()
 		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 
 		SpawnedZone = GetWorld()->SpawnActor<ACombatZoneActor>(
-			CombatZoneClass, 
-			GetActorLocation(), 
-			GetActorRotation(), 
+			CombatZoneClass,
+			GetActorLocation(),
+			GetActorRotation(),
 			SpawnParams
 		);
 
@@ -255,13 +262,9 @@ void AEncounterTriggerActor::CreateCombatZone()
 
 void AEncounterTriggerActor::OnPlayerApproach()
 {
-	if (UPartyActorSpawnSubsystem*PartySpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
+	if (UPartyActorSpawnSubsystem* PartySpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
 	{
 		TArray<FName> PartyIds;
 		PartySpawnSub->PreloadAssets(PartyIds);
 	}
 }
-
-
-
-

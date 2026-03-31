@@ -1,6 +1,7 @@
 ﻿// Source/JRPGCombat/Private/Combat/Battle/BattleSessionSubsystem.cpp
 #include "Combat/Battle/BattleSessionSubsystem.h"
 
+#include "EngineUtils.h"
 #include "Combat/Battle/BasicCombatSubsystem.h"
 #include "Combat/Battle/CombatActionComponent.h"
 
@@ -8,6 +9,7 @@
 #include "Combat/Characters/PartySubsystem.h"
 
 #include "Combat/Items/CombatItemExecutionSubsystem.h"
+#include "Combat/Session/CombatZoneActor.h"
 #include "Combat/Stats/HPComponent.h"
 
 
@@ -749,6 +751,13 @@ void UBattleSessionSubsystem::EndBattle(EBattleEndReason Reason)
 	OnBattleEnded.Broadcast(FinalSnapshot, Reason);
 
 	ResetSessionState();
+	
+	//현재 ZoneActor 찾아서 삭제.
+	TActorIterator<ACombatZoneActor> It(GetWorld());
+	if (It && IsValid(*It))
+	{
+		(*It)->Destroy();
+	}
 }
 
 void UBattleSessionSubsystem::HandleCombatantDefeated(AActor* Victim, AActor*)

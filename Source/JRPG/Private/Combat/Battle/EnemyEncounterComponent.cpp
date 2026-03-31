@@ -1,4 +1,5 @@
 ﻿
+
 #include "Combat/Battle/EnemyEncounterComponent.h"
 
 #include "Combat/Battle/BattleSessionSubsystem.h"
@@ -25,7 +26,7 @@ UEnemyEncounterComponent::UEnemyEncounterComponent()
 void UEnemyEncounterComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	if (UCombatCharacterComponent* CombatCharComp = GetOwner()->FindComponentByClass<UCombatCharacterComponent>())
 	{
 		//팀 타입이 Enemy일 때만 해당 컴포넌트 사용가능.
@@ -39,7 +40,7 @@ void UEnemyEncounterComponent::BeginPlay()
 	{
 		return;
 	}
-	
+
 	TriggerSphere = NewObject<USphereComponent>(GetOwner(), TEXT("EncounterTrigger"));
 	TriggerSphere->SetupAttachment(GetOwner()->GetRootComponent());
 	TriggerSphere->RegisterComponent();
@@ -73,8 +74,8 @@ void UEnemyEncounterComponent::OnTriggerOverlap(UPrimitiveComponent* OverlappedC
 void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor* PlayerActor)
 {
 	if (!IsValid(PlayerActor))
-		return; 
-	
+		return;
+
 	UWorld* World = GetWorld();
 	UGameInstance* GI = GetOwner()->GetGameInstance();
 	if (!World || !GI)
@@ -82,20 +83,20 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 		bHasTriggered = false;
 		return;
 	}
-	
+
 	UPartySubsystem* PartySys = GI->GetSubsystem<UPartySubsystem>();
 	UPartyActorSpawnSubsystem* SpawnSub = World->GetSubsystem<UPartyActorSpawnSubsystem>();
 	UFieldCompanionSubsystem* CompanionSub = World->GetSubsystem<UFieldCompanionSubsystem>();
-	
+
 	if (!PartySys || !SpawnSub || !CompanionSub)
 	{
 		bHasTriggered = false;
 		return;
 	}
-	
+
 	FBattleSessionConfig BattleConfig;
 	TSet<const AActor*> AddedActors;
-	AddedActors.Add(PlayerActor); 
+	AddedActors.Add(PlayerActor);
 
 	// 현재 자기 자신(인카운터 된 적)도 EnemySide에 추가
 	AActor* Owner = GetOwner();
@@ -107,21 +108,21 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 			AddedActors.Add(Owner);
 		}
 	}
-	
+
 	const FVector TriggerLocation = GetOwner()->GetActorLocation();
 	FCollisionShape Sphere = FCollisionShape::MakeSphere(EnemySearchRadius);
 	FCollisionObjectQueryParams QueryParams;
 	QueryParams.AddObjectTypesToQuery(ECC_Pawn);
-	
+
 	TArray<FOverlapResult> OverlapResults;
-	World->OverlapMultiByObjectType(OverlapResults, TriggerLocation, FQuat::Identity, QueryParams,Sphere);
-	
+	World->OverlapMultiByObjectType(OverlapResults, TriggerLocation, FQuat::Identity, QueryParams, Sphere);
+
 	for (const FOverlapResult& Result : OverlapResults)
 	{
 		AActor* Candidate = Result.GetActor();
 		if (!IsValid(Candidate) || AddedActors.Contains(Candidate))
 			continue;
-		
+
 		if (ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(Candidate))
 		{
 			if (Participant->GetCombatTeam() == ECombatTeam::Enemy && Participant->GetHP() && !Participant->GetHP()->IsDead())
@@ -131,14 +132,14 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 			}
 		}
 	}
-	
+
 	if (BattleConfig.EnemySide.Num() == 0)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("EncounterComp : 주변에 적이 없음."))
-		bHasTriggered = false;
+			bHasTriggered = false;
 		return;
 	}
-	
+
 	const TArray<FName>& PartyIds = PartySys->GetPartyIds();
 	if (PartyIds.IsEmpty())
 	{
@@ -170,7 +171,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 
 	for (AJRPGCompanionPawn* Companion : Companions)
 	{
-		if (!IsValid(Companion)) 
+		if (!IsValid(Companion))
 			continue;
 
 		FieldTransforms.Add(Companion->CurrentCharacterId, Companion->GetActorTransform());
@@ -198,7 +199,10 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 				return;
 			}
 
-			// 배틀세션 진입 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
+			//CombatZone 먼저 생성 (빙의 전에 Zone이 월드에 있어야 오버랩 이벤트로 Zone 자동 적용)
+			Self->CreateCombatZone();
+
+			//배틀세션 진입 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
 			APlayerController* PC = WeakPC.Get();
 			if (PC)
 			{
@@ -208,6 +212,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 				}
 			}
 
+			// 배틀 세션 시작
 			Self->ReadyForBattleSession(BattleConfig);
 		});
 }
@@ -234,12 +239,18 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 	{
 		UE_LOG(LogTemp, Log, TEXT("EncounterComponent : BattleSession 시작. SessionID = %s"), *SessionID.ToString());
 		TriggerSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-		CreateCombatZone();
 	}
 	else
 	{
 		UE_LOG(LogTemp, Log, TEXT("EncounterComponent : BattleSession 시작 실패, 기능 점검 다시 "));
 		bHasTriggered = false;
+
+		// 배틀 시작 실패 시 이미 생성된 CombatZone 정리
+		if (SpawnedZone)
+		{
+			SpawnedZone->Destroy();
+			SpawnedZone = nullptr;
+		}
 	}
 }
 

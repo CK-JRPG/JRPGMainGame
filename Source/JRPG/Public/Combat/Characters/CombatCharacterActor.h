@@ -31,7 +31,7 @@ class JRPG_API ACombatCharacterActor :public ACharacter, public ICombatParticipa
 	GENERATED_BODY()
 
 public:
-	ACombatCharacterActor();
+	ACombatCharacterActor(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatCharacterComponent> CharacterComp;
 
@@ -46,14 +46,13 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPresentationComponent> PresentationComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatMotionComponent> MotionComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<ULocomotionComponent> LocomotionComp;
-	
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatZoneTrackerComponent> ZoneTrackerComp;
+
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UHPComponent> HPComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UAPComponent> APComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<USPComponent> SPComp;
 
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UEnemyEncounterComponent> EnemyEncounterComp;
-	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatZoneTrackerComponent> ZoneTrackerComp;
-	
 	
 
 	virtual FName GetCombatantId() const override;
