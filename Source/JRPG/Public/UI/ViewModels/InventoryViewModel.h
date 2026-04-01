@@ -60,6 +60,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "InventoryUI|Commands")
 	void RequestEquipWeapon(FGuid InstanceId);
 
+	UFUNCTION(BlueprintPure, Category = "InventoryUI|Data")
+	class UItemDataAsset* GetItemDefinition(FName ItemId) const;
+
 private:
 	TWeakObjectPtr<UWorld> CachedWorld;
 	TWeakObjectPtr<UInventorySubsystem> InvSubsystem;

@@ -11,6 +11,7 @@
 #include "Game/JRPGPlayerPawn.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "UI/Presenters/InventoryPresenter.h"
+#include "Combat/Items/InventorySubsystem.h"
 
 void AJRPGPlayerController::BeginPlay()
 {
@@ -279,3 +280,66 @@ void AJRPGPlayerController::OnToggleInventory()
 		InventoryPresenter->OpenInventory(GetPawn());
 	}
 }
+
+AActor* AJRPGPlayerController::GetCheatTargetActor(FName CharacterId) const
+{
+	if (CharacterId.IsNone())
+	{
+		return GetPawn();
+	}
+	return GetPawn();
+}
+
+void AJRPGPlayerController::GiveItem(FName ItemId, int32 Count)
+{
+	if (UInventorySubsystem* InvSub = GetGameInstance()->GetSubsystem<UInventorySubsystem>())
+	{
+		InvSub->AddItem(ItemId, Count, FName("Cheat.GiveItem"));
+		//UE_LOG(LogTemp, Warning, TEXT("[Cheat] %s 아이템을 %d개 지급했습니다."), *ItemId.ToString(), Count);
+	}
+}
+
+void AJRPGPlayerController::ClearInventory()
+{
+	if (UInventorySubsystem* InvSub = GetGameInstance()->GetSubsystem<UInventorySubsystem>())
+	{
+		InvSub->ClearInventory();
+		//UE_LOG(LogTemp, Warning, TEXT("[Cheat] 인벤토리를 모두 비웠습니다."));
+	}
+}
+
+void AJRPGPlayerController::DumpInventory()
+{
+	if (UInventorySubsystem* InvSub = GetGameInstance()->GetSubsystem<UInventorySubsystem>())
+	{
+		TArray<FItemInstance> Items;
+		InvSub->GetAllInstances(Items);
+
+		UE_LOG(LogTemp, Warning, TEXT("=== [인벤토리 덤프] 총 %d개 ==="), Items.Num());
+		for (const FItemInstance& Item : Items)
+		{
+			UE_LOG(LogTemp, Log, TEXT(" - [%s] %s (수량: %d)"), *Item.InstanceId.ToString(), *Item.ItemId.ToString(), Item.Quantity);
+		}
+	}
+}
+
+void AJRPGPlayerController::DumpEquipment(FName CharacterId)
+{
+
+}
+
+void AJRPGPlayerController::ForceEquip(FName CharacterId, int32 Slot, FName ItemId)
+{
+
+}
+
+void AJRPGPlayerController::RebuildStats(FName CharacterId)
+{
+
+}
+
+//void AJRPGPlayerController::AutoEquipForRole(FName CharacterId, FName Role)
+//{
+//
+//}
+//

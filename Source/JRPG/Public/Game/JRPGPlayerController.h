@@ -108,4 +108,31 @@ private:
 	TObjectPtr<UInventoryPresenter> InventoryPresenter;
 
 	void OnToggleInventory();
+
+public:
+	// 인벤토리 테스트를 위한 디버그/치트 명령어
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void GiveItem(FName ItemId, int32 Count = 1);
+
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void ClearInventory();
+
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void DumpInventory();
+
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void DumpEquipment(FName CharacterId = NAME_None);
+
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void ForceEquip(FName CharacterId, int32 Slot, FName ItemId);
+
+
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void RebuildStats(FName CharacterId = NAME_None);
+
+	//UFUNCTION(Exec, Category = "JRPG|Cheats")
+	//void AutoEquipForRole(FName CharacterId, FName Role);
+
+private:
+	AActor* GetCheatTargetActor(FName CharacterId) const;
 };

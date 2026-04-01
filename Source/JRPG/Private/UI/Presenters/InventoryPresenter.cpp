@@ -32,7 +32,7 @@ void UInventoryPresenter::OpenInventory(AActor* DefaultCharacter)
 	if (!MenuWidgetInstance || !InventoryViewModel || bIsOpen) return;
 
 	InventoryViewModel->SelectCharacter(DefaultCharacter);
-	InventoryViewModel->FilterItems(EItemType::Weapon);
+	InventoryViewModel->FilterItems(EItemType::Consumable);
 
 	MenuWidgetInstance->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	bIsOpen = true;

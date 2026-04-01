@@ -3,10 +3,19 @@
 #include "Combat/Items/ItemDatabaseAsset.h"
 #include "Combat/Items/ItemDataAsset.h"
 #include "Combat/Items/ItemSaveTypes.h"
+#include "DeveloperSettings/JRPGItemSettings.h"
 
 const UItemDataAsset* UInventorySubsystem::FindDef(FName ItemId) const
 {
-	return ItemDB ? ItemDB->FindItem(ItemId) : nullptr;
+	//return ItemDB ? ItemDB->FindItem(ItemId) : nullptr;
+
+	if (UItemDatabaseAsset* DB = UJRPGItemSettings::GetItemDB())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("InventorySubsystem: Find Item DB"));
+		return DB->FindItem(ItemId);
+	}
+
+	return nullptr;
 }
 
 bool UInventorySubsystem::TryGetInstance(FGuid InstanceId, FItemInstance& Out) const
@@ -96,6 +105,7 @@ FItemOp UInventorySubsystem::AddItem(FName ItemId, int32 Quantity, FName SourceT
 	// 기존 스택 채우기
 	if (MaxStack > 1)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("InvSubsys: 기존 스택 채우기"));
 		for (const FGuid& Id : FindStackableInstances(ItemId))
 		{
 			FItemInstance* I = Instances.Find(Id);
@@ -117,6 +127,7 @@ FItemOp UInventorySubsystem::AddItem(FName ItemId, int32 Quantity, FName SourceT
 	// 새 인스턴스 생성
 	while (Remaining > 0)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("InvSubsys: 새 인스턴스 생성"));
 		const int32 Give = FMath::Min(MaxStack, Remaining);
 		FItemInstance NewInst = FItemInstance::New(ItemId, Give);
 		Instances.Add(NewInst.InstanceId, NewInst);
@@ -125,6 +136,7 @@ FItemOp UInventorySubsystem::AddItem(FName ItemId, int32 Quantity, FName SourceT
 	}
 
 	OnItemAdded.Broadcast(ItemId, Quantity, SourceTag);
+	UE_LOG(LogTemp, Warning, TEXT("InvSubsys: 아이템 추가"));
 	if (OutTouchedInstances)
 	{
 		for (const FGuid& Id : *OutTouchedInstances)

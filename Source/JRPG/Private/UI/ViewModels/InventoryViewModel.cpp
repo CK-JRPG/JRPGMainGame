@@ -2,6 +2,7 @@
 #include "Combat/Items/InventoryPresentationSubsystem.h"
 #include "Combat/Items/AugmentEquipComponent.h"
 #include "Combat/Items/WeaponEquipComponent.h"
+#include "DeveloperSettings/JRPGItemSettings.h"
 
 void UInventoryViewModel::Initialize(UWorld* World)
 {
@@ -74,6 +75,8 @@ void UInventoryViewModel::RefreshItemList()
 		FilteredItems = PresentationSubsystem->SearchByName(InvSubsystem.Get(), CurrentKeyword);
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("[ViewModel] 현재 필터(%d)를 통과한 아이템 개수: %d개"), (int32)CurrentFilter, FilteredItems.Num());
+
 	OnInventoryListUpdated.Broadcast(FilteredItems);
 }
 
@@ -141,4 +144,13 @@ void UInventoryViewModel::HandleAugmentEquipped(FName CharId, EAugmentEquipSlot 
 void UInventoryViewModel::HandleWeaponEquipped(FName CharId, EEquipmentSlotType Slot, FGuid OldInstanceId, FGuid NewInstanceId, FName ReasonTag)
 {
 	RefreshStatsBreakdown();
+}
+
+UItemDataAsset* UInventoryViewModel::GetItemDefinition(FName ItemId) const
+{
+	if (UItemDatabaseAsset* DB = UJRPGItemSettings::GetItemDB())
+	{
+		return const_cast<UItemDataAsset*>(DB->FindItem(ItemId));
+	}
+	return nullptr;
 }
