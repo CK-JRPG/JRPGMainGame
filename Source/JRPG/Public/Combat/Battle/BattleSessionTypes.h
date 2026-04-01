@@ -25,6 +25,16 @@ enum class EBattleEndReason : uint8
 };
 
 USTRUCT()
+struct FBattleItemDrop
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere) FName ItemId;
+	UPROPERTY(EditAnywhere) int32 Amount = 1;
+	UPROPERTY(EditAnywhere) float DropChance = 1.0f;
+};
+
+USTRUCT()
 struct FBattleRewardBundle
 {
 	GENERATED_BODY()
@@ -32,6 +42,7 @@ struct FBattleRewardBundle
 	UPROPERTY(EditAnywhere)int32 BaseExpReward = 0;
 	UPROPERTY(EditAnywhere)int32 GoldReward = 0;
 	UPROPERTY(EditAnywhere)int32 BondBPReward = 0;
+	UPROPERTY(EditAnywhere) TArray<FBattleItemDrop> ItemDrops;
 };
 
 USTRUCT()
