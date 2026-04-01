@@ -8,6 +8,7 @@
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Movement/LocomotionComponent.h"
+#include "Combat/Tactical/TacticalModeSubsystem.h"
 
 #include "GameFramework/Character.h"
 
@@ -47,6 +48,11 @@ void ACombatPlayerController::SetupInputComponent()
 	if (IA_SwitchNext)
 	{
 		EIC->BindAction(IA_SwitchNext, ETriggerEvent::Started, this, &ACombatPlayerController::OnSwitchNext);
+	}
+	
+	if (IA_TacticalMode)
+	{
+		EIC->BindAction(IA_TacticalMode, ETriggerEvent::Started, this, &ACombatPlayerController::OnTacticalModePressed);
 	}
 }
 
@@ -210,5 +216,31 @@ void ACombatPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
 	{
 		CamSub->SetTargetSmooth(InPawn);
+	}
+}
+
+void ACombatPlayerController::OnTacticalModePressed(const FInputActionValue& Value)
+{
+	if (!GetWorld()) return;
+
+	// Source/JRPG에 위치한 TacticalModeSubsystem 호출
+	UTacticalModeSubsystem* TacticalSub = GetWorld()->GetSubsystem<UTacticalModeSubsystem>();
+	if (!TacticalSub) return;
+
+	if (TacticalSub->IsActive())
+	{
+		// 이미 전술 모드라면 수동 종료
+		TacticalSub->ExitTacticalMode(FName("Input.ManualExit"));
+	}
+	else
+	{
+		// 꺼져 있다면 현재 조종 중인 폰을 Requester로 하여 진입 시도
+		bool bSuccess = TacticalSub->TryEnterTacticalMode(GetPawn(), FName("Input.Tab"));
+		
+		if (!bSuccess)
+		{
+			// Zone 밖이거나 조건이 안 맞아서 거부된 경우
+			UE_LOG(LogTemp, Warning, TEXT("전술 모드 진입 거부됨! (전투 구역 외부이거나 권한 없음)"));
+		}
 	}
 }

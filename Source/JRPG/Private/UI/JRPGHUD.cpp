@@ -1,6 +1,8 @@
 ﻿#include "UI/JRPGHUD.h"
 #include "UI/Exploration/ExplorationUIWidget.h"
 #include "UI/Combat/CombatUIWidget.h"
+#include "UI/Combat/TacticalUIWidget.h"
+#include "Combat/Tactical/TacticalModeSubsystem.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
@@ -22,15 +24,40 @@ void AJRPGHUD::BeginPlay()
 {
     Super::BeginPlay();
     
-    // 1. HUD가 생성되었는지, 어떤 컨트롤러가 소유하고 있는지 확인
+    if (CombatWidgetClass)
+    {
+        CombatWidget = CreateWidget<UCombatUIWidget>(GetWorld(), CombatWidgetClass);
+        if (CombatWidget)
+        {
+            CombatWidget->AddToViewport(0); // 기본 Z-Order
+            CombatWidget->SetVisibility(ESlateVisibility::Hidden);
+        }
+    }
+    
+    if (TacticalWidgetClass)
+    {
+        TacticalWidget = CreateWidget<UTacticalUIWidget>(GetWorld(), TacticalWidgetClass);
+        if (TacticalWidget)
+        {
+            // CombatUI(0)보다 무조건 위에 그려지도록 Z-Order를 10으로 설정합니다.
+            TacticalWidget->AddToViewport(10); 
+            TacticalWidget->SetVisibility(ESlateVisibility::Hidden);
+        }
+    }
+    
+    if (UTacticalModeSubsystem* TacticalSub = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
+    {
+        TacticalSub->OnTacticalModeEntered.AddUObject(this, &AJRPGHUD::OnTacticalModeEntered);
+        TacticalSub->OnTacticalModeExited.AddUObject(this, &AJRPGHUD::OnTacticalModeExited);
+    }
+    
     HUD_LOG("=== BeginPlay 호출됨! ===");
     if (APlayerController* PC = GetOwningPlayerController()) {
         HUD_LOG("소유중인 PlayerController: %s", *PC->GetName());
     } else {
         HUD_LOG("경고: 소유중인 PlayerController가 없습니다!");
     }
-
-    // 2. 위젯 클래스가 블루프린트에서 잘 할당되었는지 확인
+    
     if (!ExplorationWidgetClass) { 
         HUD_LOG("에러: ExplorationWidgetClass가 설정되지 않았습니다! (BP_JRPGHUD 확인 필요)"); 
     } else {
@@ -51,8 +78,7 @@ void AJRPGHUD::BeginPlay()
             HUD_LOG("성공: 전투 위젯 생성 완료 (현재 Hidden 상태).");
         }
     }
-
-    // 3. 서브시스템 바인딩 및 현재 전투 상태 체크
+    
     if (UWorld* World = GetWorld())
     {
         if (UBattleSessionSubsystem* BattleSub = World->GetSubsystem<UBattleSessionSubsystem>())
@@ -104,8 +130,30 @@ void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
         CombatWidget->RemoveFromParent();
         CombatWidget = nullptr;
     }
+    
+    if (TacticalWidget)
+    {
+        TacticalWidget->RemoveFromParent();
+        TacticalWidget = nullptr;
+    }
 
     Super::EndPlay(EndPlayReason);
+}
+
+void AJRPGHUD::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
+{
+    if (TacticalWidget)
+    {
+        TacticalWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    }
+}
+
+void AJRPGHUD::OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot)
+{
+    if (TacticalWidget)
+    {
+        TacticalWidget->SetVisibility(ESlateVisibility::Hidden);
+    }
 }
 
 void AJRPGHUD::SwitchToCombatUI()
