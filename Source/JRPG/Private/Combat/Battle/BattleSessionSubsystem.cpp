@@ -4,6 +4,7 @@
 #include "EngineUtils.h"
 #include "Combat/Battle/BasicCombatSubsystem.h"
 #include "Combat/Battle/CombatActionComponent.h"
+#include "Combat/Battle/CombatZoneSettingDataAsset.h"
 
 #include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Characters/PartySubsystem.h"
@@ -175,7 +176,7 @@ bool UBattleSessionSubsystem::BuildParticipants(const FBattleSessionConfig &Conf
 	return Participants.Num()>=2;
 }
 
-bool UBattleSessionSubsystem::StartBattle(const FBattleSessionConfig &Config, FGuid &OutSessionId)
+bool UBattleSessionSubsystem::StartBattle(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx, FGuid& OutSessionId)
 {
 	if (bBattleActive)
 	{
@@ -196,7 +197,10 @@ bool UBattleSessionSubsystem::StartBattle(const FBattleSessionConfig &Config, FG
 	bBattleActive = true;
 	ActiveConfig = Config;
 
-	Snapshot.SessionId = FGuid::NewGuid();
+	// Zone 생성 (FEncounterContext 기반, 플레이어 중심)
+	CreateCombatZone(InEncounterCtx);
+
+	Snapshot.SessionId = InEncounterCtx.EncounterToken.IsValid() ? InEncounterCtx.EncounterToken : FGuid::NewGuid();
 	SetPhase(EBattlePhase::Starting);
 
 	RebuildSnapshotCounts();
@@ -751,12 +755,11 @@ void UBattleSessionSubsystem::EndBattle(EBattleEndReason Reason)
 	OnBattleEnded.Broadcast(FinalSnapshot, Reason);
 
 	ResetSessionState();
-	
-	//현재 ZoneActor 찾아서 삭제.
-	TActorIterator<ACombatZoneActor> It(GetWorld());
-	if (It && IsValid(*It))
+	// Zone 정리 (BattleSession이 생성한 Zone 파괴)
+	if (IsValid(SpawnedZone))
 	{
-		(*It)->Destroy();
+		SpawnedZone->Destroy();
+		SpawnedZone = nullptr;
 	}
 }
 
@@ -774,3 +777,45 @@ void UBattleSessionSubsystem::HandleCombatantDefeated(AActor* Victim, AActor*)
 	ActivePresentedActors.Remove(Victim);
 	CheckBattleEndAndResolve();
 }
+
+void UBattleSessionSubsystem::CreateCombatZone(const FEncounterContext& InEncounterCtx)
+{
+	TSubclassOf<ACombatZoneActor> ZoneClass = nullptr;
+
+	// DA에서 CombatZoneClass 가져오기
+	if (IsValid(InEncounterCtx.ZoneSetting))
+	{
+		ZoneClass = InEncounterCtx.ZoneSetting->CombatZoneClass;
+	}
+
+	if (!ZoneClass)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("BattleSessionSubsystem::CreateCombatZone : CombatZoneClass가 설정되지 않음 (ZoneSetting DA 확인 필요). Zone 생성 생략."));
+		return;
+	}
+
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	// 플레이어(TriggerActor) 위치 기준으로 Zone 생성
+	const FVector SpawnLocation = InEncounterCtx.ZoneCenter;
+	const FRotator SpawnRotation = FRotator::ZeroRotator;
+
+	SpawnedZone = GetWorld()->SpawnActor<ACombatZoneActor>(
+		ZoneClass,
+		SpawnLocation,
+		SpawnRotation,
+		Params
+	);
+
+	if (IsValid(SpawnedZone))
+	{
+		UE_LOG(LogTemp, Log, TEXT("BattleSessionSubsystem::CreateCombatZone : CombatZoneActor 생성 완료 (Center=%s)"),
+			*SpawnLocation.ToString());
+	}
+	else
+	{
+		UE_LOG(LogTemp, Error, TEXT("BattleSessionSubsystem::CreateCombatZone : CombatZoneActor 생성 실패"));
+	}
+}
+

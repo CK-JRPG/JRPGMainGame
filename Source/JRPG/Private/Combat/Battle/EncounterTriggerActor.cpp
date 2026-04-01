@@ -1,11 +1,11 @@
 ﻿#include "Combat/Battle/EncounterTriggerActor.h"
+#include "Combat/Battle/CombatZoneSettingDataAsset.h"
 
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
-#include "Combat/Session/CombatZoneActor.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Components/BoxComponent.h"
 #include "Engine/OverlapResult.h"
@@ -160,8 +160,17 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 		FieldTransforms.Add(Companion->CurrentCharacterId, Companion->GetActorTransform());
 	}
 
+	// FEncounterContext 생성 (플레이어 위치 기준)
+	FEncounterContext EncounterCtx;
+	EncounterCtx.Trigger = EEncounterTrigger::Sight;
+	EncounterCtx.TriggerActor = const_cast<AActor*>(OverlapActor);
+	EncounterCtx.ZoneCenter = OverlapActor->GetActorLocation();
+	EncounterCtx.ZoneSetting = ZoneSetting;
+	EncounterCtx.TimestampReal = FPlatformTime::Seconds();
+	EncounterCtx.EncounterToken = FGuid::NewGuid();
+
 	SpawnSub->AsyncSpawnCombatActorsAtFieldPositions(PartyIds, FieldTransforms,
-		[WeakThis, BattleConfig, WeakPC, LeaderCharID](TArray<ACombatCharacterActor*> SpawnedActors) mutable
+		[WeakThis, BattleConfig, WeakPC, LeaderCharID, EncounterCtx](TArray<ACombatCharacterActor*> SpawnedActors) mutable 
 		{
 			//스폰은 PartyActorSpawnSubsystem이 하고, 결과만 람다로 받아서 EncounterTriggerActor가 처리
 			//PartyActorSpawnSubsystem에서 OnComplete(SpawnedActors)가 호출되어야(실제 스폰이 완료되어야) 아래 등록이 실행됨. 
@@ -182,9 +191,6 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 				return;
 			}
 
-			// CombatZone 먼저 생성 (빙의 전에 Zone이 월드에 있어야 오버랩 이벤트로 Zone 자동 적용)
-			Self->CreateCombatZone();
-
 			// 배틀세션 진입 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
 			APlayerController* PC = WeakPC.Get();
 			if (PC)
@@ -195,14 +201,14 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 				}
 			}
 
-			// 배틀 세션 시작
-			Self->ReadyforBattleSession(BattleConfig);
+			// 배틀 세션 시작 (Zone 생성은 BattleSession이 담당)
+			Self->ReadyforBattleSession(BattleConfig, EncounterCtx);
 		});
 }
 
 
 
-void AEncounterTriggerActor::ReadyforBattleSession(const FBattleSessionConfig& Config)
+void AEncounterTriggerActor::ReadyforBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx) 
 {
 	UBattleSessionSubsystem* BattleSession = GetWorld()->GetSubsystem<UBattleSessionSubsystem>();
 
@@ -214,7 +220,7 @@ void AEncounterTriggerActor::ReadyforBattleSession(const FBattleSessionConfig& C
 	}
 
 	FGuid SessionID;
-	const bool bSuccess = BattleSession->StartBattle(Config, SessionID);
+	const bool bSuccess = BattleSession->StartBattle(Config, InEncounterCtx, SessionID);
 
 	if (bSuccess)
 	{
@@ -235,30 +241,6 @@ void AEncounterTriggerActor::ReadyforBattleSession(const FBattleSessionConfig& C
 	}
 }
 
-void AEncounterTriggerActor::CreateCombatZone()
-{
-	if (CombatZoneClass)
-	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		SpawnedZone = GetWorld()->SpawnActor<ACombatZoneActor>(
-			CombatZoneClass,
-			GetActorLocation(),
-			GetActorRotation(),
-			SpawnParams
-		);
-
-		if (SpawnedZone)
-		{
-			UE_LOG(LogTemp, Warning, TEXT("EncounterTrigger :  CombatZone 생성 성공"));
-		}
-	}
-	else
-	{
-		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger :  CombatZone 생성 실패 (CombatZoneClass 설정 되었는지 확인할 것.)"));
-	}
-}
 
 void AEncounterTriggerActor::OnPlayerApproach()
 {

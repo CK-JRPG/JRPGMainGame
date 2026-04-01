@@ -43,6 +43,8 @@ private:
 	void ReturnPossessionToLeader();
 	void SaveLeaderTransformAndSync(FVector& OutLocation, FRotator& OutRotation, bool& bOutValid);
 	void HandleDefeatRecovery(EBattleEndReason Reason);
+	void HandleVictoryRecovery(EBattleEndReason Reason);
+
 	void RestoreFieldController(APlayerController*& OutControllerToRestore, APlayerController*& OutCombatPCToDestroy);
 	void RestoreFieldPawn(APlayerController* ControllerToRestore, const FVector& LeaderLocation, const FRotator& LeaderRotation, bool bHasLeaderTransform);
 	void ResetTransitionState();
@@ -69,4 +71,8 @@ private:
 
 	FName OriginalPlayerCharacterID;
 	FName CurrentPlayerCharacterID;
+
+	// 전투 진입 전 필드 폰 위치 (전투 종료 시 복원용)
+	FTransform PreBattleFieldTransform;
+	bool bHasPreBattleTransform = false;
 };

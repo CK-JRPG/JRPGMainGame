@@ -18,6 +18,7 @@ enum class ECombatZoneShape : uint8
 };
 
 class AActor;
+class ACombatZoneActor;
 
 UCLASS()
 class JRPG_API UCombatZoneSettingDataAsset : public UPrimaryDataAsset
@@ -38,4 +39,7 @@ public:
 
     UPROPERTY(EditAnywhere, Category = "CombatZone|PawnClass")
     TSubclassOf<AActor> FieldPlayerPawnClass;
+
+    UPROPERTY(EditAnywhere, Category = "CombatZone|Class")
+    TSubclassOf<ACombatZoneActor> CombatZoneClass;
 };

@@ -6,12 +6,15 @@
 
 #include "JRPG/Public/Combat/Battle/BattleSessionTypes.h"
 #include "JRPG/Public/Combat/Battle/BasicCombatTypes.h"
+#include "JRPG/Public/Combat/Battle/EncounterTypes.h"
+
 #include "Combat/Skills/SkillTypes.h"
 #include "Combat/Items/CombatItemTypes.h"
 
 #include "BattleSessionSubsystem.generated.h"
 
 class UBasicCombatSubsystem;
+class ACombatZoneActor;
 
 UCLASS()
 class JRPG_API UBattleSessionSubsystem :public UWorldSubsystem
@@ -25,7 +28,7 @@ public:
 	FOnActorActionLockChanged OnActorActionLockChanged;
 	FOnExclusiveModeChanged OnExclusiveModeChanged;
 
-	bool StartBattle(const FBattleSessionConfig &Config, FGuid &OutSessionId);
+	bool StartBattle(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx, FGuid& OutSessionId);
 	void AbortBattle(FName ReasonTag);
 
 	bool IsBattleActive()const {return bBattleActive && Snapshot.Phase == EBattlePhase::Active; }
@@ -80,6 +83,7 @@ private:
 	UPROPERTY() FBattleSessionConfig ActiveConfig;
 	UPROPERTY() FBattleSessionSnapshot Snapshot;
 	UPROPERTY() TArray<FBattleParticipantSlot> Participants;
+	UPROPERTY() TObjectPtr<ACombatZoneActor> SpawnedZone;
 
 	TSet<FName> ExclusiveModeOwners;
 	TMap<TWeakObjectPtr<AActor>, FName> ActivePresentedActors;
@@ -89,6 +93,9 @@ private:
 	void ResetSessionState();
 	void SetPhase(EBattlePhase NewPhase);
 	bool BuildParticipants(const FBattleSessionConfig &Config);
+
+	// Zone 생성 
+	void CreateCombatZone(const FEncounterContext& InEncounterCtx);
 
 	FBattleParticipantSlot* FindParticipantMutable(AActor* Actor);
 	const FBattleParticipantSlot* FindParticipant(AActor* Actor) const;

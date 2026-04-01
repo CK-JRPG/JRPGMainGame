@@ -8,14 +8,12 @@
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
-#include "Combat/Session/CombatZoneActor.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Components/SphereComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Game/JRPGPlayerPawn.h"
 #include "Game/Companion/FieldCompanionSubsystem.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
-#include "Components/CapsuleComponent.h"
 
 UEnemyEncounterComponent::UEnemyEncounterComponent()
 {
@@ -28,12 +26,19 @@ FEncounterContext UEnemyEncounterComponent::BuildEncounterContext(const AActor* 
 
 	Ctx.Trigger = EEncounterTrigger::Sight;
 	Ctx.PrimaryEnemy = this->GetOwner();
-	Ctx.TriggerActor = const_cast<AActor*>(InTriggerActor);;
-	Ctx.ZoneCenter = this->GetOwner()->GetActorLocation();    
+	// 플레이어(TriggerActor) 위치 기준으로 Zone 중심 설정
+	Ctx.ZoneSetting = ZoneSetting;
+	if (InTriggerActor)
+	{
+		Ctx.TriggerActor = const_cast<AActor*>(InTriggerActor);
+		Ctx.ZoneCenter = InTriggerActor->GetActorLocation();
+	}
+	else
+	{
+		Ctx.ZoneCenter = this->GetOwner()->GetActorLocation();
+	}
 	Ctx.TimestampReal = FPlatformTime::Seconds();
 	Ctx.EncounterToken = FGuid::NewGuid();
-
-	//ZoneSettings는 DA로 받아옴.
 
 	return Ctx;
 }
@@ -216,8 +221,6 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 				return;
 			}
 
-			//CombatZone 먼저 생성 (빙의 전에 Zone이 월드에 있어야 오버랩 이벤트로 Zone 자동 적용)
-			Self->CreateCombatZone(EncounterCtx);
 
 			//배틀세션 진입 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
 			APlayerController* PC = WeakPC.Get();
@@ -229,7 +232,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 				}
 			}
 
-			// 배틀 세션 시작
+			// 배틀 세션 시작(Zone 생성은 BattleSession이 담당)
 			Self->ReadyForBattleSession(BattleConfig, EncounterCtx);
 		});
 }
@@ -238,7 +241,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 
 
 
-void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig& Config, FEncounterContext& InEncounterCtx)
+void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx) 
 {
 	UBattleSessionSubsystem* BattleSession = GetWorld()->GetSubsystem<UBattleSessionSubsystem>();
 
@@ -249,7 +252,8 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 		return;
 	}
 
-	const bool bSucessed = BattleSession->StartBattle(Config, InEncounterCtx.EncounterToken);
+	FGuid SessionID;
+	const bool bSucessed = BattleSession->StartBattle(Config, InEncounterCtx, SessionID);
 
 	if (bSucessed)
 	{
@@ -260,41 +264,6 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 	{
 		UE_LOG(LogTemp, Log, TEXT("EncounterComponent : BattleSession 시작 실패, 기능 점검 다시 "));
 		bHasTriggered = false;
-
-		// 배틀 시작 실패 시 이미 생성된 CombatZone 정리
-		if (SpawnedZone)
-		{
-			SpawnedZone->Destroy();
-			SpawnedZone = nullptr;
-		}
-	}
-}
-
-void UEnemyEncounterComponent::CreateCombatZone(FEncounterContext& InEncounterCtx)
-{
-	if (IsValid(CombatZoneClass))
-	{
-		FActorSpawnParameters Params;
-		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-
-		SpawnedZone = GetWorld()->SpawnActor<ACombatZoneActor>(
-			CombatZoneClass,
-			this->GetOwner()->GetActorLocation(),
-			this->GetOwner()->GetActorRotation(),
-			Params
-		);
-
-		if (IsValid(SpawnedZone))
-		{
-			UE_LOG(LogTemp, Warning, TEXT("EncounterComponent : CombatZoneActor 생성 완료"));
-			SpawnedZone->GetComponentsBoundingBox();
-		}
-		else
-		{
-			UE_LOG(LogTemp, Error, TEXT("EncounterComponent :  생성 실패"))
-		}
-
-
 	}
 }
 

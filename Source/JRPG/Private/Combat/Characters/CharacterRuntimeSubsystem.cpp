@@ -151,6 +151,32 @@ void UCharacterRuntimeSubsystem::RecoverPartyFromWipe(float HPRecoverRatio, floa
 }
 
 
+void UCharacterRuntimeSubsystem::RecoverPartyAfterVictory(float HPRecoverRatio)
+{
+	if (SnapshotMap.IsEmpty())
+	{
+		return;
+	}
+
+	const float ClampedRatio = FMath::Clamp(HPRecoverRatio, 0.f, 1.f);
+
+	for (TPair<FName, FCharacterResourceSnapshot>& Pair : SnapshotMap)
+	{
+		FCharacterResourceSnapshot& Snap = Pair.Value;
+		if (!Snap.IsValid())
+		{
+			continue;
+		}
+
+		const float RecoveredHP = FMath::Max(1.f, Snap.MaxHP * ClampedRatio);
+		Snap.HP = FMath::Clamp(FMath::Max(Snap.HP, RecoveredHP), 1.f, Snap.MaxHP);
+	}
+
+	UE_LOG(LogTemp, Log,
+		TEXT("CharacterRuntimeSubsystem : 승리 후 HP 회복 적용 (HP %.0f%%)"),
+		ClampedRatio * 100.f);
+}
+
 
 
 bool UCharacterRuntimeSubsystem::HasSnapshot(const FName& CharacterID) const
