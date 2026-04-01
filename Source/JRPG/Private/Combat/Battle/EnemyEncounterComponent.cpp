@@ -22,6 +22,21 @@ UEnemyEncounterComponent::UEnemyEncounterComponent()
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
+FEncounterContext UEnemyEncounterComponent::BuildEncounterContext(const AActor* InTriggerActor)
+{
+	FEncounterContext Ctx;
+
+	Ctx.Trigger = EEncounterTrigger::Sight;
+	Ctx.PrimaryEnemy = this->GetOwner();
+	Ctx.TriggerActor = const_cast<AActor*>(InTriggerActor);;
+	Ctx.ZoneCenter = this->GetOwner()->GetActorLocation();    
+	Ctx.TimestampReal = FPlatformTime::Seconds();
+	Ctx.EncounterToken = FGuid::NewGuid();
+
+	//ZoneSettings는 DA로 받아옴.
+
+	return Ctx;
+}
 
 void UEnemyEncounterComponent::BeginPlay()
 {
@@ -177,8 +192,10 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 		FieldTransforms.Add(Companion->CurrentCharacterId, Companion->GetActorTransform());
 	}
 
+	FEncounterContext EncounterCtx = BuildEncounterContext(PlayerActor);
+
 	SpawnSub->AsyncSpawnCombatActorsAtFieldPositions(PartyIds, FieldTransforms,
-		[WeakThis, BattleConfig, WeakPC, LeaderCharID](TArray<ACombatCharacterActor*> SpawnedActors) mutable
+		[WeakThis, BattleConfig, WeakPC, LeaderCharID, EncounterCtx](TArray<ACombatCharacterActor*> SpawnedActors) mutable
 		{
 			//스폰은 PartyActorSpawnSubsystem이 하고, 결과만 람다로 받아서 EncounterTriggerActor가 처리
 			//PartyActorSpawnSubsystem에서 OnComplete(SpawnedActors)가 호출되어야(실제 스폰이 완료되어야) 아래 등록이 실행됨. 
@@ -200,7 +217,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 			}
 
 			//CombatZone 먼저 생성 (빙의 전에 Zone이 월드에 있어야 오버랩 이벤트로 Zone 자동 적용)
-			Self->CreateCombatZone();
+			Self->CreateCombatZone(EncounterCtx);
 
 			//배틀세션 진입 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
 			APlayerController* PC = WeakPC.Get();
@@ -213,7 +230,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 			}
 
 			// 배틀 세션 시작
-			Self->ReadyForBattleSession(BattleConfig);
+			Self->ReadyForBattleSession(BattleConfig, EncounterCtx);
 		});
 }
 
@@ -221,7 +238,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 
 
 
-void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig& Config)
+void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig& Config, FEncounterContext& InEncounterCtx)
 {
 	UBattleSessionSubsystem* BattleSession = GetWorld()->GetSubsystem<UBattleSessionSubsystem>();
 
@@ -232,8 +249,7 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 		return;
 	}
 
-	FGuid SessionID;
-	const bool bSucessed = BattleSession->StartBattle(Config, SessionID);
+	const bool bSucessed = BattleSession->StartBattle(Config, InEncounterCtx.EncounterToken);
 
 	if (bSucessed)
 	{
@@ -254,7 +270,7 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 	}
 }
 
-void UEnemyEncounterComponent::CreateCombatZone()
+void UEnemyEncounterComponent::CreateCombatZone(FEncounterContext& InEncounterCtx)
 {
 	if (IsValid(CombatZoneClass))
 	{
@@ -271,6 +287,7 @@ void UEnemyEncounterComponent::CreateCombatZone()
 		if (IsValid(SpawnedZone))
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EncounterComponent : CombatZoneActor 생성 완료"));
+			SpawnedZone->GetComponentsBoundingBox();
 		}
 		else
 		{
@@ -280,3 +297,4 @@ void UEnemyEncounterComponent::CreateCombatZone()
 
 	}
 }
+
