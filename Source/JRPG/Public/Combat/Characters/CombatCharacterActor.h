@@ -4,6 +4,7 @@
 #include "Combat/Camera/CameraTargetInterface.h"
 #include "GameFramework/Character.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
+#include "Components/WidgetComponent.h"
 #include "CombatCharacterActor.generated.h"
 
 class UCombatCharacterComponent;
@@ -76,4 +77,7 @@ public:
 protected:
 
 	virtual void BeginPlay() override;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
+	TObjectPtr<UWidgetComponent> HPBarWidgetComponent;
 };
