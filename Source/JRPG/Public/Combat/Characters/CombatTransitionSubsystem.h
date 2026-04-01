@@ -38,34 +38,34 @@ public:
 
 	void SetCombatControllerClass(TSubclassOf<APlayerController> InClass);
 
-	// 허브 위치 등록/해제 (패배 시 가장 가까운 허브로 이동)
-	void RegisterHubLocation(const FVector& Location);
-	void UnregisterHubLocation(const FVector& Location);
+	// 허브 위치 등록 (HubLocationActor에서 호출)
+	void RegisterHubLocation(AActor* HubActor);
+	void UnregisterHubLocation(AActor* HubActor);
 
 private:
-	// OnBattleEnded 서브 함수
+	// 승리/패배 분기 처리
+	void HandleVictoryTransition();
+	void HandleDefeatTransition();
+
+	// 패배 비동기 흐름
+	void OnDefeatFadeOutComplete();
+	void OnDefeatFadeInComplete();
+
+	// 승리 후 점진적 HP 회복
+	void StartPostBattleRecovery();
+	void TickPostBattleRecovery();
+
+	// 공통 전환 서브 함수
+	void PerformTransition(bool bUseLeaderPosition);
 	void ReturnPossessionToLeader();
 	void SaveLeaderTransformAndSync(FVector& OutLocation, FRotator& OutRotation, bool& bOutValid);
-	void HandleDefeatRecovery(EBattleEndReason Reason);
+	void HandleDefeatRecovery();
 	void RestoreFieldController(APlayerController*& OutControllerToRestore, APlayerController*& OutCombatPCToDestroy);
 	void RestoreFieldPawn(APlayerController* ControllerToRestore, const FVector& LeaderLocation, const FRotator& LeaderRotation, bool bHasLeaderTransform);
 	void ResetTransitionState();
 
-	// 전환 처리 (공통 로직)
-	void PerformTransition();
-
-	// 비동기 페이드 처리 (패배 전용)
-	void OnFadeOutComplete();
-	void OnFadeInComplete();
-	void StartScreenFade(float FromAlpha, float ToAlpha, float Duration);
-
 	// 허브 위치 검색
-	FVector FindNearestHub(const FVector& FromLocation) const;
-
-	// 전투 후 점차 HP 회복
-	void StartPostBattleRecovery();
-	void StopPostBattleRecovery();
-	void TickPostBattleRecovery();
+	FVector FindNearestHubLocation() const;
 
 	//이동 상태 동기화
 	void SyncMovementStateToLeader(APawn* FieldPawn, ACombatCharacterActor* LeaderActor);
@@ -90,22 +90,20 @@ private:
 	FName OriginalPlayerCharacterID;
 	FName CurrentPlayerCharacterID;
 
-	// 전투 진입 전 위치 (승리 시 복귀용)
-	FVector CachedPreBattleLocation = FVector::ZeroVector;
-	FRotator CachedPreBattleRotation = FRotator::ZeroRotator;
-	bool bHasPreBattleTransform = false;
+	// 허브 위치 목록
+	UPROPERTY()
+	TArray<TWeakObjectPtr<AActor>> RegisteredHubs;
 
-	// 비동기 전환용 상태
-	EBattleEndReason PendingEndReason = EBattleEndReason::Aborted;
-	FTimerHandle FadeOutTimerHandle;
-	FTimerHandle FadeInTimerHandle;
+	// 패배 처리용 타이머
+	FTimerHandle DefeatFadeOutTimerHandle;
+	FTimerHandle DefeatFadeInTimerHandle;
+	
+	// 승리 후 회복용 타이머
 	FTimerHandle PostBattleRecoveryTimerHandle;
-
-	// 허브 위치 목록 (패배 시 가장 가까운 허브로 이동)
-	TArray<FVector> HubLocations;
-
-	// 페이드 및 전투 후 HP 회복 설정
-	static constexpr float FadeDuration = 2.0f;
 	static constexpr float PostBattleRecoveryInterval = 1.0f;
 	static constexpr float PostBattleRecoveryRatio = 0.05f;
+	
+	// 패배 전환 시 저장되는 필드 컨트롤러 (비동기 흐름용)
+	UPROPERTY()
+	TObjectPtr<APlayerController> DefeatRestoredController;
 };
