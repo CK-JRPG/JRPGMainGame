@@ -7,6 +7,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Components/WidgetComponent.h"
 
 // =========================================================
 // [디버그 로그 스위치]
@@ -189,10 +190,44 @@ void AJRPGHUD::OnBattleStarted(const FBattleSessionSnapshot& Snapshot)
 {
     HUD_LOG("델리게이트 이벤트 수신: OnBattleStarted!");
     SwitchToCombatUI();
+    if (UBattleSessionSubsystem* BattleSubsystem = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+    {
+        TArray<AActor*> ActiveEnemies;
+        // 현재 배틀 세션에 살아있는 적 팀 목록을 가져옵니다.
+        BattleSubsystem->GetAliveParticipantsByTeam(ECombatTeam::Enemy, ActiveEnemies);
+
+        for (AActor* EnemyActor : ActiveEnemies)
+        {
+            if (EnemyActor)
+            {
+                // 액터가 가진 위젯 컴포넌트를 찾아 Visibility를 켭니다.
+                if (UWidgetComponent* HPBarComp = EnemyActor->FindComponentByClass<UWidgetComponent>())
+                {
+                    HPBarComp->SetVisibility(true);
+                }
+            }
+        }
+    }
 }
 
 void AJRPGHUD::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason)
 {
     HUD_LOG("델리게이트 이벤트 수신: OnBattleEnded!");
     SwitchToExplorationUI();
+    if (UBattleSessionSubsystem* BattleSubsystem = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+    {
+        TArray<AActor*> ActiveEnemies;
+        BattleSubsystem->GetAliveParticipantsByTeam(ECombatTeam::Enemy, ActiveEnemies); //
+
+        for (AActor* EnemyActor : ActiveEnemies)
+        {
+            if (EnemyActor)
+            {
+                if (UWidgetComponent* HPBarComp = EnemyActor->FindComponentByClass<UWidgetComponent>())
+                {
+                    HPBarComp->SetVisibility(false);
+                }
+            }
+        }
+    }
 }

@@ -9,6 +9,7 @@ class ACombatCharacterActor;
 class UInputMappingContext;
 class UInputAction;
 class UCombatCharacterDataAsset;
+class UInventoryPresenter;
 struct FInputActionValue;
 
 USTRUCT(BlueprintType)
@@ -62,6 +63,14 @@ protected:
 	// 키보드 : 마우스 휠 / 패드 : R1 + R_Stick
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_CameraZoom;
+
+	// 인벤토리 토글
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_ToggleInventory;
+
+	// 인벤토리 위젯 클래스 (WBP_InventoryMenu 할당용)
+	UPROPERTY(EditDefaultsOnly, Category = "JRPG|UI")
+	TSubclassOf<class UUserWidget> InventoryWidgetClass;
 	
 	// 카메라 설정
 	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Camera")
@@ -95,4 +104,35 @@ private:
 	UCombatCharacterDataAsset* FindCharacterDefById(FName CharId) const;
 	FCharacterMappingRow*      FindMappingRowById(FName CharId) const;
 
+	UPROPERTY()
+	TObjectPtr<UInventoryPresenter> InventoryPresenter;
+
+	void OnToggleInventory();
+
+public:
+	// 인벤토리 테스트를 위한 디버그/치트 명령어
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void GiveItem(FName ItemId, int32 Count = 1);
+
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void ClearInventory();
+
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void DumpInventory();
+
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void DumpEquipment(FName CharacterId = NAME_None);
+
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void ForceEquip(FName CharacterId, int32 Slot, FName ItemId);
+
+
+	UFUNCTION(Exec, Category = "JRPG|Cheats")
+	void RebuildStats(FName CharacterId = NAME_None);
+
+	//UFUNCTION(Exec, Category = "JRPG|Cheats")
+	//void AutoEquipForRole(FName CharacterId, FName Role);
+
+private:
+	AActor* GetCheatTargetActor(FName CharacterId) const;
 };

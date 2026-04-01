@@ -27,5 +27,7 @@ const UItemDataAsset* UItemDatabaseAsset::FindItem(FName ItemId) const
 {
 	if (const TObjectPtr<UItemDataAsset>* Found = Map.Find(ItemId))
 		return Found->Get();
+
+	UE_LOG(LogTemp, Warning, TEXT("ItemDatabaseAsset: Item Not Found"));
 	return nullptr;
 }

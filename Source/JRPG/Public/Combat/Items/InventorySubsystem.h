@@ -14,9 +14,12 @@ struct FItemInstance
 {
 	GENERATED_BODY()
 
-	UPROPERTY() FGuid InstanceId;
-	UPROPERTY() FName ItemId = NAME_None;
-	UPROPERTY() int32 Quantity = 1;
+	UPROPERTY(BlueprintReadOnly, Category = "Item") 
+	FGuid InstanceId;
+	UPROPERTY(BlueprintReadOnly, Category = "Item") 
+	FName ItemId = NAME_None;
+	UPROPERTY(BlueprintReadOnly, Category = "Item") 
+	int32 Quantity = 1;
 	UPROPERTY() bool bLocked = false;
 	UPROPERTY() bool bFavorite = false;
 	UPROPERTY() FDateTime AcquiredAt;

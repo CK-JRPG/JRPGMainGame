@@ -22,6 +22,8 @@
 #include "Combat/Stats/CombatStatsComponent.h"
 #include "Combat/Session/CombatZoneTrackerComponent.h"
 
+#include "UI/Combat/EnemyHPBarWidget.h"
+#include "Combat/Stats/HPComponent.h"
 
 
 ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectInitializer)
@@ -52,11 +54,31 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));
 	ZoneTrackerComp = CreateDefaultSubobject<UCombatZoneTrackerComponent>(TEXT("CombatZoneTracker"));
 
+	// HPBarWidget
+	HPBarWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("HPBarWidgetComponent"));
+	HPBarWidgetComponent->SetupAttachment(RootComponent);
+
+	HPBarWidgetComponent->SetRelativeLocation(FVector(0.f, 0.f, 100.f));
+
+	HPBarWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
+	HPBarWidgetComponent->SetDrawSize(FVector2D(150.f, 20.f));
 }
 
 void ACombatCharacterActor::BeginPlay()
 {
 	Super::BeginPlay();
+	// UserWidget 인스턴스를 가져와서 바인딩
+	if (HPBarWidgetComponent)
+	{
+		HPBarWidgetComponent->SetVisibility(false);
+		if (UEnemyHPBarWidget* HPWidget = Cast<UEnemyHPBarWidget>(HPBarWidgetComponent->GetUserWidgetObject()))
+		{
+			if (UHPComponent* MyHPComp = FindComponentByClass<UHPComponent>())
+			{
+				HPWidget->BindHPComponent(MyHPComp);
+			}
+		}
+	}
 }
 
 FName ACombatCharacterActor::GetCombatantId() const
