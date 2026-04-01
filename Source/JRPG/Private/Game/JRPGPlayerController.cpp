@@ -10,6 +10,7 @@
 
 #include "Game/JRPGPlayerPawn.h"
 #include "Combat/Movement/LocomotionComponent.h"
+#include "UI/Presenters/InventoryPresenter.h"
 
 void AJRPGPlayerController::BeginPlay()
 {
@@ -18,6 +19,12 @@ void AJRPGPlayerController::BeginPlay()
 	UpdateCameraTargetForPawn(GetPawn());
 	EnsureDefaultPartyFromTable();
 	InitallizeCombatBridge();
+
+	if (InventoryWidgetClass)
+	{
+		InventoryPresenter = NewObject<UInventoryPresenter>(this);
+		InventoryPresenter->Initialize(GetWorld(), InventoryWidgetClass);
+	}
 }
 
 void AJRPGPlayerController::OnPossess(APawn* InPawn)
@@ -150,6 +157,11 @@ void AJRPGPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(IA_CameraZoom, ETriggerEvent::Started, this, &AJRPGPlayerController::OnCameraZoom);
 	}
+
+	if (IA_ToggleInventory)
+	{
+		EIC->BindAction(IA_ToggleInventory, ETriggerEvent::Started, this, &AJRPGPlayerController::OnToggleInventory);
+	}
 }
 
 void AJRPGPlayerController::OnMove(const FInputActionValue& Value)
@@ -250,5 +262,20 @@ void AJRPGPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
 	{
 		CamSub->SetTarget(InPawn);
+	}
+}
+
+void AJRPGPlayerController::OnToggleInventory()
+{
+	if (!InventoryPresenter) return;
+
+	if (InventoryPresenter->IsMenuOpen())
+	{
+		InventoryPresenter->CloseInventory();
+	}
+	else
+	{
+		// 현재 조종 중인 캐릭터(Pawn)를 기준으로 인벤토리를 엽니다.
+		InventoryPresenter->OpenInventory(GetPawn());
 	}
 }
