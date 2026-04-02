@@ -1,10 +1,10 @@
-#pragma once
+ï»¿#pragma once
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "CombatViewModels.generated.h"
 
 /**
- *  1. ÆÄÆ¼ ½½·Ô ºä¸ğµ¨ (HP, AP Ã³¸®)
+ *  1. íŒŒí‹° ìŠ¬ë¡¯ ë·°ëª¨ë¸ (HP, AP ì²˜ë¦¬)
  */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnNameUpdated, const FString&);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnHPUIUpdated, float /*Percent*/, const FString& /*Text*/);
@@ -31,7 +31,7 @@ private:
 };
 
 /// <summary>
-/// Àû/Å¸°Ù ºä¸ğµ¨ (HP, Groggy Ã³¸®)
+/// ì /íƒ€ê²Ÿ ë·°ëª¨ë¸ (HP, Groggy ì²˜ë¦¬)
 /// </summary>
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnTargetGroggyUpdated, bool /*bGroggy*/);
 
@@ -52,16 +52,16 @@ private:
 	TWeakObjectPtr<class UGroggyComponent> CachedGroggyComp;
 
 	void HandleHPChanged(float OldHP, float NewHP, FName Reason);
-	void HandleGroggyCHanged(bool bGroggy);
+	void HandleGroggyChanged(bool bGroggy);
 };
 
 /// <summary>
-/// ¾×¼Ç ÆÈ·¹Æ® ºä¸ğµ¨ (SP Ã³¸®)
+/// ì•¡ì…˜ íŒ”ë ˆíŠ¸ ë·°ëª¨ë¸ (SP ì²˜ë¦¬)
 /// </summary>
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSPUIUpdated, float /*Percent*/, const FString& /*Text*/);
 
 UCLASS()
-class JRPG_API UActionPalettedViewModel : public UObject
+class JRPG_API UActionPaletteViewModel : public UObject
 {
 	GENERATED_BODY()
 public:
