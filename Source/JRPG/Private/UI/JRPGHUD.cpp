@@ -170,7 +170,7 @@ void AJRPGHUD::SwitchToCombatUI()
         APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(this, 0);
         if (PlayerPawn) {
             HUD_LOG("PlayerPawn 확인됨: %s. InitializeCombatState 호출합니다.", *PlayerPawn->GetName());
-            CombatWidget->InitializeCombatState(PlayerPawn);
+            //CombatWidget->InitializeCombatState(PlayerPawn);
         } else {
             HUD_LOG("치명적 경고: PlayerPawn이 NULL입니다! 빙의(Possess)가 아직 안 끝났을 수 있습니다.");
         }

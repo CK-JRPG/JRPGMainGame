@@ -75,7 +75,7 @@ void ACombatCharacterActor::BeginPlay()
 		{
 			if (UHPComponent* MyHPComp = FindComponentByClass<UHPComponent>())
 			{
-				HPWidget->BindHPComponent(MyHPComp);
+				//HPWidget->BindHPComponent(MyHPComp);
 			}
 		}
 	}

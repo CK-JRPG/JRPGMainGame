@@ -9,12 +9,9 @@ class UCombatPartyRosterWidget;
 class UCombatActionPaletteWidget;
 
 UCLASS()
-class JRPG_API UCombatUIWidget : public UUserWidget // <--- JRPG_API
+class JRPG_API UCombatUIWidget : public UUserWidget
 {
 	GENERATED_BODY()
-
-public:
-	void InitializeCombatState(AActor* PlayerActor);
 
 protected:
 	UPROPERTY(meta = (BindWidget))
