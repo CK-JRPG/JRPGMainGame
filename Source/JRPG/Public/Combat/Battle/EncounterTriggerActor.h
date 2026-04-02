@@ -1,14 +1,16 @@
-#pragma once
+﻿#pragma once
 
 #include "CoreMinimal.h"
 #include "BattleSessionTypes.h"
+#include "Combat/Battle/EncounterTypes.h"
 #include "GameFramework/Actor.h"
 #include "EncounterTriggerActor.generated.h"
 
 class ACombatCharacterActor;
 class AJRPGPlayerPawn;
 class UBoxComponent;
-class ACombatZoneActor;
+class ACombatZoneActor; 
+class UCombatZoneSettingDataAsset;
 
 UCLASS()
 class JRPG_API AEncounterTriggerActor : public AActor
@@ -30,8 +32,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Encounter|Components")
 	UBoxComponent* TriggerVolume;
 
+	// Zone 세팅 DA (CombatZoneClass, 크기 등)
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter|Zone")
 	TSubclassOf<ACombatZoneActor> CombatZoneClass;
+
+	TObjectPtr<UCombatZoneSettingDataAsset> ZoneSetting;
 
 	// 런타임에 생성된 존을 기억해두기 위한 포인터 (전투 종료 시 파괴하기 위함)
 	UPROPERTY(Transient)
@@ -42,8 +48,7 @@ protected:
 private:
 
 	void SearchCombatCharactersInRadius(const AActor* OverlapActor);
-	void ReadyforBattleSession(const FBattleSessionConfig& Config);
-	void CreateCombatZone();
+	void ReadyforBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx);
 	void OnPlayerApproach();
 
 };

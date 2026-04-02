@@ -2,8 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
+#include "Combat/Battle/EncounterTypes.h"
 #include "EnemyEncounterComponent.generated.h"
 
+class UCombatZoneSettingDataAsset;
 class ACombatZoneActor;
 class USphereComponent;
 class UPartySubsystem;
@@ -29,10 +31,9 @@ private:
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex,
 		bool bFromSweep, const FHitResult& SweepResult);
 
+    FEncounterContext BuildEncounterContext(const AActor* InTriggerActor);
 	void SearchCombatEnemyCharactersInRadius(const AActor* PlayerActor);
-	void ReadyForBattleSession(const FBattleSessionConfig& Config);
-	void CreateCombatZone();
-
+	void ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx);
 
 public:
 
@@ -42,15 +43,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Encounter")
 	float EnemySearchRadius = 1000.0f;
 
-	UPROPERTY(EditAnywhere, Category = "Encounter")
-	TSubclassOf<ACombatZoneActor> CombatZoneClass;
+	UPROPERTY(EditAnywhere, Category = "Encounter|Zone")
+	TObjectPtr<UCombatZoneSettingDataAsset> ZoneSetting;
 
 private:
 	UPROPERTY()
 	TObjectPtr<USphereComponent> TriggerSphere;
 
-	UPROPERTY()
-	TObjectPtr<ACombatZoneActor> SpawnedZone;
 
 	bool bHasTriggered = false;
 

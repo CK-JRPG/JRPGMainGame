@@ -65,6 +65,13 @@ void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 	CachedFieldPawn = PC->GetPawn();
 	CachedFieldController = PC;
 
+	// 전투 진입 전 필드 폰 위치 저장 (전투 종료 시 복원용)
+	if (IsValid(CachedFieldPawn))
+	{
+		PreBattleFieldTransform = CachedFieldPawn->GetActorTransform();
+		bHasPreBattleTransform = true;
+	}
+
 	// 카메라 스냅샷 저장 (전투 종료 후 복원용)
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
 	{
@@ -265,6 +272,15 @@ void UCombatTransitionSubsystem::OnBattleEnded(EBattleEndReason Reason)
 	bool bHasLeaderTransform = false;
 	SaveLeaderTransformAndSync(LeaderFinalLocation, LeaderFinalRotation, bHasLeaderTransform);
 
+	// 전투 진입 전 좌표로 복원 (전투 중 위치가 아닌 진입 전 위치 사용)
+	const FVector RestoreLocation = bHasPreBattleTransform
+		? PreBattleFieldTransform.GetLocation()
+		: LeaderFinalLocation;
+	const FRotator RestoreRotation = bHasPreBattleTransform
+		? PreBattleFieldTransform.GetRotation().Rotator()
+		: LeaderFinalRotation;
+	const bool bHasRestoreTransform = bHasPreBattleTransform || bHasLeaderTransform;
+
 	// 3. CombatCharacterActor 스냅샷 저장 후 파괴
 	UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>();
 	if (SpawnSub)
@@ -275,6 +291,8 @@ void UCombatTransitionSubsystem::OnBattleEnded(EBattleEndReason Reason)
 
 	// 4. 패배 시 HP 복구
 	HandleDefeatRecovery(Reason);
+
+	HandleVictoryRecovery(Reason);
 
 	// 5. 컨트롤러 스왑 복원
 	APlayerController* ControllerToRestore = nullptr;
@@ -379,6 +397,23 @@ void UCombatTransitionSubsystem::HandleDefeatRecovery(EBattleEndReason Reason)
 	}
 }
 
+
+void UCombatTransitionSubsystem::HandleVictoryRecovery(EBattleEndReason Reason)
+{
+	if (Reason != EBattleEndReason::Victory) return;
+
+	if (UWorld* World = GetWorld())
+	{
+		if (UGameInstance* GI = World->GetGameInstance())
+		{
+			if (UCharacterRuntimeSubsystem* CharacterRuntime = GI->GetSubsystem<UCharacterRuntimeSubsystem>())
+			{
+				CharacterRuntime->RecoverPartyAfterVictory();
+			}
+		}
+	}
+}
+
 void UCombatTransitionSubsystem::RestoreFieldController(APlayerController*& OutControllerToRestore, APlayerController*& OutCombatPCToDestroy)
 {
 	OutControllerToRestore = nullptr;
@@ -451,6 +486,8 @@ void UCombatTransitionSubsystem::ResetTransitionState()
 	OriginalPlayerCharacterID  = NAME_None;
 	CurrentPlayerCharacterID   = NAME_None;
 	CachedFieldPawn            = nullptr;
+	PreBattleFieldTransform = FTransform::Identity;
+	bHasPreBattleTransform = false;
 }
 
 void UCombatTransitionSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason Reason)
