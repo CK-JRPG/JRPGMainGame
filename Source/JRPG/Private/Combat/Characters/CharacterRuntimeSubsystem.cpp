@@ -150,34 +150,36 @@ void UCharacterRuntimeSubsystem::RecoverPartyFromWipe(float HPRecoverRatio, floa
 		ClampedHPRatio * 100.f, ClampedAPRatio * 100.f);
 }
 
-
-void UCharacterRuntimeSubsystem::RecoverPartyAfterVictory(float HPRecoverRatio)
+bool UCharacterRuntimeSubsystem::RecoverPartyAfterVictory(float HPRecoverRatio)
 {
 	if (SnapshotMap.IsEmpty())
 	{
-		return;
+		return false;
 	}
-
+	
 	const float ClampedRatio = FMath::Clamp(HPRecoverRatio, 0.f, 1.f);
-
+	bool bStillRecovering = false;
+	
 	for (TPair<FName, FCharacterResourceSnapshot>& Pair : SnapshotMap)
 	{
 		FCharacterResourceSnapshot& Snap = Pair.Value;
-		if (!Snap.IsValid())
+		if (!Snap.IsValid()) continue;
+
+		if (Snap.HP < Snap.MaxHP)
 		{
-			continue;
+			const float RecoveryAmount = Snap.MaxHP * ClampedRatio;
+			Snap.HP = FMath::Min(Snap.HP + RecoveryAmount, Snap.MaxHP);
+			
+			if (Snap.HP < Snap.MaxHP)
+			{
+				bStillRecovering = true;
+			}
 		}
-
-		const float RecoveredHP = FMath::Max(1.f, Snap.MaxHP * ClampedRatio);
-		Snap.HP = FMath::Clamp(FMath::Max(Snap.HP, RecoveredHP), 1.f, Snap.MaxHP);
 	}
-
-	UE_LOG(LogTemp, Log,
-		TEXT("CharacterRuntimeSubsystem : 승리 후 HP 회복 적용 (HP %.0f%%)"),
-		ClampedRatio * 100.f);
+	UE_LOG(LogTemp, Log, TEXT("CharacterRuntimeSubsystem : 승리 후 HP 회복 (비율 %.0f%%, 잔여 회복 필요: %s)"), ClampedRatio * 100.f, bStillRecovering ? TEXT("Yes") : TEXT("No"));
+	
+	return bStillRecovering;
 }
-
-
 
 bool UCharacterRuntimeSubsystem::HasSnapshot(const FName& CharacterID) const
 {

@@ -38,16 +38,34 @@ public:
 
 	void SetCombatControllerClass(TSubclassOf<APlayerController> InClass);
 
+	// 허브 위치 등록 (HubLocationActor에서 호출)
+	void RegisterHubLocation(AActor* HubActor);
+	void UnregisterHubLocation(AActor* HubActor);
+
 private:
-	// OnBattleEnded 서브 함수
+	// 승리/패배 분기 처리
+	void HandleVictoryTransition();
+	void HandleDefeatTransition();
+
+	// 패배 비동기 흐름
+	void OnDefeatFadeOutComplete();
+	void OnDefeatFadeInComplete();
+
+	// 승리 후 점진적 HP 회복
+	void StartPostBattleRecovery();
+	void TickPostBattleRecovery();
+
+	// 공통 전환 서브 함수
+	void PerformTransition(bool bUseLeaderPosition);
 	void ReturnPossessionToLeader();
 	void SaveLeaderTransformAndSync(FVector& OutLocation, FRotator& OutRotation, bool& bOutValid);
-	void HandleDefeatRecovery(EBattleEndReason Reason);
-	void HandleVictoryRecovery(EBattleEndReason Reason);
-
+	void HandleDefeatRecovery();
 	void RestoreFieldController(APlayerController*& OutControllerToRestore, APlayerController*& OutCombatPCToDestroy);
 	void RestoreFieldPawn(APlayerController* ControllerToRestore, const FVector& LeaderLocation, const FRotator& LeaderRotation, bool bHasLeaderTransform);
 	void ResetTransitionState();
+
+	// 허브 위치 검색
+	FVector FindNearestHubLocation() const;
 
 	//이동 상태 동기화
 	void SyncMovementStateToLeader(APawn* FieldPawn, ACombatCharacterActor* LeaderActor);
@@ -72,7 +90,20 @@ private:
 	FName OriginalPlayerCharacterID;
 	FName CurrentPlayerCharacterID;
 
-	// 전투 진입 전 필드 폰 위치 (전투 종료 시 복원용)
-	FTransform PreBattleFieldTransform;
-	bool bHasPreBattleTransform = false;
+	// 허브 위치 목록
+	UPROPERTY()
+	TArray<TWeakObjectPtr<AActor>> RegisteredHubs;
+
+	// 패배 처리용 타이머
+	FTimerHandle DefeatFadeOutTimerHandle;
+	FTimerHandle DefeatFadeInTimerHandle;
+	
+	// 승리 후 회복용 타이머
+	FTimerHandle PostBattleRecoveryTimerHandle;
+	static constexpr float PostBattleRecoveryInterval = 1.0f;
+	static constexpr float PostBattleRecoveryRatio = 0.05f;
+	
+	// 패배 전환 시 저장되는 필드 컨트롤러 (비동기 흐름용)
+	UPROPERTY()
+	TObjectPtr<APlayerController> DefeatRestoredController;
 };

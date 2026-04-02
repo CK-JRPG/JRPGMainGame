@@ -35,6 +35,13 @@
 	#define JRPG_HAS_ECONOMY 0
 #endif
 
+#if __has_include("Combat/Items/InventorySubsystem.h")
+#include "Combat/Items/InventorySubsystem.h"
+#define JRPG_HAS_INVENTORY 1
+#else
+#define JRPG_HAS_INVENTORY 0
+#endif
+
 static double BattleNow()
 {
 	return FPlatformTime::Seconds();
@@ -730,6 +737,24 @@ void UBattleSessionSubsystem::GrantVictoryRewards()
 			if (UEconomySubsystem* Eco = GetWorld()->GetGameInstance()->GetSubsystem<UEconomySubsystem>())
 			{
 				Eco->AddGold(ActiveConfig.VictoryRewards.GoldReward,"Battle.Victory");
+			}
+		}
+	}
+#endif
+
+
+#if JRPG_HAS_INVENTORY
+	if (ActiveConfig.VictoryRewards.ItemDrops.Num() > 0 && GetWorld() && GetWorld()->GetGameInstance())
+	{
+		UInventorySubsystem* Inv = GetWorld()->GetGameInstance()->GetSubsystem<UInventorySubsystem>();
+		if (Inv)
+		{
+			for (const FBattleItemDrop& Drop : ActiveConfig.VictoryRewards.ItemDrops)
+			{
+				if (Drop.ItemId.IsNone() || Drop.Amount <= 0) continue;
+				if (FMath::FRand() > FMath::Clamp(Drop.DropChance, 0.f, 1.f)) continue;
+
+				Inv->AddItem(Drop.ItemId, Drop.Amount, "Battle.VictoryDrop");
 			}
 		}
 	}

@@ -11,6 +11,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
+#include "Camera/PlayerCameraManager.h"
+
 
 void UCombatTransitionSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -36,6 +38,54 @@ void UCombatTransitionSubsystem::SetCombatControllerClass(TSubclassOf<APlayerCon
 	CombatControllerClass = InClass;
 	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : CombatControllerClass 설정 → %s"), *GetNameSafe(InClass));
 }
+
+// ==== 허브 위치 등록 ====
+
+void UCombatTransitionSubsystem::RegisterHubLocation(AActor* HubActor)
+{
+	if (!HubActor) return;
+	RegisteredHubs.AddUnique(HubActor);
+	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 허브 위치 등록 - %s"), *GetNameSafe(HubActor));
+}
+
+void UCombatTransitionSubsystem::UnregisterHubLocation(AActor* HubActor)
+{
+	if (!HubActor) return;
+	RegisteredHubs.Remove(HubActor);
+	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 허브 위치 해제 - %s"), *GetNameSafe(HubActor));
+}
+
+FVector UCombatTransitionSubsystem::FindNearestHubLocation() const
+{
+	FVector BestLocation = FVector::ZeroVector;
+	float BestDistSq = TNumericLimits<float>::Max();
+	bool bFound = false;
+
+	const FVector Origin = IsValid(CachedFieldPawn) ? CachedFieldPawn->GetActorLocation() : FVector::ZeroVector;
+
+	for (const TWeakObjectPtr<AActor>& WeakHub : RegisteredHubs)
+	{
+		if (AActor* Hub = WeakHub.Get())
+		{
+			const float DistSq = FVector::DistSquared(Origin, Hub->GetActorLocation());
+			if (DistSq < BestDistSq)
+			{
+				BestDistSq = DistSq;
+				BestLocation = Hub->GetActorLocation();
+				bFound = true;
+			}
+		}
+	}
+
+	if (!bFound)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CombatTransitionSubsystem : 등록된 허브 위치 없음. 원점 사용."));
+	}
+
+	return BestLocation;
+}
+
+// ==== 전투 모드 진입 ====
 
 void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FName& LeaderCharacterID)
 {
@@ -64,13 +114,6 @@ void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 	SetOriginalPlayerCharacterID(LeaderCharacterID);
 	CachedFieldPawn = PC->GetPawn();
 	CachedFieldController = PC;
-
-	// 전투 진입 전 필드 폰 위치 저장 (전투 종료 시 복원용)
-	if (IsValid(CachedFieldPawn))
-	{
-		PreBattleFieldTransform = CachedFieldPawn->GetActorTransform();
-		bHasPreBattleTransform = true;
-	}
 
 	// 카메라 스냅샷 저장 (전투 종료 후 복원용)
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
@@ -152,6 +195,8 @@ void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem::EnterCombatMode : 전투 모드 진입 완료 (필드 PC 폴백) -> %s"), *LeaderCharacterID.ToString());
 }
 
+// ==== 이동 상태 동기화 ====
+
 void UCombatTransitionSubsystem::SyncMovementStateToLeader(APawn* FieldPawn, ACombatCharacterActor* LeaderActor)
 {
 	if (!FieldPawn || !LeaderActor) return;
@@ -201,6 +246,8 @@ void UCombatTransitionSubsystem::SyncMovementStateToFieldPawn(ACombatCharacterAc
 		}
 	}
 }
+
+// ==== 전투 중 조작 캐릭터 전환 ====
 
 void UCombatTransitionSubsystem::OnPartyMemberChanged(const FName& NewCharacterID)
 {
@@ -253,7 +300,7 @@ void UCombatTransitionSubsystem::OnPartyMemberChanged(const FName& NewCharacterI
 	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 빙의 전환 완료 → %s"), *NewCharacterID.ToString());
 }
 
-// ─── OnBattleEnded: God Method를 서브루틴으로 분해 ───
+// ==== 전투 종료 처리 ====
 
 void UCombatTransitionSubsystem::OnBattleEnded(EBattleEndReason Reason)
 {
@@ -263,25 +310,219 @@ void UCombatTransitionSubsystem::OnBattleEnded(EBattleEndReason Reason)
 		return;
 	}
 
-	// 1. 주인공 캐릭터에 빙의 복귀
+	if (Reason == EBattleEndReason::Victory)
+	{
+		HandleVictoryTransition();
+	}
+	else if (Reason == EBattleEndReason::Defeat)
+	{
+		HandleDefeatTransition();
+	}
+	else
+	{
+		// Aborted 등 기타: 즉시 전환
+		PerformTransition(true);
+		ResetTransitionState();
+	}
+}
+
+// ==== 승리 처리 ====
+
+void UCombatTransitionSubsystem::HandleVictoryTransition()
+{
+	// 승리 시: 전투 필드 액터 위치 그대로 필드로 복귀 (실시간 전환)
+	PerformTransition(true);
+	StartPostBattleRecovery();
+	ResetTransitionState();
+
+	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 승리 전환 완료. 필드 모드 복원."));
+}
+
+// ==== 패배 처리 ====
+
+void UCombatTransitionSubsystem::HandleDefeatTransition()
+{
+	// 플레이어 이동 처리 막기
+	if (IsValid(CombatPlayerController))
+	{
+		CombatPlayerController->SetIgnoreMoveInput(true);
+		CombatPlayerController->SetIgnoreLookInput(true);
+	}
+
+	// 2초 페이드 아웃
+	if (IsValid(CombatPlayerController))
+	{
+		if (APlayerCameraManager* CamMgr = CombatPlayerController->PlayerCameraManager)
+		{
+			CamMgr->StartCameraFade(0.f, 1.f, 2.f, FLinearColor::Black, false, true);
+		}
+	}
+
+	// 페이드 아웃 완료 후 전환 타이머
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			DefeatFadeOutTimerHandle, this,
+			&UCombatTransitionSubsystem::OnDefeatFadeOutComplete, 2.0f, false);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 패배 감지. 페이드 아웃 시작 (2초)."));
+}
+
+void UCombatTransitionSubsystem::OnDefeatFadeOutComplete()
+{
+	// 주인공 캐릭터에 빙의 복귀
 	ReturnPossessionToLeader();
 
-	// 2. 리더 트랜스폼/이동 동기화 저장
+	// CombatCharacterActor에서 빙의 해제 (패배 시 위치는 리더 위치가 아닌 허브로 이동)
+	if (IsValid(CombatPlayerController))
+	{
+		CombatPlayerController->UnPossess();
+	}
+
+	// 전투 액터 -> 필드 폰 이동 동기화 (파괴 전에 수행)
+	UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>();
+	if (SpawnSub && IsValid(CachedFieldPawn))
+	{
+		ACombatCharacterActor* LeaderForSync = SpawnSub->FindActorByCharacterID(OriginalPlayerCharacterID);
+		if (LeaderForSync)
+		{
+			SyncMovementStateToFieldPawn(LeaderForSync, CachedFieldPawn.Get());
+		}
+	}
+
+	// CombatCharacterActor 스냅샷 저장 후 파괴
+	if (SpawnSub)
+	{
+		TArray<ACombatCharacterActor*> CurrentActors = SpawnSub->GetSpawnedActors();
+		SpawnSub->DespawnCombatActors(CurrentActors);
+	}
+
+	// 사망 캐릭터 부활 + HP 100% 회복
+	HandleDefeatRecovery();
+
+	// 컨트롤러 스왑 복원
+	APlayerController* ControllerToRestore = nullptr;
+	APlayerController* CombatPCToDestroy = nullptr;
+	RestoreFieldController(ControllerToRestore, CombatPCToDestroy);
+
+	// 가장 가까운 허브로 이동
+	const FVector HubLocation = FindNearestHubLocation();
+
+	// 필드 폰 복원 (허브 위치로)
+	RestoreFieldPawn(ControllerToRestore, HubLocation, FRotator::ZeroRotator, true);
+
+	// 전투 컨트롤러 파괴
+	if (CombatPCToDestroy)
+	{
+		CombatPCToDestroy->Destroy();
+	}
+
+	// CompanionPawn 복원
+	if (UFieldCompanionSubsystem* CompanionSub = GetWorld()->GetSubsystem<UFieldCompanionSubsystem>())
+	{
+		CompanionSub->RestoreCompanions();
+	}
+
+	// 필드 컨트롤러 이동 입력 막기 (페이드 인 완료 전까지)
+	DefeatRestoredController = ControllerToRestore;
+	if (IsValid(DefeatRestoredController))
+	{
+		DefeatRestoredController->SetIgnoreMoveInput(true);
+		DefeatRestoredController->SetIgnoreLookInput(true);
+	}
+
+	// 2초 페이드 인
+	if (IsValid(ControllerToRestore))
+	{
+		if (APlayerCameraManager* CamMgr = ControllerToRestore->PlayerCameraManager)
+		{
+			CamMgr->StartCameraFade(1.f, 0.f, 2.f, FLinearColor::Black, false, false);
+		}
+	}
+
+	// 페이드 인 완료 타이머
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			DefeatFadeInTimerHandle, this,
+			&UCombatTransitionSubsystem::OnDefeatFadeInComplete, 2.0f, false);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 패배 전환 완료. 허브로 이동 후 페이드 인 시작 (2초)."));
+}
+
+void UCombatTransitionSubsystem::OnDefeatFadeInComplete()
+{
+	// 이동 입력 복원
+	if (IsValid(DefeatRestoredController))
+	{
+		DefeatRestoredController->SetIgnoreMoveInput(false);
+		DefeatRestoredController->SetIgnoreLookInput(false);
+		DefeatRestoredController = nullptr;
+	}
+
+	ResetTransitionState();
+
+	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 패배 처리 완료. 필드 모드 복원."));
+}
+
+// ==== 승리 후 점진적 HP 회복 ====
+void UCombatTransitionSubsystem::StartPostBattleRecovery()
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(
+			PostBattleRecoveryTimerHandle, this,
+			&UCombatTransitionSubsystem::TickPostBattleRecovery,
+			PostBattleRecoveryInterval, true);
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 승리 후 점진적 HP 회복 시작 (%.1f초 간격, MaxHP의 %.0f%% 회복)."),
+		PostBattleRecoveryInterval, PostBattleRecoveryRatio * 100.f);
+}
+
+void UCombatTransitionSubsystem::TickPostBattleRecovery()
+{
+	UWorld* World = GetWorld();
+	if (!World) return;
+
+	UGameInstance* GI = World->GetGameInstance();
+	if (!GI) return;
+
+	UCharacterRuntimeSubsystem* CharRuntime = GI->GetSubsystem<UCharacterRuntimeSubsystem>();
+	if (!CharRuntime) return;
+
+	const bool bStillRecovering = CharRuntime->RecoverPartyAfterVictory(PostBattleRecoveryRatio);
+
+	if (!bStillRecovering)
+	{
+		World->GetTimerManager().ClearTimer(PostBattleRecoveryTimerHandle);
+		UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 승리 후 HP 회복 완료."));
+	}
+}
+
+// ==== 공통 전환 로직 (승리) ====
+
+void UCombatTransitionSubsystem::PerformTransition(bool bUseLeaderPosition)
+{
+	// 주인공 캐릭터에 빙의 복귀
+	ReturnPossessionToLeader();
+
+	// 리더 트랜스폼/이동 동기화 저장
 	FVector LeaderFinalLocation;
 	FRotator LeaderFinalRotation;
 	bool bHasLeaderTransform = false;
-	SaveLeaderTransformAndSync(LeaderFinalLocation, LeaderFinalRotation, bHasLeaderTransform);
+	if (bUseLeaderPosition)
+	{
+		SaveLeaderTransformAndSync(LeaderFinalLocation, LeaderFinalRotation, bHasLeaderTransform);
+	}
+	else if (IsValid(CombatPlayerController))
+	{
+		CombatPlayerController->UnPossess();
+	}
 
-	// 전투 진입 전 좌표로 복원 (전투 중 위치가 아닌 진입 전 위치 사용)
-	const FVector RestoreLocation = bHasPreBattleTransform
-		? PreBattleFieldTransform.GetLocation()
-		: LeaderFinalLocation;
-	const FRotator RestoreRotation = bHasPreBattleTransform
-		? PreBattleFieldTransform.GetRotation().Rotator()
-		: LeaderFinalRotation;
-	const bool bHasRestoreTransform = bHasPreBattleTransform || bHasLeaderTransform;
-
-	// 3. CombatCharacterActor 스냅샷 저장 후 파괴
+	// CombatCharacterActor 스냅샷 저장 후 파괴
 	UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>();
 	if (SpawnSub)
 	{
@@ -289,36 +530,28 @@ void UCombatTransitionSubsystem::OnBattleEnded(EBattleEndReason Reason)
 		SpawnSub->DespawnCombatActors(CurrentActors);
 	}
 
-	// 4. 패배 시 HP 복구
-	HandleDefeatRecovery(Reason);
-
-	HandleVictoryRecovery(Reason);
-
-	// 5. 컨트롤러 스왑 복원
+	// 컨트롤러 스왑 복원
 	APlayerController* ControllerToRestore = nullptr;
 	APlayerController* CombatPCToDestroy = nullptr;
 	RestoreFieldController(ControllerToRestore, CombatPCToDestroy);
 
-	// 6. 필드 폰 복원
+	// 필드 폰 복원
 	RestoreFieldPawn(ControllerToRestore, LeaderFinalLocation, LeaderFinalRotation, bHasLeaderTransform);
 
-	// 7. 필드 폰 복원 완료 후 전투 컨트롤러 파괴
+	// 전투 컨트롤러 파괴
 	if (CombatPCToDestroy)
 	{
 		CombatPCToDestroy->Destroy();
 	}
 
-	// 8. CompanionPawn 복원
+	// CompanionPawn 복원
 	if (UFieldCompanionSubsystem* CompanionSub = GetWorld()->GetSubsystem<UFieldCompanionSubsystem>())
 	{
 		CompanionSub->RestoreCompanions();
 	}
-
-	// 9. 상태 초기화
-	ResetTransitionState();
-
-	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 전투 종료 처리 완료. 필드 모드 복원."));
 }
+
+// ==== 서브 함수 ====
 
 void UCombatTransitionSubsystem::ReturnPossessionToLeader()
 {
@@ -381,34 +614,15 @@ void UCombatTransitionSubsystem::SaveLeaderTransformAndSync(FVector& OutLocation
 	}
 }
 
-void UCombatTransitionSubsystem::HandleDefeatRecovery(EBattleEndReason Reason)
+void UCombatTransitionSubsystem::HandleDefeatRecovery()
 {
-	if (Reason != EBattleEndReason::Defeat) return;
-
 	if (UWorld* World = GetWorld())
 	{
 		if (UGameInstance* GI = World->GetGameInstance())
 		{
 			if (UCharacterRuntimeSubsystem* CharacterRuntime = GI->GetSubsystem<UCharacterRuntimeSubsystem>())
 			{
-				CharacterRuntime->RecoverPartyFromWipe();
-			}
-		}
-	}
-}
-
-
-void UCombatTransitionSubsystem::HandleVictoryRecovery(EBattleEndReason Reason)
-{
-	if (Reason != EBattleEndReason::Victory) return;
-
-	if (UWorld* World = GetWorld())
-	{
-		if (UGameInstance* GI = World->GetGameInstance())
-		{
-			if (UCharacterRuntimeSubsystem* CharacterRuntime = GI->GetSubsystem<UCharacterRuntimeSubsystem>())
-			{
-				CharacterRuntime->RecoverPartyAfterVictory();
+				CharacterRuntime->RecoverPartyFromWipe(1.0f, 1.0f);
 			}
 		}
 	}
@@ -486,8 +700,6 @@ void UCombatTransitionSubsystem::ResetTransitionState()
 	OriginalPlayerCharacterID  = NAME_None;
 	CurrentPlayerCharacterID   = NAME_None;
 	CachedFieldPawn            = nullptr;
-	PreBattleFieldTransform = FTransform::Identity;
-	bHasPreBattleTransform = false;
 }
 
 void UCombatTransitionSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason Reason)
