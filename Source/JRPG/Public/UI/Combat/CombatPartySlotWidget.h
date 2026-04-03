@@ -6,16 +6,16 @@
 UCLASS()
 class JRPG_API UCombatPartySlotWidget : public UUserWidget
 {
-	GENERATED_BODY()
+    GENERATED_BODY()
 public:
-	void UpdateName(const FString& Name);
-	void UpdateHP(float Percent, const FString& Text);
-	void UPdateAP(float Percent);
+    void UpdateName(const FString& Name);
+    void UpdateHP(float Percent, const FString& Text);
+    void UpdateAP(float Percent);
 
 protected:
-	UPROPERTY(meta = (BindWidget)) class UImage* Image_Portrait;
-	UPROPERTY(meta = (BindWidget)) class UTextBlock* Text_Name;
-	UPROPERTY(meta = (BindWidget)) class UProgressBar* PB_HPBar;
-	UPROPERTY(meta = (BindWidget)) TObjectPtr<UTextBlock> Text_HP;
-	UPROPERTY(meta = (BindWidget)) class UProgressBar* PB_APBar;
+    UPROPERTY(meta = (BindWidget)) class UImage* Image_Portrait;
+    UPROPERTY(meta = (BindWidget)) class UTextBlock* Text_Name;
+    UPROPERTY(meta = (BindWidget)) class UProgressBar* PB_HPBar;
+    UPROPERTY(meta = (BindWidget)) class UTextBlock* Text_HP;
+    UPROPERTY(meta = (BindWidget)) class UProgressBar* PB_APBar;
 };

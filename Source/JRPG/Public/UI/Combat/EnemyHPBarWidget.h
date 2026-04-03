@@ -1,19 +1,14 @@
-#pragma once
-
+﻿#pragma once
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "EnemyHPBarWidget.generated.h"
 
-class UProgressBar;
-
 UCLASS()
 class JRPG_API UEnemyHPBarWidget : public UUserWidget
 {
-	GENERATED_BODY()
-
+    GENERATED_BODY()
 public:
-	void UpdateHP(float Percent);
-
+    void UpdateHP(float Percent);
 protected:
-	UPROPERTY(meta = (BindWidget)) class UProgressBar* PB_HPBar;
+    UPROPERTY(meta = (BindWidget)) class UProgressBar* PB_HPBar;
 };
