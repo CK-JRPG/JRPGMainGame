@@ -79,10 +79,12 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
                 UCombatPartySlotWidget* SlotWidget = CreateWidget<UCombatPartySlotWidget>(GetWorld(), CombatWidget->PartyRosterPanel->PartySlotClass);
 
                 UCombatPartySlotViewModel* SlotVM = NewObject<UCombatPartySlotViewModel>(this);
-                SlotVM->BindToActor(Actor);
                 SlotVM->OnNameUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotNameUpdated, SlotWidget);
                 SlotVM->OnHPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotHPUpdated, SlotWidget);
                 SlotVM->OnAPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotAPUpdated, SlotWidget);
+
+                SlotVM->BindToActor(Actor);
+
                 PartyVMs.Add(SlotVM);
 
                 CombatWidget->PartyRosterPanel->AddPartySlot(SlotWidget);
@@ -112,8 +114,8 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
                 if (UEnemyHPBarWidget* HPWidget = Cast<UEnemyHPBarWidget>(HPBarComp->GetUserWidgetObject()))
                 {
                     UEnemyViewModel* EnemyVM = NewObject<UEnemyViewModel>(this);
-                    EnemyVM->BindToEnemy(Enemy);
                     EnemyVM->OnTargetHPUpdated.AddUObject(this, &UCombatHUDPresenter::OnEnemyHPBarUpdated, HPWidget);
+                    EnemyVM->BindToEnemy(Enemy);
                     EnemyHPBarVMs.Add(EnemyVM);
                 }
             }
