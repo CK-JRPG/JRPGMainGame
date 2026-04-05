@@ -21,7 +21,8 @@ public class JRPG : ModuleRules
 			"UMG", 
 			"Slate", 
 			"SlateCore",
-			"EnhancedInput" 
+			"EnhancedInput",
+			"Niagara"
 		});
 
 		// JRPG Framework 플러그인 : Public

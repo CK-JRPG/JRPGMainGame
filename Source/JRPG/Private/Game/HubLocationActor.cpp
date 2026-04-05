@@ -9,6 +9,11 @@ AHubLocationActor::AHubLocationActor()
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	RootComponent = SceneRoot;
 
+	NiagaraComp = CreateDefaultSubobject<UNiagaraComponent>(TEXT("NiagaraComp"));
+	NiagaraComp->SetupAttachment(RootComponent);
+	
+	NiagaraComp->SetAutoActivate(true);
+	
 #if WITH_EDITORONLY_DATA
 	EditorSprite = CreateEditorOnlyDefaultSubobject<UBillboardComponent>(TEXT("EditorSprite"));
 	if (EditorSprite)

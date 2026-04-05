@@ -6,6 +6,7 @@
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
+#include "Combat/Session/CombatZoneActor.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Components/BoxComponent.h"
 #include "Engine/OverlapResult.h"
