@@ -68,9 +68,13 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_ToggleInventory;
 
+	// 상호작용 키 - E
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_Interact;
+	
 	// 인벤토리 위젯 클래스 (WBP_InventoryMenu 할당용)
 	UPROPERTY(EditDefaultsOnly, Category = "JRPG|UI")
-	TSubclassOf<class UUserWidget> InventoryWidgetClass;
+	TSubclassOf<UUserWidget> InventoryWidgetClass;
 	
 	// 카메라 설정
 	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Camera")
@@ -96,6 +100,8 @@ protected:
 	void OnLookAround();
 	void OnLookAroundCompleted();
 	void OnCameraZoom(const FInputActionValue& Value);
+	void OnInteract();
+	
 	void UpdateCameraTargetForPawn(APawn* InPawn) const;
 	
 private:

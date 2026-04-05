@@ -38,10 +38,6 @@ public:
 
 	void SetCombatControllerClass(TSubclassOf<APlayerController> InClass);
 
-	// 허브 위치 등록 (HubLocationActor에서 호출)
-	void RegisterHubLocation(AActor* HubActor);
-	void UnregisterHubLocation(AActor* HubActor);
-
 private:
 	// 승리/패배 분기 처리
 	void HandleVictoryTransition();
@@ -63,9 +59,6 @@ private:
 	void RestoreFieldController(APlayerController*& OutControllerToRestore, APlayerController*& OutCombatPCToDestroy);
 	void RestoreFieldPawn(APlayerController* ControllerToRestore, const FVector& LeaderLocation, const FRotator& LeaderRotation, bool bHasLeaderTransform);
 	void ResetTransitionState();
-
-	// 허브 위치 검색
-	FVector FindNearestHubLocation() const;
 
 	//이동 상태 동기화
 	void SyncMovementStateToLeader(APawn* FieldPawn, ACombatCharacterActor* LeaderActor);
@@ -89,10 +82,6 @@ private:
 
 	FName OriginalPlayerCharacterID;
 	FName CurrentPlayerCharacterID;
-
-	// 허브 위치 목록
-	UPROPERTY()
-	TArray<TWeakObjectPtr<AActor>> RegisteredHubs;
 
 	// 패배 처리용 타이머
 	FTimerHandle DefeatFadeOutTimerHandle;
