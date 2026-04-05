@@ -29,6 +29,10 @@ void UInventoryUIWidget::OnInventoryListUpdated(const TArray<FItemInstance>& Ite
 	{
 		UItemWrapperObject* Wrapper = NewObject<UItemWrapperObject>(this);
 		Wrapper->ItemData = Item;
+		if (ViewModel)
+		{
+			Wrapper->ItemDef = ViewModel->GetItemDefinition(Item.ItemId);
+		}
 		ListView_Inventory->AddItem(Wrapper);
 	}
 }

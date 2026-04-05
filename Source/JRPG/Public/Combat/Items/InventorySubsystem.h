@@ -18,8 +18,6 @@ struct FItemInstance
 	FGuid InstanceId;
 	UPROPERTY(BlueprintReadOnly, Category = "Item") 
 	FName ItemId = NAME_None;
-	UPROPERTY(BlueprintReadOnly, Category = "Item")
-	FName ItemDisplayName = NAME_None;
 	UPROPERTY(BlueprintReadOnly, Category = "Item") 
 	int32 Quantity = 1;
 	UPROPERTY() bool bLocked = false;
