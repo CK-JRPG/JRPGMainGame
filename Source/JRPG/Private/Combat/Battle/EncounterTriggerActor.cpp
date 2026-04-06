@@ -235,7 +235,7 @@ void AEncounterTriggerActor::ReadyforBattleSession(const FBattleSessionConfig& C
 		// 배틀 시작 실패 시 이미 생성된 CombatZone 정리
 		if (SpawnedZone)
 		{
-			SpawnedZone->Destroy();
+			//SpawnedZone->Destroy();
 			SpawnedZone = nullptr;
 		}
 	}

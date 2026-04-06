@@ -20,9 +20,9 @@ public:
 	UPROPERTY(EditAnywhere)
 	EItemType ItemType = EItemType::Augment;
 
-	UPROPERTY(EditAnywhere)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly)
 	FText DisplayName;
-	UPROPERTY(EditAnywhere, meta=(MultiLine="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta=(MultiLine="true"))
 	FText Description;
 
 	UPROPERTY(EditAnywhere)

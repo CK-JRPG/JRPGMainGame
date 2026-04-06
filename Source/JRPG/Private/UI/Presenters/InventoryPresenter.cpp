@@ -1,4 +1,4 @@
-#include "UI/Presenters/InventoryPresenter.h"
+ï»¿#include "UI/Presenters/InventoryPresenter.h"
 #include "UI/ViewModels/InventoryViewModel.h"
 #include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
@@ -32,15 +32,15 @@ void UInventoryPresenter::OpenInventory(AActor* DefaultCharacter)
 	if (!MenuWidgetInstance || !InventoryViewModel || bIsOpen) return;
 
 	InventoryViewModel->SelectCharacter(DefaultCharacter);
-	InventoryViewModel->FilterItems(EItemType::Consumable);
+
+	// ë§¨ ì²˜ìŒ ì¸ë²¤í† ë¦¬ë¥¼ ì—´ì—ˆì„ ë•Œ ë¬´ì¡°ê±´ ìž¥ë¹„ íƒ­(0ë²ˆ)ìœ¼ë¡œ ì´ˆê¸°í™” & ì •ë ¬
+	InventoryViewModel->FilterItems(EInventoryTab::Equipment);
 
 	MenuWidgetInstance->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	bIsOpen = true;
 
 	if (APlayerController* PC = UGameplayStatics::GetPlayerController(CachedWorld.Get(), 0))
 	{
-		// °ÔÀÓÀ» ÀÏ½ÃÁ¤Áö ÇÒÁö ¼±ÅÃ
-		//PC->SetPause(true);
 		PC->SetInputMode(FInputModeGameAndUI());
 		PC->bShowMouseCursor = true;
 	}
@@ -56,8 +56,6 @@ void UInventoryPresenter::CloseInventory()
 
 	if (APlayerController* PC = UGameplayStatics::GetPlayerController(CachedWorld.Get(), 0))
 	{
-		// °ÔÀÓÀ» ÀÏ½ÃÁ¤Áö ÇÒÁö ¼±ÅÃ
-		//PC->SetPause(false);
 		PC->SetInputMode(FInputModeGameOnly());
 		PC->bShowMouseCursor = false;
 	}

@@ -1,4 +1,5 @@
-#include "UI/ViewModels/InventoryViewModel.h"
+Ôªø#include "UI/ViewModels/InventoryViewModel.h"
+#include "Combat/Items/ItemDataAsset.h"
 #include "Combat/Items/InventoryPresentationSubsystem.h"
 #include "Combat/Items/AugmentEquipComponent.h"
 #include "Combat/Items/WeaponEquipComponent.h"
@@ -14,8 +15,7 @@ void UInventoryViewModel::Initialize(UWorld* World)
 
 	if (InvSubsystem.IsValid())
 	{
-		InvSubsystem->OnItemAdded.AddUObject(this, &UInventoryViewModel::HandleInventoryChanged);
-		InvSubsystem->OnItemRemoved.AddUObject(this, &UInventoryViewModel::HandleInventoryChanged);
+		InvSubsystem->OnInventoryChanged.AddUObject(this, &UInventoryViewModel::HandleInventoryChanged);
 	}
 }
 
@@ -23,8 +23,7 @@ void UInventoryViewModel::Deinitialize()
 {
 	if (InvSubsystem.IsValid())
 	{
-		InvSubsystem->OnItemAdded.RemoveAll(this);
-		InvSubsystem->OnItemRemoved.RemoveAll(this);
+		InvSubsystem->OnInventoryChanged.RemoveAll(this);
 	}
 }
 
@@ -39,22 +38,15 @@ void UInventoryViewModel::SelectCharacter(AActor* CharacterActor)
 		CurrentAugmentComp = CharacterActor->FindComponentByClass<UAugmentEquipComponent>();
 		CurrentWeaponComp = CharacterActor->FindComponentByClass<UWeaponEquipComponent>();
 
-		if (CurrentAugmentComp.IsValid())
-		{
-			CurrentAugmentComp->OnAugmentEquipped.AddUObject(this, &UInventoryViewModel::HandleAugmentEquipped);
-		}
-		if (CurrentWeaponComp.IsValid())
-		{
-			CurrentWeaponComp->OnEquipmentChanged.AddUObject(this, &UInventoryViewModel::HandleWeaponEquipped);
-		}
+		if (CurrentAugmentComp.IsValid()) CurrentAugmentComp->OnAugmentEquipped.AddUObject(this, &UInventoryViewModel::HandleAugmentEquipped);
+		if (CurrentWeaponComp.IsValid()) CurrentWeaponComp->OnEquipmentChanged.AddUObject(this, &UInventoryViewModel::HandleWeaponEquipped);
 	}
-
 	RefreshStatsBreakdown();
 }
 
-void UInventoryViewModel::FilterItems(EItemType ItemType)
+void UInventoryViewModel::FilterItems(EInventoryTab TabType)
 {
-	CurrentFilter = ItemType;
+	CurrentTab = TabType;
 	RefreshItemList();
 }
 
@@ -66,25 +58,98 @@ void UInventoryViewModel::SearchItems(const FString& Keyword)
 
 void UInventoryViewModel::RefreshItemList()
 {
-	if (!InvSubsystem.IsValid() || !PresentationSubsystem.IsValid()) return;
+	if (!InvSubsystem.IsValid()) return;
 
-	TArray<FItemInstance> FilteredItems = PresentationSubsystem->FilterByType(InvSubsystem.Get(), CurrentFilter);
+	TArray<FItemInstance> AllInstances;
+	InvSubsystem->GetAllInstances(AllInstances);
 
-	if (!CurrentKeyword.IsEmpty())
+	TArray<FItemInstance> FilteredItems;
+	FilteredItems.Reserve(AllInstances.Num());
+
+	// 1. ÌÉ≠ Î∂ÑÎ•ò ÌïÑÌÑ∞ÎßÅ
+	for (const FItemInstance& Item : AllInstances)
 	{
-		FilteredItems = PresentationSubsystem->SearchByName(InvSubsystem.Get(), CurrentKeyword);
+		const UItemDataAsset* ItemDef = InvSubsystem->FindDef(Item.ItemId);
+		if (!ItemDef) continue;
+
+		bool bMatch = false;
+		switch (CurrentTab)
+		{
+		case EInventoryTab::Equipment:
+			bMatch = (ItemDef->IsWeapon() || ItemDef->IsAugment());
+			break;
+		case EInventoryTab::Consumable:
+			bMatch = ItemDef->IsConsumable();
+			break;
+		case EInventoryTab::Material:
+			bMatch = (ItemDef->ItemType == EItemType::Material || ItemDef->IsKeyItem());
+			break;
+		}
+
+		// Ïù¥Î¶Ñ Í≤ÄÏÉâ Î°úÏßÅ Ïú†ÏßÄ
+		if (bMatch && !CurrentKeyword.IsEmpty())
+		{
+			bMatch = ItemDef->DisplayName.ToString().Contains(CurrentKeyword);
+		}
+
+		if (bMatch) FilteredItems.Add(Item);
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("[ViewModel] «ˆ¿Á « ≈Õ(%d)∏¶ ≈Î∞˙«— æ∆¿Ã≈€ ∞≥ºˆ: %d∞≥"), (int32)CurrentFilter, FilteredItems.Num());
+	// 2. Ïû•ÎπÑ ÌÉ≠Ïù∏ Í≤ΩÏö∞ O(N) Î≤ÑÌÇ∑ Ï†ïÎ†¨ ÏàòÌñâ
+	if (CurrentTab == EInventoryTab::Equipment && CurrentCharacter.IsValid())
+	{
+		SortEquipmentBucket(FilteredItems);
+	}
 
 	OnInventoryListUpdated.Broadcast(FilteredItems);
+}
+
+int32 UInventoryViewModel::GetRoleScore(const UItemDataAsset* ItemDef, AActor* TargetChar) const
+{
+	if (!ItemDef) return 0;
+	if (ItemDef->RoleRestrictionMask == 0) return 1; // Í≥µÏö© ÏïÑÏù¥ÌÖú
+
+	// TODO: Ï∫êÎ¶≠ÌÑ∞ ÏßÅÏóÖ(Role) Í≤ÄÏÇ¨ Ïó∞Îèô Î∂ÄÎ∂Ñ (TargetChar->GetRole() ÏÇ¨Ïö©)
+	// ÏòàÏãú: if (ItemDef->IsRoleAllowed(CharRole)) return 2; 
+
+	return 0; // ÌÉÄ ÏßÅÏóÖ ÏïÑÏù¥ÌÖú
+}
+
+void UInventoryViewModel::SortEquipmentBucket(TArray<FItemInstance>& InOutItems)
+{
+	if (InOutItems.IsEmpty()) return;
+
+	const int32 MAX_SCORE_BUCKETS = 25;
+	TArray<TArray<FItemInstance>> Buckets;
+	Buckets.SetNum(MAX_SCORE_BUCKETS);
+
+	for (const FItemInstance& Item : InOutItems)
+	{
+		const UItemDataAsset* ItemDef = InvSubsystem->FindDef(Item.ItemId);
+		if (!ItemDef) continue;
+
+		int32 RoleScore = GetRoleScore(ItemDef, CurrentCharacter.Get());
+		int32 RarityScore = static_cast<int32>(ItemDef->Rarity); // 0 ~ 4
+
+		int32 FinalScore = (RoleScore * 10) + RarityScore;
+		if (FinalScore >= 0 && FinalScore < MAX_SCORE_BUCKETS)
+		{
+			Buckets[FinalScore].Add(Item);
+		}
+	}
+
+	InOutItems.Empty();
+	for (int32 i = MAX_SCORE_BUCKETS - 1; i >= 0; --i)
+	{
+		for (const FItemInstance& Item : Buckets[i]) InOutItems.Add(Item);
+	}
 }
 
 void UInventoryViewModel::HoverItemForPreview(const FItemInstance& ItemInfo)
 {
 	if (!PresentationSubsystem.IsValid() || !CurrentCharacter.IsValid() || !InvSubsystem.IsValid()) return;
 
-	// Ω«¡¶ Ω∫≈» ƒƒ∆˜≥Õ∆ÆøÕ æ∆¿Ã≈€ DB∏¶ ∞°¡ÆøÕº≠ «¡∏Æ∫‰ ∞ËªÍ
+	// Ïã§Ï†ú Ïä§ÌÉØ Ïª¥Ìè¨ÎÑåÌä∏ÏôÄ ÏïÑÏù¥ÌÖú DBÎ•º Í∞ÄÏ†∏ÏôÄÏÑú ÌîÑÎ¶¨Î∑∞ Í≥ÑÏÇ∞
 	/*
 	UCombatStatsComponent* StatsComp = CurrentCharacter->FindComponentByClass<UCombatStatsComponent>();
 	const UItemDataAsset* ItemDef = InvSubsystem->FindDef(ItemInfo.ItemId);
@@ -96,34 +161,14 @@ void UInventoryViewModel::HoverItemForPreview(const FItemInstance& ItemInfo)
 	}
 	*/
 }
-
-void UInventoryViewModel::ClearPreview()
-{
-	OnEquipPreviewUpdated.Broadcast(FStatsPreviewDelta());
-}
-
-void UInventoryViewModel::RequestEquipAugment(FGuid InstanceId, EAugmentEquipSlot Slot)
-{
-	if (CurrentAugmentComp.IsValid() && InvSubsystem.IsValid())
-		CurrentAugmentComp->TryEquipFromInventory(InvSubsystem.Get(), InstanceId, Slot);
-}
-
-void UInventoryViewModel::RequestUnequipAugment(EAugmentEquipSlot Slot)
-{
-	if (CurrentAugmentComp.IsValid() && InvSubsystem.IsValid())
-		CurrentAugmentComp->TryUnequipToInventory(InvSubsystem.Get(), Slot);
-}
-
-void UInventoryViewModel::RequestEquipWeapon(FGuid InstanceId)
-{
-	if (CurrentWeaponComp.IsValid() && InvSubsystem.IsValid())
-		CurrentWeaponComp->EquipWeapon(InvSubsystem.Get(), InstanceId);
-}
-
-void UInventoryViewModel::RefreshStatsBreakdown()
+void UInventoryViewModel::ClearPreview() { OnEquipPreviewUpdated.Broadcast(FStatsPreviewDelta()); }
+void UInventoryViewModel::RequestEquipAugment(FGuid InstanceId, EAugmentEquipSlot Slot) { if (CurrentAugmentComp.IsValid() && InvSubsystem.IsValid()) CurrentAugmentComp->TryEquipFromInventory(InvSubsystem.Get(), InstanceId, Slot); }
+void UInventoryViewModel::RequestUnequipAugment(EAugmentEquipSlot Slot) { if (CurrentAugmentComp.IsValid() && InvSubsystem.IsValid()) CurrentAugmentComp->TryUnequipToInventory(InvSubsystem.Get(), Slot); }
+void UInventoryViewModel::RequestEquipWeapon(FGuid InstanceId) { if (CurrentWeaponComp.IsValid() && InvSubsystem.IsValid()) CurrentWeaponComp->EquipWeapon(InvSubsystem.Get(), InstanceId); }
+void UInventoryViewModel::RefreshStatsBreakdown() 
 {
 	if (!CurrentCharacter.IsValid()) return;
-	// ƒ≥∏Ø≈Õø°º≠ FStatsBreakdownSnapshot √ﬂ√‚ ∑Œ¡˜ ø¨µø
+	// Ï∫êÎ¶≠ÌÑ∞ÏóêÏÑú FStatsBreakdownSnapshot Ï∂îÏ∂ú Î°úÏßÅ Ïó∞Îèô
 	//if (UCombatStatsComponent* StatsComp = CurrentCharacter->FindComponentByClass<UCombatStatsComponent>())
 	//{
 	//	FStatsBreakdownSnapshot Snapshot = StatsComp->GetStatsBreakdownSnapshot();
@@ -131,26 +176,12 @@ void UInventoryViewModel::RefreshStatsBreakdown()
 	//}
 }
 
-void UInventoryViewModel::HandleInventoryChanged(FName ItemId, int32 Qty, FName Tag)
-{
-	RefreshItemList();
-}
+void UInventoryViewModel::HandleInventoryChanged(EInventoryChangeType ChangeType, FGuid InstanceId, int32 Delta, FName ReasonTag) { RefreshItemList(); }
+void UInventoryViewModel::HandleAugmentEquipped(FName CharId, EAugmentEquipSlot Slot, FName Old, FName New, FName Reason) { RefreshStatsBreakdown(); }
+void UInventoryViewModel::HandleWeaponEquipped(FName CharId, EEquipmentSlotType Slot, FGuid OldInstanceId, FGuid NewInstanceId, FName ReasonTag) { RefreshStatsBreakdown(); }
 
-void UInventoryViewModel::HandleAugmentEquipped(FName CharId, EAugmentEquipSlot Slot, FName Old, FName New, FName Reason)
+const UItemDataAsset* UInventoryViewModel::GetItemDefinition(FName ItemId) const
 {
-	RefreshStatsBreakdown();
-}
-
-void UInventoryViewModel::HandleWeaponEquipped(FName CharId, EEquipmentSlotType Slot, FGuid OldInstanceId, FGuid NewInstanceId, FName ReasonTag)
-{
-	RefreshStatsBreakdown();
-}
-
-UItemDataAsset* UInventoryViewModel::GetItemDefinition(FName ItemId) const
-{
-	if (UItemDatabaseAsset* DB = UJRPGItemSettings::GetItemDB())
-	{
-		return const_cast<UItemDataAsset*>(DB->FindItem(ItemId));
-	}
+	if (InvSubsystem.IsValid()) return InvSubsystem->FindDef(ItemId);
 	return nullptr;
 }
