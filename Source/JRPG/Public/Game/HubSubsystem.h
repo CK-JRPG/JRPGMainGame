@@ -14,16 +14,16 @@ class JRPG_API UHubSubsystem : public UWorldSubsystem
 	
 public:
 	// 허브 등록
-	void RegisterHub(AActor* Hub);
-	void UnregisterHub(AActor* Hub);
+	void RegisterHub(AActor* HubActor);
+	void UnregisterHub(AActor* HubActor);
 	
 	// 플레이어가 현재 범위 안에 있는 허브 추적 (상호작용 대상)
-	void SetFocusedHub(AActor* Hub);
-	void ClearFocusedHub(AActor* Hub);
+	void SetFocusedHub(AActor* HubActor);
+	void ClearFocusedHub(AActor* HubActor);
 	AActor* GetFocusedHub() const;
 	
 	// 마지막 방문 허브
-	void VisitHub(AActor* HubActor);
+	void VisitHub(AActor* HubActor, const FVector& PlayerLoc);
 	bool HasLastVisitedHub() const;
 
 	// 리스폰 위치
@@ -40,4 +40,7 @@ private:
 	
 	UPROPERTY() TWeakObjectPtr<AActor> FocusedHub;
 	UPROPERTY() TWeakObjectPtr<AActor> LastVisitedHub;
+
+	// E키 상호작용 시점의 플레이어 위치 (리스폰 좌표로 사용)
+	FVector LastVisitedLocation = FVector::ZeroVector;
 };

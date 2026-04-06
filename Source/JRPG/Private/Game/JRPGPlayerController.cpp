@@ -273,10 +273,19 @@ void AJRPGPlayerController::OnInteract()
 	{
 		if (AActor* FocusedHub = HubSub->GetFocusedHub())
 		{
-			HubSub->VisitHub(FocusedHub);
+			// 허브 액터 위치가 아닌 플레이어의 현재 위치를 리스폰 좌표로 저장
+			APawn* PlayerPawn = GetPawn();
+			if (!PlayerPawn)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnInteract : Pawn이 없어 허브 방문 등록 불가"));
+				return;
+			}
+
+			HubSub->VisitHub(FocusedHub, PlayerPawn->GetActorLocation());
 			return;
 		}
 	}
+
 
 	// 향후 상자, NPC 등 다른 상호작용 대상 추가 가능
 }

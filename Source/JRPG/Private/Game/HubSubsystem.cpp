@@ -1,7 +1,5 @@
 #include "Game/HubSubsystem.h"
 
-#include "Game/HubActor.h"
-
 // ==== 허브 등록 ====
 void UHubSubsystem::RegisterHub(AActor* HubActor)
 {
@@ -25,6 +23,7 @@ void UHubSubsystem::UnregisterHub(AActor* HubActor)
 	if (LastVisitedHub.Get() == HubActor)
 	{
 		LastVisitedHub = nullptr;
+		LastVisitedLocation = FVector::ZeroVector;
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("HubSubsystem : 허브 해제 - %s"), *GetNameSafe(HubActor));
@@ -53,11 +52,12 @@ AActor* UHubSubsystem::GetFocusedHub() const
 }
 
 // ==== 마지막 방문 허브 ====
-void UHubSubsystem::VisitHub(AActor* HubActor)
+void UHubSubsystem::VisitHub(AActor* HubActor, const FVector& PlayerLocation)
 {
 	if (!HubActor) return;
 	LastVisitedHub = HubActor;
-	UE_LOG(LogTemp, Log, TEXT("HubSubsystem : 마지막 방문 허브 등록 - %s"), *GetNameSafe(HubActor));
+	LastVisitedLocation = PlayerLocation;
+	UE_LOG(LogTemp, Log, TEXT("HubSubsystem : 마지막 방문 허브 등록 - %s (플레이어 위치: %s)"), *GetNameSafe(HubActor), *PlayerLocation.ToString());
 }
 
 bool UHubSubsystem::HasLastVisitedHub() const
@@ -68,9 +68,10 @@ bool UHubSubsystem::HasLastVisitedHub() const
 // ==== 리스폰 위치 ====
 FVector UHubSubsystem::GetRespawnLocation(const FVector& FallbackOrigin) const
 {
-	if (AActor* Hub = LastVisitedHub.Get())
+	// 마지막 방문 허브가 유효하면 -> E키 상호작용 시점의 플레이어 위치 반환
+	if (LastVisitedHub.IsValid())
 	{
-		return Hub->GetActorLocation();
+		return LastVisitedLocation;
 	}
 
 	// 마지막 방문 허브가 없으면 가장 가까운 허브로 폴백
