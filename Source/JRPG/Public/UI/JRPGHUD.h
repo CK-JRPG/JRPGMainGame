@@ -45,4 +45,11 @@ private:
 
 	void OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot);
 	void OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot);
+
+	// [콘솔 명령어]
+public:
+	UFUNCTION(Exec, Category = "JRPG|Test")
+	void TestRegionName(const FString& RegionName);
+	UFUNCTION(Exec, Category = "JRPG|Test")
+	void TestPartyChat(const FString& Message);
 };

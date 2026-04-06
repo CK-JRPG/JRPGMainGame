@@ -62,3 +62,19 @@ void AJRPGHUD::OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot)
     if (TacticalWidget) TacticalWidget->SetVisibility(ESlateVisibility::Hidden);
     if (ExplorationPresenter) ExplorationPresenter->ShowExplorationUI();
 }
+
+void AJRPGHUD::TestRegionName(const FString& RegionName)
+{
+    if (ExplorationPresenter)
+    {
+        ExplorationPresenter->TestRegionName(RegionName);
+    }
+}
+
+void AJRPGHUD::TestPartyChat(const FString& Message)
+{
+    if (ExplorationPresenter)
+    {
+        ExplorationPresenter->TestPartyChat(Message);
+    }
+}

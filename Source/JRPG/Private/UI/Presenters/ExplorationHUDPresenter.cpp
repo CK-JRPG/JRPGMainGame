@@ -17,6 +17,8 @@ void UExplorationHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UExplorat
 	ViewModel = NewObject<UExplorationViewModel>(this);
 	ViewModel->Initialize(InWorld);
 	ViewModel->OnQuestUpdated.AddUObject(this, &UExplorationHUDPresenter::OnViewModelQuestUpdated);
+	ViewModel->OnPartyChatReceived.AddUObject(this, &UExplorationHUDPresenter::OnPartyChatReceived);
+	ViewModel->OnRegionChanged.AddUObject(this, &UExplorationHUDPresenter::OnRegionChanged);
 
 	if (UBattleSessionSubsystem* BattleSub = InWorld->GetSubsystem<UBattleSessionSubsystem>())
 	{
@@ -58,12 +60,32 @@ void UExplorationHUDPresenter::HideExplorationUI()
 	if (ExplorationWidget) ExplorationWidget->SetVisibility(ESlateVisibility::Hidden);
 }
 
+void UExplorationHUDPresenter::TestRegionName(const FString& RegionName)
+{
+	if (ViewModel) ViewModel->PushTestRegionName(RegionName);
+}
+
+void UExplorationHUDPresenter::TestPartyChat(const FString& Message)
+{
+	if(ViewModel) ViewModel->PushTestPartyChat(nullptr, Message);
+}
+
 void UExplorationHUDPresenter::OnViewModelQuestUpdated(UTexture2D* QuestIcon, const FString& Objective)
 {
 	if (ExplorationWidget)
 	{
 		ExplorationWidget->UpdateQuestInfo(QuestIcon, Objective);
 	}
+}
+
+void UExplorationHUDPresenter::OnPartyChatReceived(const FPartyChatMsg& Msg)
+{
+	if (ExplorationWidget) ExplorationWidget->AddPartyChat(Msg);
+}
+
+void UExplorationHUDPresenter::OnRegionChanged(const FString& RegionName)
+{
+	if (ExplorationWidget) ExplorationWidget->ShowRegionName(RegionName);
 }
 
 void UExplorationHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot)

@@ -1,8 +1,8 @@
 ﻿#pragma once
-
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "Combat/Battle/BattleSessionTypes.h"
+#include "UI/ViewModels/ExplorationViewModel.h"
 #include "ExplorationHUDPresenter.generated.h"
 
 class UExplorationUIWidget;
@@ -21,12 +21,18 @@ public:
 	void ShowExplorationUI();
 	void HideExplorationUI();
 
+	// [콘솔 명령어용 함수]
+	void TestRegionName(const FString& RegionName);
+	void TestPartyChat(const FString& Message);
+
 private:
 	UPROPERTY() TObjectPtr<UExplorationUIWidget> ExplorationWidget;
 	UPROPERTY() TObjectPtr<UExplorationViewModel> ViewModel;
 
 	// 브릿지 콜백 (ViewModel -> View)
 	void OnViewModelQuestUpdated(UTexture2D* QuestIcon, const FString& Objective);
+	void OnPartyChatReceived(const FPartyChatMsg& Msg);
+	void OnRegionChanged(const FString& RegionName);
 
 	void OnBattleStarted(const FBattleSessionSnapshot& Snapshot);
 	void OnBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);
