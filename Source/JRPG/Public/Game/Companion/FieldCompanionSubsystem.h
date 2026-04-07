@@ -37,12 +37,24 @@ public:
 	// 전투 진입 시 컴패니언 숨기기 + AI 제거
 	void HideCompanions();
 
-	// 전투 종료 시 컴패니언 복원
+	// 전투 종료 시 컴패니언 복원 (제자리 - 승리 시)
 	void RestoreCompanions();
 
+	// 전투 종료 시 컴패니언 복원 (저장된 위치로 - 패배 시)
+	void RestoreCompanionsToSavedLocations();
+	
+	// 현재 컴패니언 위치를 스냅샷 저장 (허브 상호작용 시)
+	void SaveCompanionLocations();
+	
+	// 저장된 컴페니언 위치가 있는지 확인
+	bool HasSavedCompanionLocations() const;
+	
 private:
 	UPROPERTY()
 	TMap<FName, TObjectPtr<AJRPGCompanionPawn>> SpawnedCompanionMap;
 
+	// 허브 상호작용 시 저장된 컴패니언 위치
+	TMap<FName, FVector> SavedCompanionLocations;
+	
 	TSharedPtr<FStreamableHandle> FieldPawnPreloadHandle;
 };

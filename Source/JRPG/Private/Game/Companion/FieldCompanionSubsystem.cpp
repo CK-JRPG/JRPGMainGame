@@ -137,3 +137,44 @@ void UFieldCompanionSubsystem::RestoreCompanions()
 		Companion->SpawnDefaultController();
 	}
 }
+
+void UFieldCompanionSubsystem::RestoreCompanionsToSavedLocations()
+{
+	for (auto& Pair : SpawnedCompanionMap)
+	{
+		AJRPGCompanionPawn* Companion = Pair.Value.Get();
+		if (!IsValid(Companion))
+			continue;
+		
+		if (const FVector* SavedLoc = SavedCompanionLocations.Find(Pair.Key))
+		{
+			Companion->TeleportTo(*SavedLoc, Companion->GetActorRotation());
+		}
+		
+		Companion->SetActorHiddenInGame(false);
+		Companion->SetActorEnableCollision(true);
+		Companion->SetActorTickEnabled(true);
+		
+		Companion->SpawnDefaultController();
+	}
+}
+
+void UFieldCompanionSubsystem::SaveCompanionLocations()
+{
+	SavedCompanionLocations.Empty();
+	for (auto& Pair : SpawnedCompanionMap)
+	{
+		AJRPGCompanionPawn* Companion = Pair.Value.Get();
+		if (!IsValid(Companion))
+			continue;
+		
+		SavedCompanionLocations.Add(Pair.Key, Companion->GetActorLocation());
+	}
+	
+	UE_LOG(LogTemp, Log, TEXT("FieldCompanionSubsystem : 컴패니언 위치 저장 완료 (%d명)"), SavedCompanionLocations.Num());
+}
+
+bool UFieldCompanionSubsystem::HasSavedCompanionLocations() const
+{
+	return SavedCompanionLocations.Num() > 0;
+}

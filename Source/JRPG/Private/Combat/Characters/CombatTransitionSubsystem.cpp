@@ -371,17 +371,17 @@ void UCombatTransitionSubsystem::OnDefeatFadeOutComplete()
 
 	// 필드 폰 복원 (허브 위치로)
 	RestoreFieldPawn(ControllerToRestore, HubLocation, FRotator::ZeroRotator, true);
-
+	
 	// 전투 컨트롤러 파괴
 	if (CombatPCToDestroy)
 	{
 		CombatPCToDestroy->Destroy();
 	}
 
-	// CompanionPawn 복원
+	// CompanionPawn 복원 (저장된 허브 방문 시 위치로 복원)
 	if (UFieldCompanionSubsystem* CompanionSub = GetWorld()->GetSubsystem<UFieldCompanionSubsystem>())
 	{
-		CompanionSub->RestoreCompanions();
+		CompanionSub->RestoreCompanionsToSavedLocations();
 	}
 
 	// 필드 컨트롤러 이동 입력 막기 (페이드 인 완료 전까지)
