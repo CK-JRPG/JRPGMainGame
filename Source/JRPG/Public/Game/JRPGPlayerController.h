@@ -67,6 +67,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_ToggleMainMenu;
 
+	// 파티 상태 확인 토글 - Tab
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_TogglePartyStatus;
+
 	// 상호작용 키 - E
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Interact;
@@ -106,6 +110,7 @@ private:
 	FCharacterMappingRow*      FindMappingRowById(FName CharId) const;
 
 	void OnToggleMainMenu();
+	void OnTogglePartyStatus();
 
 public:
 	// 인벤토리 테스트를 위한 디버그/치트 명령어

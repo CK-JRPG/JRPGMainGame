@@ -40,6 +40,8 @@ public:
 	// 플레이어 컨트롤러에서 호출할 메뉴 토글 함수
 	void ToggleMainMenu();
 
+	void TogglePartyInfo();
+
 private:
 	// --- 프레젠터 (화면 흐름 및 데이터 중개자) ---
 	UPROPERTY()

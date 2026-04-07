@@ -16,11 +16,22 @@ void UCombatPartySlotViewModel::BindToActor(AActor* MemberActor) {
         HPComp->OnHPChanged.AddUObject(this, &UCombatPartySlotViewModel::HandleHPChanged);
         HandleHPChanged(HPComp->GetHP(), HPComp->GetHP(), NAME_None);
     }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("CombatViewModels::BindToActor: %s이 HPComp를 소유하지 않음"), *MemberActor->GetName());
+    }
+
+
     if (UAPComponent* APComp = MemberActor->FindComponentByClass<UAPComponent>()) {
         CachedAPComp = APComp;
         APComp->OnAPChanged.AddUObject(this, &UCombatPartySlotViewModel::HandleAPChanged);
         HandleAPChanged(APComp->GetAP(), APComp->GetAP(), NAME_None);
     }
+    else
+    {
+        UE_LOG(LogTemp, Warning, TEXT("CombatViewModels::BindToActor: %s이 APComp를 소유하지 않음"), *MemberActor->GetName());
+    }
+
 }
 void UCombatPartySlotViewModel::Unbind() {
     if (CachedHPComp.IsValid()) CachedHPComp->OnHPChanged.RemoveAll(this);

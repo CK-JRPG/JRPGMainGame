@@ -79,6 +79,16 @@ void AJRPGHUD::ToggleMainMenu()
     }
 }
 
+void AJRPGHUD::TogglePartyInfo()
+{
+    // 프레젠터가 살아있다면 탭 변경을 지시합니다.
+    if (ExplorationPresenter)
+    {
+        ExplorationPresenter->TogglePartyInfo();
+    }
+    else UE_LOG(LogTemp, Error, TEXT("JRPGHUD::TogglePartyInfo: ExplorationPresenter Invaild"));
+}
+
 void AJRPGHUD::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
 {
     if (TacticalWidget) TacticalWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
