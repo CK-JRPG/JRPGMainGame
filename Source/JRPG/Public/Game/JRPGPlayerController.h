@@ -66,6 +66,10 @@ protected:
 	// 메인메뉴 토글
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_ToggleMainMenu;
+
+	// 상호작용 키 - E
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_Interact;
 	
 	// 카메라 설정
 	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Camera")
@@ -91,6 +95,8 @@ protected:
 	void OnLookAround();
 	void OnLookAroundCompleted();
 	void OnCameraZoom(const FInputActionValue& Value);
+	void OnInteract();
+	
 	void UpdateCameraTargetForPawn(APawn* InPawn) const;
 	
 private:

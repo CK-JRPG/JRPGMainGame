@@ -12,6 +12,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Game/HubSubsystem.h"
 
 
 void UCombatTransitionSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -37,52 +38,6 @@ void UCombatTransitionSubsystem::SetCombatControllerClass(TSubclassOf<APlayerCon
 {
 	CombatControllerClass = InClass;
 	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : CombatControllerClass 설정 → %s"), *GetNameSafe(InClass));
-}
-
-// ==== 허브 위치 등록 ====
-
-void UCombatTransitionSubsystem::RegisterHubLocation(AActor* HubActor)
-{
-	if (!HubActor) return;
-	RegisteredHubs.AddUnique(HubActor);
-	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 허브 위치 등록 - %s"), *GetNameSafe(HubActor));
-}
-
-void UCombatTransitionSubsystem::UnregisterHubLocation(AActor* HubActor)
-{
-	if (!HubActor) return;
-	RegisteredHubs.Remove(HubActor);
-	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 허브 위치 해제 - %s"), *GetNameSafe(HubActor));
-}
-
-FVector UCombatTransitionSubsystem::FindNearestHubLocation() const
-{
-	FVector BestLocation = FVector::ZeroVector;
-	float BestDistSq = TNumericLimits<float>::Max();
-	bool bFound = false;
-
-	const FVector Origin = IsValid(CachedFieldPawn) ? CachedFieldPawn->GetActorLocation() : FVector::ZeroVector;
-
-	for (const TWeakObjectPtr<AActor>& WeakHub : RegisteredHubs)
-	{
-		if (AActor* Hub = WeakHub.Get())
-		{
-			const float DistSq = FVector::DistSquared(Origin, Hub->GetActorLocation());
-			if (DistSq < BestDistSq)
-			{
-				BestDistSq = DistSq;
-				BestLocation = Hub->GetActorLocation();
-				bFound = true;
-			}
-		}
-	}
-
-	if (!bFound)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("CombatTransitionSubsystem : 등록된 허브 위치 없음. 원점 사용."));
-	}
-
-	return BestLocation;
 }
 
 // ==== 전투 모드 진입 ====
@@ -406,8 +361,13 @@ void UCombatTransitionSubsystem::OnDefeatFadeOutComplete()
 	APlayerController* CombatPCToDestroy = nullptr;
 	RestoreFieldController(ControllerToRestore, CombatPCToDestroy);
 
-	// 가장 가까운 허브로 이동
-	const FVector HubLocation = FindNearestHubLocation();
+	// HubSubsystem에서 리스폰 위치 조회 (마지막 방문 허브 우선, 없으면 가장 가까운 허브)
+	FVector HubLocation = FVector::ZeroVector;
+	if (UHubSubsystem* HubSub = GetWorld()->GetSubsystem<UHubSubsystem>())
+	{
+		const FVector FallbackOrigin = IsValid(CachedFieldPawn) ? CachedFieldPawn->GetActorLocation() : FVector::ZeroVector;
+		HubLocation = HubSub->GetRespawnLocation(FallbackOrigin);
+	}
 
 	// 필드 폰 복원 (허브 위치로)
 	RestoreFieldPawn(ControllerToRestore, HubLocation, FRotator::ZeroRotator, true);

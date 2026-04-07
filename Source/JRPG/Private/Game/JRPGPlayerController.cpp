@@ -13,6 +13,7 @@
 #include "UI/Presenters/InventoryPresenter.h"
 #include "Combat/Items/InventorySubsystem.h"
 #include "UI/JRPGHUD.h"
+#include "Game/HubSubsystem.h"
 
 void AJRPGPlayerController::BeginPlay()
 {
@@ -21,6 +22,18 @@ void AJRPGPlayerController::BeginPlay()
 	UpdateCameraTargetForPawn(GetPawn());
 	EnsureDefaultPartyFromTable();
 	InitallizeCombatBridge();
+
+
+	// Todo - 해당 코드 에러 발생함 고쳐야 함
+	// SubclassOf.h(111,38): Error C2027 : 정의되지 않은 형식 'UUserWidget'을(를) 사용했습니다.
+	// 0>SubclassOf.h(111,38): Error C2672 : 'StaticClass': 일치하는 오버로드된 함수가 없습니다.
+	// 위와 같은 오류 발생
+	/*if (InventoryWidgetClass)
+	{
+		InventoryPresenter = NewObject<UInventoryPresenter>(this);
+		InventoryPresenter->Initialize(GetWorld(), InventoryWidgetClass);
+	}*/
+
 }
 
 void AJRPGPlayerController::OnPossess(APawn* InPawn)
@@ -158,6 +171,11 @@ void AJRPGPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(IA_ToggleMainMenu, ETriggerEvent::Started, this, &AJRPGPlayerController::OnToggleMainMenu);
 	}
+	
+	if (IA_Interact)
+	{
+		EIC->BindAction(IA_Interact, ETriggerEvent::Started, this, &AJRPGPlayerController::OnInteract);
+	}
 }
 
 void AJRPGPlayerController::OnMove(const FInputActionValue& Value)
@@ -249,6 +267,30 @@ void AJRPGPlayerController::OnCameraZoom(const FInputActionValue& Value)
 		// 부호 : 위로 댕기면 + = 줌인 ArmLength 감소
 		CamSub->AdjustZoom(-AxisValue);
 	}
+}
+
+void AJRPGPlayerController::OnInteract()
+{
+	// 허브 상호작용 체크
+	if (UHubSubsystem* HubSub = GetWorld()->GetSubsystem<UHubSubsystem>())
+	{
+		if (AActor* FocusedHub = HubSub->GetFocusedHub())
+		{
+			// 허브 액터 위치가 아닌 플레이어의 현재 위치를 리스폰 좌표로 저장
+			APawn* PlayerPawn = GetPawn();
+			if (!PlayerPawn)
+			{
+				UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnInteract : Pawn이 없어 허브 방문 등록 불가"));
+				return;
+			}
+
+			HubSub->VisitHub(FocusedHub, PlayerPawn->GetActorLocation());
+			return;
+		}
+	}
+
+
+	// 향후 상자, NPC 등 다른 상호작용 대상 추가 가능
 }
 
 void AJRPGPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
