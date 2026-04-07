@@ -7,6 +7,7 @@
 #include "Game/Companion/JRPGCompanionPawn.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
+#include "Combat/Characters/PartySubsystem.h"
 #include "Kismet/GameplayStatics.h"
 
 void UExplorationHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UExplorationUIWidget> WidgetClass)
@@ -112,54 +113,38 @@ void UExplorationHUDPresenter::RefreshPartyStatusData()
 
 	UCombatPartyRosterWidget* RosterPanel = ExplorationWidget->GetPartyRoster();
 
-	// 1. 초기화
+	// 1. 기존 UI 및 메모리 초기화
 	RosterPanel->ClearRoster();
 	for (auto& VM : PartyViewModels) { if (VM) VM->Unbind(); }
 	PartyViewModels.Empty();
 
-	// 2. 필드 액터 찾기 (서브시스템에서 가져오기)
-	TArray<AActor*> FieldActors;
-
-	if (UWorld* World = GetWorld())
+	// 2. 파티 명단(ID 리스트) 가져오기
+	TArray<FName> PartyIDs;
+	if (UPartySubsystem* PartySys = GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>())
 	{
-		// 2-1. 조종 중인 플레이어 (리더) 먼저 추가
-		if (APlayerController* PC = World->GetFirstPlayerController())
-		{
-			if (APawn* PlayerPawn = PC->GetPawn())
-			{
-				FieldActors.Add(PlayerPawn);
-			}
-		}
-
-		// 2-2. 필드에 스폰되어 있는 동료(AJRPGCompanionPawn)들 찾아서 추가
-		TArray<AActor*> FoundCompanions;
-		UGameplayStatics::GetAllActorsOfClass(World, AJRPGCompanionPawn::StaticClass(), FoundCompanions);
-
-		for (AActor* Companion : FoundCompanions)
-		{
-			if (Companion)
-			{
-				FieldActors.Add(Companion);
-			}
-		}
+		PartyIDs = PartySys->GetPartyIds(); // 예: ["Party1", "Party2", "Party3"]
 	}
 
-	UE_LOG(LogTemp, Error, TEXT("[탐험 UI] 서브시스템에서 찾은 필드 파티원 수: %d 명"), FieldActors.Num());
-
 	// 3. 뷰모델 및 위젯 생성 & 바인딩
-	for (AActor* Actor : FieldActors)
+	for (FName CharID : PartyIDs)
 	{
-		if (!Actor || !RosterPanel->PartySlotClass) continue;
+		if (CharID.IsNone() || !RosterPanel->PartySlotClass) continue;
 
+		// 슬롯 위젯 생성
 		UCombatPartySlotWidget* SlotWidget = CreateWidget<UCombatPartySlotWidget>(GetWorld(), RosterPanel->PartySlotClass);
+
+		// 뷰모델 생성
 		UCombatPartySlotViewModel* SlotVM = NewObject<UCombatPartySlotViewModel>(this);
 
+		// 델리게이트 구독 
 		SlotVM->OnNameUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotNameUpdated, SlotWidget);
 		SlotVM->OnHPUIUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotHPUpdated, SlotWidget);
 		SlotVM->OnAPUIUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotAPUpdated, SlotWidget);
 
-		SlotVM->BindToActor(Actor);
+		// 액터 대신 ID를 주입!
+		SlotVM->BindToCharacter(CharID);
 
+		// 패널에 추가
 		PartyViewModels.Add(SlotVM);
 		RosterPanel->AddPartySlot(SlotWidget);
 	}

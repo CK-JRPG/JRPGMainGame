@@ -16,6 +16,7 @@ class JRPG_API UCombatPartySlotViewModel : public UObject
     GENERATED_BODY()
 public:
     void BindToActor(AActor* MemberActor);
+    void BindToCharacter(FName InCharacterID);
     void Unbind();
 
     FOnNameUpdated OnNameUpdated;
@@ -23,6 +24,11 @@ public:
     FOnAPUIUpdated OnAPUIUpdated;
 
 private:
+    FName BoundCharacterID;
+
+    void HandleHPChanged(FName CharID, float NewHP, float MaxHP);
+    void HandleAPChanged(FName CharID, int32 NewAP, int32 MaxAP);
+
     TWeakObjectPtr<class UHPComponent> CachedHPComp;
     TWeakObjectPtr<class UAPComponent> CachedAPComp;
 
