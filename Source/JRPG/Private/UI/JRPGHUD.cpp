@@ -1,6 +1,8 @@
 ﻿#include "UI/JRPGHUD.h"
 #include "UI/Presenters/ExplorationHUDPresenter.h"
 #include "UI/Presenters/CombatHUDPresenter.h"
+#include "UI/Presenters/MainMenuPresenter.h"
+#include "UI/Presenters/InventoryPresenter.h"
 #include "UI/Combat/TacticalUIWidget.h"
 #include "Combat/Tactical/TacticalModeSubsystem.h"
 
@@ -8,15 +10,21 @@ void AJRPGHUD::BeginPlay()
 {
     Super::BeginPlay();
 
-    // 1. 탐험 UI 프레젠터 초기화 (미니맵, 퀘스트)
+    // 메인 메뉴 프레젠터 초기화
+    if (MainMenuWidgetClass)
+    {
+        MainMenuPresenter = NewObject<UMainMenuPresenter>(this);
+    }
+
+    // 탐험 UI 프레젠터 초기화 (미니맵, 퀘스트)
     ExplorationPresenter = NewObject<UExplorationHUDPresenter>(this);
     ExplorationPresenter->Initialize(GetWorld(), ExplorationWidgetClass);
 
-    // 2. 전투 UI 프레젠터 초기화 (파티, 스탯)
+    // 전투 UI 프레젠터 초기화 (파티, 스탯)
     CombatPresenter = NewObject<UCombatHUDPresenter>(this);
     CombatPresenter->Initialize(GetWorld(), CombatWidgetClass);
 
-    // 3. 택티컬 UI 위젯 초기화
+    // 택티컬 UI 위젯 초기화
     if (TacticalWidgetClass)
     {
         TacticalWidget = CreateWidget<UTacticalUIWidget>(GetWorld(), TacticalWidgetClass);
@@ -51,6 +59,10 @@ void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
     Super::EndPlay(EndPlayReason);
 }
 
+void AJRPGHUD::ToggleMainMenu()
+{
+}
+
 void AJRPGHUD::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
 {
     if (TacticalWidget) TacticalWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
@@ -61,6 +73,10 @@ void AJRPGHUD::OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot)
 {
     if (TacticalWidget) TacticalWidget->SetVisibility(ESlateVisibility::Hidden);
     if (ExplorationPresenter) ExplorationPresenter->ShowExplorationUI();
+}
+
+void AJRPGHUD::OnMainMenuTabSelected(EMainMenuTab Tab)
+{
 }
 
 void AJRPGHUD::TestRegionName(const FString& RegionName)

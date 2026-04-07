@@ -9,7 +9,6 @@ class ACombatCharacterActor;
 class UInputMappingContext;
 class UInputAction;
 class UCombatCharacterDataAsset;
-class UInventoryPresenter;
 struct FInputActionValue;
 
 USTRUCT(BlueprintType)
@@ -64,13 +63,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_CameraZoom;
 
-	// 인벤토리 토글
+	// 메인메뉴 토글
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
-	TObjectPtr<UInputAction> IA_ToggleInventory;
-
-	// 인벤토리 위젯 클래스 (WBP_InventoryMenu 할당용)
-	UPROPERTY(EditDefaultsOnly, Category = "JRPG|UI")
-	TSubclassOf<class UUserWidget> InventoryWidgetClass;
+	TObjectPtr<UInputAction> IA_ToggleMainMenu;
 	
 	// 카메라 설정
 	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Camera")
@@ -104,10 +99,7 @@ private:
 	UCombatCharacterDataAsset* FindCharacterDefById(FName CharId) const;
 	FCharacterMappingRow*      FindMappingRowById(FName CharId) const;
 
-	UPROPERTY()
-	TObjectPtr<UInventoryPresenter> InventoryPresenter;
-
-	void OnToggleInventory();
+	void OnToggleMainMenu();
 
 public:
 	// 인벤토리 테스트를 위한 디버그/치트 명령어
