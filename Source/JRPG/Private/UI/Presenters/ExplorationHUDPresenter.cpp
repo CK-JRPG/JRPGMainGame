@@ -5,6 +5,7 @@
 #include "UI/Combat/CombatPartyRosterWidget.h"
 #include "UI/Combat/CombatPartySlotWidget.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
+#include "Game/HubSubsystem.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
@@ -35,6 +36,13 @@ void UExplorationHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UExplorat
 
 	// 3. 임시 통합 테스트용 퀘스트 데이터 로드 지시
 	ViewModel->LoadTempQuestData();
+
+	RefreshPartyStatusData();
+
+	if (UHubSubsystem* HubSub = InWorld->GetSubsystem<UHubSubsystem>())
+	{
+		HubSub->OnInteractableTargetChanged.AddUObject(this, &UExplorationHUDPresenter::OnInteractableTargetChanged);
+	}
 
 	RefreshPartyStatusData();
 }
@@ -222,4 +230,12 @@ void UExplorationHUDPresenter::OnPartySlotHPUpdated(float Percent, const FString
 void UExplorationHUDPresenter::OnPartySlotAPUpdated(float Percent, UCombatPartySlotWidget* SlotWidget)
 {
 	if (SlotWidget) SlotWidget->UpdateAP(Percent);
+}
+
+void UExplorationHUDPresenter::OnInteractableTargetChanged(bool bIsVisible, const FString& Text)
+{
+	if (ExplorationWidget)
+	{
+		ExplorationWidget->ShowInteraction(bIsVisible, Text);
+	}
 }

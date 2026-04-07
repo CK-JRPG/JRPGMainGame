@@ -75,3 +75,8 @@ void AHubActor::OnTriggerEndOverlap(UPrimitiveComponent* /*OverlappedComp*/, AAc
 		HubSub->ClearFocusedHub(this);
 	}
 }
+
+FString AHubActor::GetInteractText() const
+{
+	return InteractText;
+}

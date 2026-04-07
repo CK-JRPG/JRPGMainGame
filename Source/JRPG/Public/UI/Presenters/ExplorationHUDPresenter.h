@@ -60,4 +60,5 @@ private:
 	void OnPartySlotNameUpdated(const FString& Name, UCombatPartySlotWidget* SlotWidget);
 	void OnPartySlotHPUpdated(float Percent, const FString& Text, UCombatPartySlotWidget* SlotWidget);
 	void OnPartySlotAPUpdated(float Percent, UCombatPartySlotWidget* SlotWidget);
+	void OnInteractableTargetChanged(bool bIsVisible, const FString& Text);
 };
