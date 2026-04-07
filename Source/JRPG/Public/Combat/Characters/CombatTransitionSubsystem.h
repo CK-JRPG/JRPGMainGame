@@ -77,6 +77,8 @@ private:
 	UPROPERTY()
 	TObjectPtr<APlayerController> CachedFieldController;
 
+
+
 	UPROPERTY()
 	TObjectPtr<APawn> CachedFieldPawn;
 
