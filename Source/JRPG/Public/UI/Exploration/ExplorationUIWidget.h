@@ -2,6 +2,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "UI/ViewModels/ExplorationViewModel.h"
+#include "UI/Exploration/EnemyIndicatorWidget.h"
 #include "ExplorationUIWidget.generated.h"
 
 class UImage;
@@ -20,6 +21,9 @@ class JRPG_API UExplorationUIWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	// Off-Screen Indicator 정확한 갱신을 위한 틱 함수
+	virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;
+
 	// 뷰모델(Presenter)에서 호출해 줄 퀘스트 갱신 함수
 	void UpdateQuestInfo(UTexture2D* QuestIcon, const FString& ObjectiveText);
 
@@ -95,4 +99,18 @@ protected:
 	// --- 블루프린트 애니메이션 이벤트 ---
 	UFUNCTION(BlueprintImplementableEvent)
 	void PlayPartyStatusAnim(bool bIsTabMode);
+
+	UPROPERTY(meta = (BindWidget))
+	class UPanelWidget* Canvas_Indicators;
+
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Classes")
+	TSubclassOf<UEnemyIndicatorWidget> IndicatorClass;
+
+private:
+	// 생성된 인디케이터 위젯들을 캐싱해두는 배열
+	UPROPERTY()
+	TArray<UEnemyIndicatorWidget*> CachedIndicatorWidgets;
+
+	// 적 탐지 반경
+	const float DetectionRadius = 3000.0f;
 };
