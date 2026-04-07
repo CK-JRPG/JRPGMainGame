@@ -27,6 +27,25 @@ void UInventoryPresenter::Initialize(UWorld* World, TSubclassOf<UUserWidget> Men
 	}
 }
 
+void UInventoryPresenter::InitializeWithExistingWidget(UWorld* World, UUserWidget* InWidget)
+{
+	CachedWorld = World;
+	if (!World || !InWidget) return;
+
+	InventoryViewModel = NewObject<UInventoryViewModel>(this);
+	InventoryViewModel->Initialize(World);
+
+	MenuWidgetInstance = InWidget;
+
+	UFunction* Func = MenuWidgetInstance->FindFunction(FName("SetViewModel"));
+	if (Func)
+	{
+		struct { UInventoryViewModel* VM; } Params;
+		Params.VM = InventoryViewModel;
+		MenuWidgetInstance->ProcessEvent(Func, &Params);
+	}
+}
+
 void UInventoryPresenter::OpenInventory(AActor* DefaultCharacter)
 {
 	if (!MenuWidgetInstance || !InventoryViewModel || bIsOpen) return;

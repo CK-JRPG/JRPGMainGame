@@ -13,6 +13,7 @@ class JRPG_API UInventoryPresenter : public UObject
 
 public:
 	void Initialize(UWorld* World, TSubclassOf<UUserWidget> MenuWidgetClass);
+	void InitializeWithExistingWidget(UWorld* World, UUserWidget* InWidget);
 
 	UFUNCTION(BlueprintCallable, Category = "UI|Presenter")
 	void OpenInventory(AActor* DefaultCharacter);

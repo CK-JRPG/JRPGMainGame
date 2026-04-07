@@ -12,6 +12,7 @@
 #include "Combat/Movement/LocomotionComponent.h"
 #include "UI/Presenters/InventoryPresenter.h"
 #include "Combat/Items/InventorySubsystem.h"
+#include "UI/JRPGHUD.h"
 #include "Game/HubSubsystem.h"
 
 void AJRPGPlayerController::BeginPlay()
@@ -22,6 +23,7 @@ void AJRPGPlayerController::BeginPlay()
 	EnsureDefaultPartyFromTable();
 	InitallizeCombatBridge();
 
+
 	// Todo - 해당 코드 에러 발생함 고쳐야 함
 	// SubclassOf.h(111,38): Error C2027 : 정의되지 않은 형식 'UUserWidget'을(를) 사용했습니다.
 	// 0>SubclassOf.h(111,38): Error C2672 : 'StaticClass': 일치하는 오버로드된 함수가 없습니다.
@@ -31,6 +33,7 @@ void AJRPGPlayerController::BeginPlay()
 		InventoryPresenter = NewObject<UInventoryPresenter>(this);
 		InventoryPresenter->Initialize(GetWorld(), InventoryWidgetClass);
 	}*/
+
 }
 
 void AJRPGPlayerController::OnPossess(APawn* InPawn)
@@ -164,9 +167,9 @@ void AJRPGPlayerController::SetupInputComponent()
 		EIC->BindAction(IA_CameraZoom, ETriggerEvent::Started, this, &AJRPGPlayerController::OnCameraZoom);
 	}
 
-	if (IA_ToggleInventory)
+	if (IA_ToggleMainMenu)
 	{
-		EIC->BindAction(IA_ToggleInventory, ETriggerEvent::Started, this, &AJRPGPlayerController::OnToggleInventory);
+		EIC->BindAction(IA_ToggleMainMenu, ETriggerEvent::Started, this, &AJRPGPlayerController::OnToggleMainMenu);
 	}
 	
 	if (IA_Interact)
@@ -300,18 +303,11 @@ void AJRPGPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
 	}
 }
 
-void AJRPGPlayerController::OnToggleInventory()
+void AJRPGPlayerController::OnToggleMainMenu()
 {
-	if (!InventoryPresenter) return;
-
-	if (InventoryPresenter->IsMenuOpen())
+	if (AJRPGHUD* HUD = Cast<AJRPGHUD>(GetHUD()))
 	{
-		InventoryPresenter->CloseInventory();
-	}
-	else
-	{
-		// 현재 조종 중인 캐릭터(Pawn)를 기준으로 인벤토리를 엽니다.
-		InventoryPresenter->OpenInventory(GetPawn());
+		HUD->ToggleMainMenu();
 	}
 }
 
