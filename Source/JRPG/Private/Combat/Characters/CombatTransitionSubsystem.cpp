@@ -611,6 +611,47 @@ void UCombatTransitionSubsystem::RestoreFieldController(APlayerController*& OutC
 
 		UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem::OnBattleEnded : CombatPlayerController -> 필드 컨트롤러 스왑 복원."));
 	}
+	else if (!IsValid(CachedFieldController) && IsValid(CombatPlayerController)) 
+	{
+		// CachedFieldController가 비동기 패배 흐름 중 무효화된 경우:
+		// GameMode의 PlayerControllerClass로 새 필드 컨트롤러를 스폰하여 복원
+		UWorld* World = GetWorld();
+		AGameModeBase* GM = World ? World->GetAuthGameMode() : nullptr;
+
+		if (GM && GM->PlayerControllerClass)
+		{
+			FActorSpawnParameters SpawnParams;
+			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+			APlayerController* NewFieldPC = World->SpawnActor<APlayerController>(GM->PlayerControllerClass, FTransform::Identity, SpawnParams);
+			if (NewFieldPC)
+			{
+				NewFieldPC->SetControlRotation(CombatPlayerController->GetControlRotation());
+
+				// SwapPlayerControllers는 LocalPlayer 연결을 이전하고 기존 컨트롤러를 분리함
+				GM->SwapPlayerControllers(CombatPlayerController.Get(), NewFieldPC);
+
+				if (GM->HUDClass)
+				{
+					NewFieldPC->ClientSetHUD(GM->HUDClass);
+				}
+				OutControllerToRestore = NewFieldPC;
+				OutCombatPCToDestroy = CombatPlayerController.Get();
+
+				UE_LOG(LogTemp, Warning, TEXT("CombatTransitionSubsystem::OnBattleEnded : CachedFieldController 무효화됨. GameMode의 PlayerControllerClass(%s)로 새 필드 컨트롤러 스폰하여 복원."), *GetNameSafe(GM->PlayerControllerClass));
+			}
+			else
+			{
+				OutControllerToRestore = CombatPlayerController.Get();
+				UE_LOG(LogTemp, Error, TEXT("CombatTransitionSubsystem::OnBattleEnded : 새 필드 컨트롤러 스폰 실패. CombatPlayerController로 폴백."));
+			}
+		}
+		else
+		{
+			OutControllerToRestore = CombatPlayerController.Get();
+			UE_LOG(LogTemp, Error, TEXT("CombatTransitionSubsystem::OnBattleEnded : CachedFieldController 무효화됨. GameMode 또는 PlayerControllerClass 없음. CombatPlayerController로 폴백."));
+		}
+	}
 	else if (IsValid(CombatPlayerController))
 	{
 		OutControllerToRestore = CombatPlayerController.Get();
