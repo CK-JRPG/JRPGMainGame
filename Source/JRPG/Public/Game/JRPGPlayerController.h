@@ -63,7 +63,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_CameraZoom;
 
-	// 메인메뉴 토글
+	// 메인메뉴 토글 - ESC
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_ToggleMainMenu;
 

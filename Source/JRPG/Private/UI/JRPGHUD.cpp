@@ -4,6 +4,7 @@
 #include "UI/Presenters/MainMenuPresenter.h"
 #include "UI/Presenters/InventoryPresenter.h"
 #include "UI/Combat/TacticalUIWidget.h"
+#include "UI/Widgets/InventoryUIWidget.h"
 #include "Combat/Tactical/TacticalModeSubsystem.h"
 
 void AJRPGHUD::BeginPlay()
@@ -14,6 +15,15 @@ void AJRPGHUD::BeginPlay()
     if (MainMenuWidgetClass)
     {
         MainMenuPresenter = NewObject<UMainMenuPresenter>(this);
+        MainMenuPresenter->Initialize(GetWorld(), MainMenuWidgetClass);
+        MainMenuPresenter->OnTabSelected.AddUObject(this, &AJRPGHUD::OnMainMenuTabSelected);
+
+        // 2. 인벤토리 프레젠터 초기화 (메인 메뉴 안의 위젯을 넘겨줌)
+        if (UMainMenuUIWidget* MenuUI = MainMenuPresenter->GetWidget())
+        {
+            InventoryPresenter = NewObject<UInventoryPresenter>(this);
+            InventoryPresenter->InitializeWithExistingWidget(GetWorld(), MenuUI->GetInventoryWidget());
+        }
     }
 
     // 탐험 UI 프레젠터 초기화 (미니맵, 퀘스트)
@@ -52,6 +62,7 @@ void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
     }
 
     // 프레젠터 및 위젯 메모리 정리 (고아 위젯 방지)
+    if (MainMenuPresenter) { MainMenuPresenter->Shutdown(); MainMenuPresenter = nullptr; }
     if (ExplorationPresenter) { ExplorationPresenter->Shutdown(); ExplorationPresenter = nullptr; }
     if (CombatPresenter) { CombatPresenter->Shutdown(); CombatPresenter = nullptr; }
     if (TacticalWidget) { TacticalWidget->RemoveFromParent(); TacticalWidget = nullptr; }
@@ -61,6 +72,11 @@ void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 void AJRPGHUD::ToggleMainMenu()
 {
+    if (MainMenuPresenter)
+    {
+		//UE_LOG(LogTemp, Warning, TEXT("JRPGHUD::ToggleMainMenu: 메뉴 토글"));
+        MainMenuPresenter->ToggleMenu();
+    }
 }
 
 void AJRPGHUD::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
@@ -77,6 +93,11 @@ void AJRPGHUD::OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot)
 
 void AJRPGHUD::OnMainMenuTabSelected(EMainMenuTab Tab)
 {
+    // 탭이 인벤토리(2번)로 바뀔 때만 데이터를 갱신합니다.
+    if (Tab == EMainMenuTab::Inventory && InventoryPresenter)
+    {
+        InventoryPresenter->OpenInventory(GetOwningPawn());
+    }
 }
 
 void AJRPGHUD::TestRegionName(const FString& RegionName)

@@ -26,7 +26,7 @@ protected:
 
 public:
 	UPROPERTY(EditAnywhere, Category = "UI|CLasses")
-	TSubclassOf<UMainMenuPresenter> MainMenuWidgetClass;
+	TSubclassOf<UMainMenuUIWidget> MainMenuWidgetClass;
 
 	UPROPERTY(EditDefaultsOnly, Category = "UI|Classes")
 	TSubclassOf<UExplorationUIWidget> ExplorationWidgetClass;

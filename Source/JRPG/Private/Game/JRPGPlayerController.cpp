@@ -305,9 +305,15 @@ void AJRPGPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
 
 void AJRPGPlayerController::OnToggleMainMenu()
 {
+	//UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: "));
+
 	if (AJRPGHUD* HUD = Cast<AJRPGHUD>(GetHUD()))
 	{
 		HUD->ToggleMainMenu();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: HUD가 존재하지 않음"));
 	}
 }
 
