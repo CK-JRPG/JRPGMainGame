@@ -32,5 +32,5 @@ protected:
 	void PlayOutroAnimation();
 
 private:
-	bool bIsDismissing = false; // 중복 애니메이션 실행 방지
+	bool bIsDismissing = false;
 };

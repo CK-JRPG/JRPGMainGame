@@ -1,131 +1,198 @@
 ﻿#include "Combat/Tactical/TacticalModeSubsystem.h"
-#include "Combat/Characters/CombatParticipantInterface.h"
-#include "Kismet/GameplayStatics.h"
 
-// Framework 연동 헤더
+#include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Infrastructure/CombatTimeSubsystem.h"
-#include "Combat/Session/CombatZoneTrackerComponent.h"
+
+UBattleSessionSubsystem* UTacticalModeSubsystem::GetBattle()const
+{
+	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+}
+
+UCombatTimeSubsystem* UTacticalModeSubsystem::GetTimeSubsystem() const
+{
+	return GetWorld() ? GetWorld()->GetSubsystem<UCombatTimeSubsystem>() : nullptr;
+}
+
+bool UTacticalModeSubsystem::IsPlayerTurnActor(AActor* Actor)const
+{
+	if (!Actor)
+		return false;
+
+	UBattleSessionSubsystem* Battle = GetBattle();
+	if (!Battle || !Battle->IsBattleActive())	return false;
+	if (!Battle->CanActorActNow(Actor))			return false;
+
+	ICombatParticipantInterface* P = Cast<ICombatParticipantInterface>(Actor);
+	if (!P)
+		return false;
+
+	return P->GetCombatTeam() == ECombatTeam::Player;
+}
+
+bool UTacticalModeSubsystem::IsSessionParticipant(AActor* Actor) const
+{
+	if (!Actor)
+		return false;
+
+	UBattleSessionSubsystem* Battle = GetBattle();
+
+	if (!Battle || !Battle->IsBattleActive())
+		return false;
+
+	TArray<AActor*> Alive;
+	Battle->GetAliveParticipants(Alive);
+	return Alive.Contains(Actor);
+}
 
 void UTacticalModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
-	Snapshot = FTacticalModeSnapshot();
-	TacticalTimeHandle.Invalidate();
-	ActiveStartReal = 0.0;
-	bWasInCombatZoneLastTick = false;
-	Reservations.Reset();
+
+	Collection.InitializeDependency<UBattleSessionSubsystem>();
+	Collection.InitializeDependency<UCombatTimeSubsystem>();
+
+	if (UBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+	{
+		Battle->OnBattlePhaseChanged.AddUObject(this, &UTacticalModeSubsystem::OnBattlePhaseChanged);
+	}
 }
 
 void UTacticalModeSubsystem::Deinitialize()
 {
-	if (TacticalTimeHandle.IsValid())
+	if (IsActive())
 	{
-		if (UCombatTimeSubsystem* TimeSub = GetWorld()->GetSubsystem<UCombatTimeSubsystem>())
+		ExitTacticalMode(TEXT("SubsystemDeinitialized"));
+	}
+
+	if (UWorld* World = GetWorld())
+	{
+		if (UBattleSessionSubsystem* Battle = World->GetSubsystem<UBattleSessionSubsystem>())
 		{
-			TimeSub->ReleaseTimeMode(TacticalTimeHandle, "Tactical.Deinit");
+			Battle->OnBattlePhaseChanged.RemoveAll(this);
 		}
 	}
-	TacticalTimeHandle.Invalidate();
+
 	Super::Deinitialize();
-}
-
-// 플레이어가 전투 구역(Zone) 안에 있는지 확인
-bool UTacticalModeSubsystem::IsPlayerInCombatZone() const
-{
-	if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
-	{
-		if (UCombatZoneTrackerComponent* Tracker = PlayerPawn->FindComponentByClass<UCombatZoneTrackerComponent>())
-		{
-			return Tracker->GetCurrentZone() != nullptr;
-		}
-	}
-	return false;
-}
-
-// 특정 액터가 전투 구역(Zone) 안에 있는지 확인
-bool UTacticalModeSubsystem::IsActorInCombatZone(AActor* Actor) const
-{
-	if (!Actor) return false;
-	if (UCombatZoneTrackerComponent* Tracker = Actor->FindComponentByClass<UCombatZoneTrackerComponent>())
-	{
-		return Tracker->GetCurrentZone() != nullptr;
-	}
-	return false;
 }
 
 bool UTacticalModeSubsystem::TryEnterTacticalMode(AActor* Requester, FName ReasonTag)
 {
-	if (IsActive()) return false;
-	if (!Requester) return false;
-
-	if (!IsPlayerInCombatZone()) 
+	UE_LOG(LogTemp, Warning, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : Try"));
+	if (Snapshot.State != ETacticalModeState::Idle)
 	{
-		UE_LOG(LogTemp, Error, TEXT("실패 원인: 플레이어가 전투 구역(Zone) 안에 없습니다!"));
+		UE_LOG(LogTemp, Error, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : if (Snapshot.State != ETacticalModeState::Idle)"));
+		return false;
+	}
+	if (!Requester) 
+	{
+		UE_LOG(LogTemp, Error, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : if (!Requester) "));
+		return false;
+	}
+
+	UBattleSessionSubsystem* Battle = GetBattle();
+	if (!Battle)
+	{
+		UE_LOG(LogTemp, Error, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : if (!Battle) "));
+		return false;
+	}
+
+	if (Battle->GetPhase() != EBattlePhase::Active)	
+	{
+		UE_LOG(LogTemp, Error, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : if (Battle->GetPhase() != EBattlePhase::Active)	"));
 		return false;
 	}
 
 	ICombatParticipantInterface* P = Cast<ICombatParticipantInterface>(Requester);
 	if (!P || P->GetCombatTeam() != ECombatTeam::Player) 
 	{
-		UE_LOG(LogTemp, Error, TEXT("실패 원인: 캐릭터가 Player 팀 인터페이스를 구현하지 않았습니다!"));
+		UE_LOG(LogTemp, Error, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : if (!P || P->GetCombatTeam() != ECombatTeam::Player) "));
 		return false;
 	}
 
-	// Framework의 CombatTimeSubsystem에 슬로모(15%) 요청
-	if (UCombatTimeSubsystem* TimeSub = GetWorld()->GetSubsystem<UCombatTimeSubsystem>())
+	UCombatTimeSubsystem* TimeSub = GetTimeSubsystem();
+	if (!TimeSub) 
 	{
-		FCombatTimeRequest Req;
-		Req.OwnerTag = "Tactical";
-		Req.TimeScale = 0.15f; 
-		Req.DurationRealSec = 5.0f; 
-		// Req.Mode = ECombatTimeMode::Slow; // (Framework Enum에 맞춰 주석 해제)
-		
-		FCombatTimeResult TR = TimeSub->RequestTimeMode(Req);
-		if (TR.Op.bOk)
-		{
-			TacticalTimeHandle = TR.Handle;
-		}
-		else
-		{
-			return false; // 시간 요청 실패 시 진입 불가
-		}
+		UE_LOG(LogTemp, Error, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : if (!TimeSub) "));
+		return false;
 	}
 
+	Snapshot.State = ETacticalModeState::Entering;
+	UE_LOG(LogTemp, Warning, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : Entering"));
+
+	FCombatTimeRequest TimeReq;
+	TimeReq.Mode = ECombatTimeMode::Slow;
+	TimeReq.Priority = ECombatTimePriority::Medium;
+	TimeReq.OwnerTag = TEXT("Tactical");
+	TimeReq.TimeScale = 0.15f;        
+	TimeReq.DurationRealSec = 5.0f;   
+	TimeReq.BlendInSec = 0.10f;       
+	TimeReq.BlendOutSec = 0.12f;
+
+	FCombatTimeResult TimeRes = TimeSub->RequestTimeMode(TimeReq);
+
+	if (!TimeRes.Handle.IsValid())
+	{
+		Snapshot.State = ETacticalModeState::Idle;
+		UE_LOG(LogTemp, Warning, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : Time Request Rejected. Rollback to Idle."));
+		return false;
+	}
+
+	TacticalTimeHandle = TimeRes.Handle;
+
 	Snapshot.State = ETacticalModeState::Active;
+	Snapshot.BattleSessionId = Battle->GetSnapshot().SessionId;
 	Snapshot.OperatorActor = Requester;
 	Snapshot.EnterReason = ReasonTag;
-	ActiveStartReal = GetWorld()->GetRealTimeSeconds();
 
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimer(DurationTimerHandle, FTimerDelegate::CreateLambda([this]()
+			{
+				ExitTacticalMode(TEXT("DurationExpired"));
+			}), TimeReq.DurationRealSec, false);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : Start TacticalMode"));
 	OnTacticalModeEntered.Broadcast(Snapshot);
 	return true;
 }
 
 void UTacticalModeSubsystem::ExitTacticalMode(FName ReasonTag)
 {
-	if (!IsActive()) return;
+	if (Snapshot.State != ETacticalModeState::Active && Snapshot.State != ETacticalModeState::Entering)
+		return;
 
-	// Framework의 시간 모드 해제
-	if (TacticalTimeHandle.IsValid())
+	Snapshot.State = ETacticalModeState::Exiting;
+
+	if (UCombatTimeSubsystem* TimeSub = GetTimeSubsystem())
 	{
-		if (UCombatTimeSubsystem* TimeSub = GetWorld()->GetSubsystem<UCombatTimeSubsystem>())
+		if (TacticalTimeHandle.IsValid())
 		{
 			TimeSub->ReleaseTimeMode(TacticalTimeHandle, ReasonTag);
+			TacticalTimeHandle.Invalidate();
 		}
-		TacticalTimeHandle.Invalidate();
 	}
 
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DurationTimerHandle);
+	}
+
+	Snapshot.State = ETacticalModeState::Idle;
+
 	FTacticalModeSnapshot Final = Snapshot;
-	Snapshot = FTacticalModeSnapshot(); // Inactive로 초기화
+	Final.EnterReason = ReasonTag; // 종료 사유 업데이트
 
 	OnTacticalModeExited.Broadcast(Final);
+
+	Snapshot = FTacticalModeSnapshot();
 }
 
 bool UTacticalModeSubsystem::SetReservation(AActor* Actor, FName SkillId, const TArray<AActor*>& Targets)
 {
-	if (!Actor || SkillId.IsNone()) return false;
-	
-	// Session 대신 Zone 참가 여부 검사
-	if (!IsActorInCombatZone(Actor)) return false;
+	if (!Actor || SkillId.IsNone())    return false;
+	if (!IsSessionParticipant(Actor))  return false;
 
 	FJRPGTacticalReservation R;
 	R.ReservedActor = Actor;
@@ -135,10 +202,12 @@ bool UTacticalModeSubsystem::SetReservation(AActor* Actor, FName SkillId, const 
 
 	for (AActor* T : Targets)
 	{
-		if (T) R.Targets.Add(T);
+		if (T)R.Targets.Add(T);
 	}
 
-	const bool bSameSkillToggle = Reservations.Contains(Actor) && Reservations[Actor].SkillId == SkillId;
+	const bool bSameSkillToggle =
+		Reservations.Contains(Actor) &&
+		Reservations[Actor].SkillId == SkillId;
 
 	if (bSameSkillToggle)
 	{
@@ -154,8 +223,9 @@ bool UTacticalModeSubsystem::SetReservation(AActor* Actor, FName SkillId, const 
 
 bool UTacticalModeSubsystem::ClearReservation(AActor* Actor)
 {
-	if (!Actor) return false;
-	
+	if (!Actor)
+		return false;
+
 	const bool bRemoved = Reservations.Remove(Actor) > 0;
 	if (bRemoved)
 	{
@@ -164,51 +234,35 @@ bool UTacticalModeSubsystem::ClearReservation(AActor* Actor)
 	return bRemoved;
 }
 
-bool UTacticalModeSubsystem::GetReservation(AActor* Actor, FJRPGTacticalReservation& OutReservation) const
+bool UTacticalModeSubsystem::GetReservation(AActor* Actor, FJRPGTacticalReservation& OutReservation)const
 {
-	if (!Actor) return false;
-	
-	if (const FJRPGTacticalReservation* Found = Reservations.Find(Actor))
-	{
-		OutReservation = *Found;
-		return true;
-	}
-	return false;
+	if (!Actor)
+		return false;
+
+	const FJRPGTacticalReservation* Found = Reservations.Find(Actor);
+
+	if (!Found)
+		return false;
+
+	OutReservation = *Found;
+	return true;
 }
 
-bool UTacticalModeSubsystem::HasReservation(AActor* Actor) const
+bool UTacticalModeSubsystem::HasReservation(AActor* Actor)const
 {
-	return Actor && Reservations.Contains(Actor);
+	if (!Actor)
+		return false;
+	return Reservations.Contains(Actor);
 }
 
-void UTacticalModeSubsystem::HandleCombatZoneStateChanged()
+void UTacticalModeSubsystem::OnBattlePhaseChanged(EBattlePhase NewPhase)
 {
-	const bool bActiveZone = IsPlayerInCombatZone();
-
-	if (bWasInCombatZoneLastTick && !bActiveZone)
+	if (NewPhase == EBattlePhase::Ending || NewPhase == EBattlePhase::Cleanup)
 	{
 		if (IsActive())
 		{
-			ExitTacticalMode(FName("Tactical.ForcedExit.LeftZone"));
-		}
-	}
-	bWasInCombatZoneLastTick = bActiveZone;
-}
-
-void UTacticalModeSubsystem::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
-	if (!GetWorld()) return;
-
-	HandleCombatZoneStateChanged();
-
-	if (IsActive())
-	{
-		const double Now = GetWorld()->GetRealTimeSeconds();
-		if (Now - ActiveStartReal >= 5.0) // 기획서의 최대 5초 제한 구현
-		{
-			ExitTacticalMode(FName("Tactical.DurationExpired"));
+			UE_LOG(LogTemp, Warning, TEXT("UTacticalModeSubsystem::OnBattlePhaseChanged : TacticalMode: Session Ending detected. Forced Exit."));
+			ExitTacticalMode(TEXT("SessionEnded"));
 		}
 	}
 }

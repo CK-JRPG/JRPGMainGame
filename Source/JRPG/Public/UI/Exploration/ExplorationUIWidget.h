@@ -45,23 +45,23 @@ public:
 protected:
 	// --- 퀘스트 관련 바인딩 ---
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UImage> Image_QuestIcon; // 퀘스트 유형 아이콘
+	TObjectPtr<UImage> Image_QuestIcon;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UTextBlock> Text_QuestObjective; // 퀘스트 목표
+	TObjectPtr<UTextBlock> Text_QuestObjective;
 
 	// --- 미니맵 관련 바인딩 ---
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UImage> Image_MinimapRender; // 미니맵 실제 렌더 타겟 이미지
+	TObjectPtr<UImage> Image_MinimapRender;
 
 	UPROPERTY(meta = (BindWidget))
-	TObjectPtr<UOverlay> Overlay_MinimapMarkers; // 이정표(마커)들이 배치될 오버레이 패널
+	TObjectPtr<UOverlay> Overlay_MinimapMarkers;
 
 	// --- 지역명 UI ---
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_RegionName;
 
-	// 블루프린트에서 UMG 애니메이션(페이드 인 -> 대기 -> 페이드 아웃)을 재생하도록 호출
+	// 블루프린트에서 UMG 애니메이션
 	UFUNCTION(BlueprintImplementableEvent, Category = "UI|Animation")
 	void PlayRegionNameAnimation();
 
@@ -96,7 +96,7 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_DialogueContent;
 
-	// --- 블루프린트 애니메이션 이벤트 ---
+	// 블루프린트 애니메이션 이벤트 
 	UFUNCTION(BlueprintImplementableEvent)
 	void PlayPartyStatusAnim(bool bIsTabMode);
 
@@ -111,6 +111,5 @@ private:
 	UPROPERTY()
 	TArray<UEnemyIndicatorWidget*> CachedIndicatorWidgets;
 
-	// 적 탐지 반경
 	const float DetectionRadius = 3000.0f;
 };
