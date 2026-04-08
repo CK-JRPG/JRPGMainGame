@@ -5,6 +5,11 @@
 
 class ACombatCharacterActor;
 
+// UI 업데이트용 델리게이트 선언
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCharacterHPChanged, FName /*CharacterID*/, float /*NewHP*/, float /*MaxHP*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCharacterAPChanged, FName /*CharacterID*/, int32 /*NewAP*/, int32 /*MaxAP*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCharacterSPChanged, FName /*CharacterID*/, int32 /*NewSP*/, int32 /*MaxSP*/);
+
 USTRUCT()
 struct FCharacterResourceSnapshot
 {
@@ -29,6 +34,10 @@ class JRPG_API UCharacterRuntimeSubsystem : public UGameInstanceSubsystem
 	GENERATED_BODY()
 	
 public:
+	FOnCharacterHPChanged OnHPChanged;
+	FOnCharacterAPChanged OnAPChanged;
+	FOnCharacterAPChanged OnSPChanged;
+
 	void SaveSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor);
 	void RestoreSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor);
 	void InitializeSnapshotIfAbsent(const FName& CharacterID, float MaxHP, int32 MaxAP, int32 MaxSP);

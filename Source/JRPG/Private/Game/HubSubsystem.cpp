@@ -1,4 +1,5 @@
 #include "Game/HubSubsystem.h"
+#include "Game/InteractableInterface.h"
 
 // ==== 허브 등록 ====
 void UHubSubsystem::RegisterHub(AActor* HubActor)
@@ -34,6 +35,12 @@ void UHubSubsystem::SetFocusedHub(AActor* HubActor)
 {
 	FocusedHub = HubActor;
 	UE_LOG(LogTemp, Log, TEXT("HubSubsystem : 포커스 허브 설정 - %s"), *GetNameSafe(HubActor));
+
+	// UI를 켜고 텍스트 전달
+	if (IInteractableInterface* InteractableTarget = Cast<IInteractableInterface>(HubActor))
+	{
+		OnInteractableTargetChanged.Broadcast(true, InteractableTarget->GetInteractText());
+	}
 }
 
 void UHubSubsystem::ClearFocusedHub(AActor* HubActor)
@@ -43,6 +50,9 @@ void UHubSubsystem::ClearFocusedHub(AActor* HubActor)
 	{
 		FocusedHub = nullptr;
 		UE_LOG(LogTemp, Log, TEXT("HubSubsystem : 포커스 허브 해제 - %s"), *GetNameSafe(HubActor));
+
+		// UI 끄기
+		OnInteractableTargetChanged.Broadcast(false, TEXT(""));
 	}
 }
 

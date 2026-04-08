@@ -3,8 +3,7 @@
 #include "UI/Presenters/CombatHUDPresenter.h"
 #include "UI/Presenters/MainMenuPresenter.h"
 #include "UI/Presenters/InventoryPresenter.h"
-#include "UI/Combat/TacticalUIWidget.h"
-#include "Combat/Tactical/TacticalModeSubsystem.h"
+#include "UI/Widgets/InventoryUIWidget.h"
 
 void AJRPGHUD::BeginPlay()
 {
@@ -14,6 +13,15 @@ void AJRPGHUD::BeginPlay()
     if (MainMenuWidgetClass)
     {
         MainMenuPresenter = NewObject<UMainMenuPresenter>(this);
+        MainMenuPresenter->Initialize(GetWorld(), MainMenuWidgetClass);
+        MainMenuPresenter->OnTabSelected.AddUObject(this, &AJRPGHUD::OnMainMenuTabSelected);
+
+        // 2. 인벤토리 프레젠터 초기화 (메인 메뉴 안의 위젯을 넘겨줌)
+        if (UMainMenuUIWidget* MenuUI = MainMenuPresenter->GetWidget())
+        {
+            InventoryPresenter = NewObject<UInventoryPresenter>(this);
+            InventoryPresenter->InitializeWithExistingWidget(GetWorld(), MenuUI->GetInventoryWidget());
+        }
     }
 
     // 탐험 UI 프레젠터 초기화 (미니맵, 퀘스트)
@@ -22,61 +30,45 @@ void AJRPGHUD::BeginPlay()
 
     // 전투 UI 프레젠터 초기화 (파티, 스탯)
     CombatPresenter = NewObject<UCombatHUDPresenter>(this);
-    CombatPresenter->Initialize(GetWorld(), CombatWidgetClass);
-
-    // 택티컬 UI 위젯 초기화
-    if (TacticalWidgetClass)
-    {
-        TacticalWidget = CreateWidget<UTacticalUIWidget>(GetWorld(), TacticalWidgetClass);
-        if (TacticalWidget)
-        {
-            TacticalWidget->AddToViewport(10);
-            TacticalWidget->SetVisibility(ESlateVisibility::Hidden);
-        }
-    }
-
-    // 택티컬 모드 이벤트 바인딩
-    if (UTacticalModeSubsystem* TacticalSub = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
-    {
-        TacticalSub->OnTacticalModeEntered.AddUObject(this, &AJRPGHUD::OnTacticalModeEntered);
-        TacticalSub->OnTacticalModeExited.AddUObject(this, &AJRPGHUD::OnTacticalModeExited);
-    }
+    CombatPresenter->Initialize(GetWorld(), CombatWidgetClass, TacticalWidgetClass);
 }
 
 void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    if (UTacticalModeSubsystem* TacticalSub = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
-    {
-        TacticalSub->OnTacticalModeEntered.RemoveAll(this);
-        TacticalSub->OnTacticalModeExited.RemoveAll(this);
-    }
-
     // 프레젠터 및 위젯 메모리 정리 (고아 위젯 방지)
+    if (MainMenuPresenter) { MainMenuPresenter->Shutdown(); MainMenuPresenter = nullptr; }
     if (ExplorationPresenter) { ExplorationPresenter->Shutdown(); ExplorationPresenter = nullptr; }
     if (CombatPresenter) { CombatPresenter->Shutdown(); CombatPresenter = nullptr; }
-    if (TacticalWidget) { TacticalWidget->RemoveFromParent(); TacticalWidget = nullptr; }
 
     Super::EndPlay(EndPlayReason);
 }
 
 void AJRPGHUD::ToggleMainMenu()
 {
+    if (MainMenuPresenter)
+    {
+		//UE_LOG(LogTemp, Warning, TEXT("JRPGHUD::ToggleMainMenu: 메뉴 토글"));
+        MainMenuPresenter->ToggleMenu();
+    }
 }
 
-void AJRPGHUD::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
+void AJRPGHUD::TogglePartyInfo()
 {
-    if (TacticalWidget) TacticalWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-    if (ExplorationPresenter) ExplorationPresenter->HideExplorationUI();
-}
-
-void AJRPGHUD::OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot)
-{
-    if (TacticalWidget) TacticalWidget->SetVisibility(ESlateVisibility::Hidden);
-    if (ExplorationPresenter) ExplorationPresenter->ShowExplorationUI();
+    // 프레젠터가 살아있다면 탭 변경을 지시합니다.
+    if (ExplorationPresenter)
+    {
+        ExplorationPresenter->TogglePartyInfo();
+    }
+    else UE_LOG(LogTemp, Error, TEXT("JRPGHUD::TogglePartyInfo: ExplorationPresenter Invaild"));
 }
 
 void AJRPGHUD::OnMainMenuTabSelected(EMainMenuTab Tab)
 {
+    // 탭이 인벤토리(2번)로 바뀔 때만 데이터를 갱신합니다.
+    if (Tab == EMainMenuTab::Inventory && InventoryPresenter)
+    {
+        InventoryPresenter->OpenInventory(GetOwningPawn());
+    }
 }
 
 void AJRPGHUD::TestRegionName(const FString& RegionName)

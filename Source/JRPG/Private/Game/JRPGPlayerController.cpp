@@ -177,6 +177,11 @@ void AJRPGPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(IA_Interact, ETriggerEvent::Started, this, &AJRPGPlayerController::OnInteract);
 	}
+
+	if (IA_TogglePartyStatus)
+	{
+		EIC->BindAction(IA_TogglePartyStatus, ETriggerEvent::Started, this, &AJRPGPlayerController::OnTogglePartyStatus);
+	}
 }
 
 void AJRPGPlayerController::OnMove(const FInputActionValue& Value)
@@ -311,10 +316,29 @@ void AJRPGPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
 
 void AJRPGPlayerController::OnToggleMainMenu()
 {
+	//UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: "));
+
 	if (AJRPGHUD* HUD = Cast<AJRPGHUD>(GetHUD()))
 	{
 		HUD->ToggleMainMenu();
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: HUD가 존재하지 않음"));
+	}
+}
+
+void AJRPGPlayerController::OnTogglePartyStatus()
+{
+	if (AJRPGHUD* HUD = Cast<AJRPGHUD>(GetHUD()))
+	{
+		HUD->TogglePartyInfo();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: HUD가 존재하지 않음"));
+	}
+
 }
 
 AActor* AJRPGPlayerController::GetCheatTargetActor(FName CharacterId) const

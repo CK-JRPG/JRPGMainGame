@@ -2,18 +2,23 @@
 #include "CoreMinimal.h"
 #include "UObject/NoExportTypes.h"
 #include "Combat/Battle/BattleSessionTypes.h"
+#include "Combat/Tactical/TacticalModeTypes.h"
 #include "CombatHUDPresenter.generated.h"
+
+class UCombatUIWidget;
+class UTacticalUIWidget;
 
 UCLASS()
 class JRPG_API UCombatHUDPresenter : public UObject
 {
     GENERATED_BODY()
 public:
-    void Initialize(UWorld* InWorld, TSubclassOf<class UCombatUIWidget> WidgetClass);
+    void Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass);
     void Shutdown();
 
 private:
-    UPROPERTY() TObjectPtr<class UCombatUIWidget> CombatWidget;
+    UPROPERTY() TObjectPtr<UCombatUIWidget> CombatWidget;
+    UPROPERTY() TObjectPtr<UTacticalUIWidget> TacticalWidget;
     UPROPERTY() TObjectPtr<class UActionPaletteViewModel> ActionPaletteVM;
     UPROPERTY() TObjectPtr<class UEnemyViewModel> TargetVM;
     UPROPERTY() TArray<TObjectPtr<class UCombatPartySlotViewModel>> PartyVMs;
@@ -21,6 +26,9 @@ private:
 
     void OnBattleStarted(const FBattleSessionSnapshot& Snapshot);
     void OnBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);
+
+    void OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot);
+    void OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot);
 
     // 중개 콜백들 (VM -> View)
     void OnActionPaletteSPUpdated(float Percent, const FString& Text);

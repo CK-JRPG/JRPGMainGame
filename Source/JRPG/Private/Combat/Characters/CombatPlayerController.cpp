@@ -9,6 +9,7 @@
 #include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Tactical/TacticalModeSubsystem.h"
+#include "UI/JRPGHUD.h"
 
 #include "GameFramework/Character.h"
 
@@ -53,6 +54,11 @@ void ACombatPlayerController::SetupInputComponent()
 	if (IA_TacticalMode)
 	{
 		EIC->BindAction(IA_TacticalMode, ETriggerEvent::Started, this, &ACombatPlayerController::OnTacticalModePressed);
+	}
+
+	if (IA_ToggleMainMenu)
+	{
+		EIC->BindAction(IA_ToggleMainMenu, ETriggerEvent::Started, this, &ACombatPlayerController::OnToggleMainMenu);
 	}
 }
 
@@ -242,5 +248,17 @@ void ACombatPlayerController::OnTacticalModePressed(const FInputActionValue& Val
 			// Zone 밖이거나 조건이 안 맞아서 거부된 경우
 			UE_LOG(LogTemp, Warning, TEXT("전술 모드 진입 거부됨! (전투 구역 외부이거나 권한 없음)"));
 		}
+	}
+}
+
+void ACombatPlayerController::OnToggleMainMenu(const FInputActionValue& Value)
+{
+	if (AJRPGHUD* HUD = Cast<AJRPGHUD>(GetHUD()))
+	{
+		HUD->ToggleMainMenu();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: HUD가 존재하지 않음"));
 	}
 }

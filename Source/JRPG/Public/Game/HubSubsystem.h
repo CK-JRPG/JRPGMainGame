@@ -7,6 +7,10 @@
 /**
  * 허브 등록/해제, 최근 방문 허브 위치 관리
  */
+
+// UI 프레젠터가 구독할 상호작용 알람 델리게이트
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInteractableTargetChanged, bool /*bIsVisible*/, const FString& /*InteractText*/);
+
 UCLASS()
 class JRPG_API UHubSubsystem : public UWorldSubsystem
 {
@@ -29,6 +33,8 @@ public:
 	// 리스폰 위치
 	// 마지막 방문 허브가 있으면 해당 위치, 없으면 가장 가까운 허브 위치 반환
 	FVector GetRespawnLocation(const FVector& FallbackOrigin) const;
+
+	FOnInteractableTargetChanged OnInteractableTargetChanged;
 	
 private:
 	// 가장 가까운 허브 위치 검색 (폴백용)

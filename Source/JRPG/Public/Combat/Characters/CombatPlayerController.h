@@ -48,9 +48,14 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_SwitchNext;   // E : 다음 파티원으로 전환
 	
+	// 전술 모드 진입 Tab
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_TacticalMode;
-	
+
+	// 메인 메뉴 토글
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_ToggleMainMenu;
+
 private:
 	void OnMove(const FInputActionValue& Value);
 	void OnLook(const FInputActionValue& Value);
@@ -61,4 +66,5 @@ private:
 	void OnTargetLockOn(const FInputActionValue& Value);
 	void UpdateCameraTargetForPawn(APawn* InPawn) const;
 	void OnTacticalModePressed(const FInputActionValue& Value);
+	void OnToggleMainMenu(const FInputActionValue& Value);
 };
