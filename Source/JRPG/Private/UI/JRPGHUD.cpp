@@ -3,9 +3,7 @@
 #include "UI/Presenters/CombatHUDPresenter.h"
 #include "UI/Presenters/MainMenuPresenter.h"
 #include "UI/Presenters/InventoryPresenter.h"
-#include "UI/Combat/TacticalUIWidget.h"
 #include "UI/Widgets/InventoryUIWidget.h"
-#include "Combat/Tactical/TacticalModeSubsystem.h"
 
 void AJRPGHUD::BeginPlay()
 {
@@ -32,40 +30,15 @@ void AJRPGHUD::BeginPlay()
 
     // 전투 UI 프레젠터 초기화 (파티, 스탯)
     CombatPresenter = NewObject<UCombatHUDPresenter>(this);
-    CombatPresenter->Initialize(GetWorld(), CombatWidgetClass);
-
-    // 택티컬 UI 위젯 초기화
-    if (TacticalWidgetClass)
-    {
-        TacticalWidget = CreateWidget<UTacticalUIWidget>(GetWorld(), TacticalWidgetClass);
-        if (TacticalWidget)
-        {
-            TacticalWidget->AddToViewport(10);
-            TacticalWidget->SetVisibility(ESlateVisibility::Hidden);
-        }
-    }
-
-    // 택티컬 모드 이벤트 바인딩
-    if (UTacticalModeSubsystem* TacticalSub = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
-    {
-        TacticalSub->OnTacticalModeEntered.AddUObject(this, &AJRPGHUD::OnTacticalModeEntered);
-        TacticalSub->OnTacticalModeExited.AddUObject(this, &AJRPGHUD::OnTacticalModeExited);
-    }
+    CombatPresenter->Initialize(GetWorld(), CombatWidgetClass, TacticalWidgetClass);
 }
 
 void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    if (UTacticalModeSubsystem* TacticalSub = GetWorld()->GetSubsystem<UTacticalModeSubsystem>())
-    {
-        TacticalSub->OnTacticalModeEntered.RemoveAll(this);
-        TacticalSub->OnTacticalModeExited.RemoveAll(this);
-    }
-
     // 프레젠터 및 위젯 메모리 정리 (고아 위젯 방지)
     if (MainMenuPresenter) { MainMenuPresenter->Shutdown(); MainMenuPresenter = nullptr; }
     if (ExplorationPresenter) { ExplorationPresenter->Shutdown(); ExplorationPresenter = nullptr; }
     if (CombatPresenter) { CombatPresenter->Shutdown(); CombatPresenter = nullptr; }
-    if (TacticalWidget) { TacticalWidget->RemoveFromParent(); TacticalWidget = nullptr; }
 
     Super::EndPlay(EndPlayReason);
 }
@@ -87,18 +60,6 @@ void AJRPGHUD::TogglePartyInfo()
         ExplorationPresenter->TogglePartyInfo();
     }
     else UE_LOG(LogTemp, Error, TEXT("JRPGHUD::TogglePartyInfo: ExplorationPresenter Invaild"));
-}
-
-void AJRPGHUD::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
-{
-    if (TacticalWidget) TacticalWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-    if (ExplorationPresenter) ExplorationPresenter->HideExplorationUI();
-}
-
-void AJRPGHUD::OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot)
-{
-    if (TacticalWidget) TacticalWidget->SetVisibility(ESlateVisibility::Hidden);
-    if (ExplorationPresenter) ExplorationPresenter->ShowExplorationUI();
 }
 
 void AJRPGHUD::OnMainMenuTabSelected(EMainMenuTab Tab)

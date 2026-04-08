@@ -2,8 +2,6 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/HUD.h"
-#include "Combat/Battle/BattleSessionTypes.h"
-#include "Combat/Tactical/TacticalModeTypes.h"
 #include "UI/MainMenu/MainMenuUIWidget.h"
 #include "JRPGHUD.generated.h"
 
@@ -56,12 +54,6 @@ private:
 	UPROPERTY()
 	TObjectPtr<UInventoryPresenter> InventoryPresenter;
 
-	// --- 단일 위젯 (아직 프레젠터가 없는 요소) ---
-	UPROPERTY()
-	TObjectPtr<UTacticalUIWidget> TacticalWidget;
-
-	void OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot);
-	void OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot);
 	void OnMainMenuTabSelected(EMainMenuTab Tab);
 
 	// [콘솔 명령어]
