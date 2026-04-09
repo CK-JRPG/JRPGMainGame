@@ -56,6 +56,18 @@ public:
 
 	UPROPERTY(EditAnywhere) bool bHasBasicAttackMotion = false;
 	UPROPERTY(EditAnywhere) FJRPGCombatMotionRequest BasicAttackMotion;
+
+	// AI 이동/사거리 파라미터
+
+
+	// true이면 원거리 캐릭터 (공격 사거리 밖에서 공격 가능, 거리 유지)
+	UPROPERTY(EditAnywhere, Category = "AI") bool bIsRangedCombatant = false;
+	// 기본 공격 최대 사거리 
+	UPROPERTY(EditAnywhere, Category = "AI") float AttackRange = 200.f;
+	// 원거리 캐릭터의 최소 거리
+	UPROPERTY(EditAnywhere, Category = "AI") float PreferredMinRange = 0.f;
+	/// 타겟이 이 거리 이상 벗어나면 Chase 시작 (원거리 전용)
+	UPROPERTY(EditAnywhere, Category = "AI") float ChaseLeashRange = 1200.f;
 	
 	bool IsValidDef() const { return !CharacterId.IsNone(); }
 };

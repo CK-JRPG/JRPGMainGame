@@ -1,12 +1,9 @@
 ﻿#include "Game/Companion/CompanionPawnController.h"
-#include "Navigation/CrowdFollowingComponent.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
-#include "NavigationSystem.h"
 #include "Kismet/GameplayStatics.h"
 
-ACompanionPawnController::ACompanionPawnController(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer.SetDefaultSubobjectClass<UCrowdFollowingComponent>(TEXT("PathFollowingComponent")))
+ACompanionPawnController::ACompanionPawnController()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	CurrentState = ECompanionAdventureState::None;
@@ -21,18 +18,11 @@ void ACompanionPawnController::OnPossess(APawn* InPawn)
 		if (UCharacterMovementComponent* MoveComp = ControlledCharacter->GetCharacterMovement())
 		{
 			MoveComp->bUseRVOAvoidance = false; 
+			MoveComp->bOrientRotationToMovement = true;
 		}
 	}
-	
-	if (UCrowdFollowingComponent* CrowdComp = Cast<UCrowdFollowingComponent>(GetPathFollowingComponent()))
-	{
-		CrowdComp->SetCrowdAvoidanceQuality(ECrowdAvoidanceQuality::High);
-		CrowdComp->SetCrowdSeparationWeight(10.0f);
-	}
 
-	// ---------------------------------------------------------
-	// 자기 자신의 Party Index 자동 부여 로직
-	// ---------------------------------------------------------
+	// 자기 자신의 Party Index 자동 부여
 	TArray<AActor*> FoundControllers;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACompanionPawnController::StaticClass(), FoundControllers);
 	
@@ -52,11 +42,10 @@ void ACompanionPawnController::Tick(float DeltaTime)
 		if (AActor* PlayerActor = UGameplayStatics::GetPlayerPawn(GetWorld(), 0))
 		{
 			SetLeaderActor(PlayerActor);
-			UE_LOG(LogTemp, Log, TEXT("Companion AI: 드디어 리더를 찾았습니다! (%s)"), *PlayerActor->GetName());
+			UE_LOG(LogTemp, Log, TEXT("Companion AI: 리더를 찾았습니다! (%s)"), *PlayerActor->GetName());
 		}
 		else
 		{
-			// 아직 플레이어가 없다면 FSM 로직을 돌리지 않고 이번 프레임 넘김
 			return;
 		}
 	}
@@ -74,6 +63,8 @@ void ACompanionPawnController::Tick(float DeltaTime)
 		UpdateFollowLeader(DeltaTime);
 		break;
 	case ECompanionAdventureState::TeleportCatchUp:
+		UpdateTeleportCatchUp(DeltaTime);
+		break;
 	default:
 		break;
 	}
@@ -98,9 +89,7 @@ void ACompanionPawnController::SetAdventureState(ECompanionAdventureState NewSta
 	if (CurrentState == NewState) return;
 
 	OnExitState(CurrentState);
-
 	CurrentState = NewState;
-
 	OnEnterState(CurrentState);
 }
 
@@ -109,27 +98,28 @@ void ACompanionPawnController::OnEnterState(ECompanionAdventureState State)
 	switch (State)
 	{
 	case ECompanionAdventureState::Idle:
-		// 대기 모션 재생, 무기 집어넣기 등
 		break;
 
 	case ECompanionAdventureState::FollowLeader:
-
 		break;
 
 	case ECompanionAdventureState::TeleportCatchUp:
-		// 1. 카메라에 보이지 않을 때만 텔레포트 시도
+		CatchUpTimer = 0.f;
+		// 카메라 밖이면 즉시 텔레포트
 		if (!IsInCameraFrustum())
 		{
-			FVector FormationPos = GetFormationLocation();
-			GetPawn()->SetActorLocation(FormationPos);
+			if (APawn* MyPawn = GetPawn())
+			{
+				const FVector FormationPos = GetFormationLocation();
+				MyPawn->TeleportTo(FormationPos, MyPawn->GetActorRotation());
+				UE_LOG(LogTemp, Log, TEXT("Companion AI: 텔레포트 완료 (카메라 밖)"));
+			}
+			SetAdventureState(ECompanionAdventureState::Idle);
 		}
-
-		SetAdventureState(ECompanionAdventureState::Idle);
+		// 카메라 안이면 UpdateTeleportCatchUp에서 빠른 속도로 추적
 		break;
 
 	default:
-		//UE_LOG(LogTemp, Error, TEXT("ACompanionPawnController::OnEnterState: 처리되지 않은 AI 상태가 있습니다! (%d)"), (int32)CurrentState);
-
 		break;
 	}
 }
@@ -139,21 +129,19 @@ void ACompanionPawnController::OnExitState(ECompanionAdventureState State)
 	switch (State)
 	{
 	case ECompanionAdventureState::FollowLeader:
-		StopMovement();
+	case ECompanionAdventureState::TeleportCatchUp:
+		// 직접 이동이므로 별도 정지 불필요 (AddInputVector 중단이면 자동 감속)
 		break;
-
 	default:
-		//UE_LOG(LogTemp, Error, TEXT("ACompanionPawnController::OnExitState: 처리되지 않은 AI 상태가 있습니다! (%d)"), (int32)CurrentState);
-
 		break;
 	}
 }
 
 void ACompanionPawnController::UpdateIdle(float DeltaTime)
 {
-	if (!IsValid(LeaderActor)) return;
+	if (!IsValid(LeaderActor) || !GetPawn()) return;
 
-	float DistanceToLeader = GetPawn()->GetDistanceTo(LeaderActor);
+	const float DistanceToLeader = GetPawn()->GetDistanceTo(LeaderActor);
 
 	if (DistanceToLeader > TeleportRadius)
 	{
@@ -167,13 +155,13 @@ void ACompanionPawnController::UpdateIdle(float DeltaTime)
 
 void ACompanionPawnController::UpdateFollowLeader(float DeltaTime)
 {
-	if (!IsValid(LeaderActor))
+	if (!IsValid(LeaderActor) || !GetPawn())
 	{
 		SetAdventureState(ECompanionAdventureState::Idle);
 		return;
 	}
 
-	float DistanceToLeader = GetPawn()->GetDistanceTo(LeaderActor);
+	const float DistanceToLeader = GetPawn()->GetDistanceTo(LeaderActor);
 
 	if (DistanceToLeader > TeleportRadius)
 	{
@@ -181,14 +169,98 @@ void ACompanionPawnController::UpdateFollowLeader(float DeltaTime)
 		return;
 	}
 
-	if (DistanceToLeader <= FollowStopRadius)
+	const FVector FormationPos = GetFormationLocation();
+	const float DistToFormation = FVector::Dist2D(GetPawn()->GetActorLocation(), FormationPos);
+
+	// 대형 도착 판정 (FollowStopRadius의 절반)
+	if (DistToFormation <= FollowStopRadius * 0.5f)
 	{
 		SetAdventureState(ECompanionAdventureState::Idle);
 		return;
 	}
 
-	// 지속적으로 대형 위치로 갱신 이동
-	MoveToLocation(GetFormationLocation(), 50.0f, false, true, true, true, 0, false);
+	// NavMesh 미사용 — 직접 이동
+	MoveDirectlyToward(FormationPos, DeltaTime);
+}
+
+void ACompanionPawnController::UpdateTeleportCatchUp(float DeltaTime)
+{
+	// 카메라 안에 보이는 상태에서 진입했을 때: 빠른 속도로 쫓아감
+	if (!IsValid(LeaderActor) || !GetPawn())
+	{
+		SetAdventureState(ECompanionAdventureState::Idle);
+		return;
+	}
+
+	CatchUpTimer += DeltaTime;
+
+	// 쫓아가다가 카메라 밖이 되면 즉시 텔레포트
+	if (!IsInCameraFrustum())
+	{
+		if (APawn* MyPawn = GetPawn())
+		{
+			const FVector FormationPos = GetFormationLocation();
+			MyPawn->TeleportTo(FormationPos, MyPawn->GetActorRotation());
+			UE_LOG(LogTemp, Log, TEXT("Companion AI: 추적 중 카메라 밖 → 텔레포트 완료"));
+		}
+		SetAdventureState(ECompanionAdventureState::Idle);
+		return;
+	}
+
+	// 제한 시간 초과 시 강제 텔레포트
+	if (CatchUpTimer >= TeleportCatchUpTimeoutSeconds)
+	{
+		if (APawn* MyPawn = GetPawn())
+		{
+			const FVector FormationPos = GetFormationLocation();
+			MyPawn->TeleportTo(FormationPos, MyPawn->GetActorRotation());
+			UE_LOG(LogTemp, Log, TEXT("Companion AI: 추적 제한 시간 초과 → 강제 텔레포트"));
+		}
+		SetAdventureState(ECompanionAdventureState::Idle);
+		return;
+	}
+
+	// 빠른 속도로 대형 위치를 향해 이동
+	const FVector FormationPos = GetFormationLocation();
+	const float DistToFormation = FVector::Dist2D(GetPawn()->GetActorLocation(), FormationPos);
+
+	if (DistToFormation <= FollowStopRadius)
+	{
+		SetAdventureState(ECompanionAdventureState::FollowLeader);
+		return;
+	}
+
+	// CatchUpSpeedMultiplier 배속으로 추적
+	if (ACharacter* MyChar = Cast<ACharacter>(GetPawn()))
+	{
+		const float OriginalSpeed = MyChar->GetCharacterMovement()->MaxWalkSpeed;
+		MyChar->GetCharacterMovement()->MaxWalkSpeed = OriginalSpeed * CatchUpSpeedMultiplier;
+		MoveDirectlyToward(FormationPos, DeltaTime);
+		MyChar->GetCharacterMovement()->MaxWalkSpeed = OriginalSpeed;
+	}
+}
+
+void ACompanionPawnController::MoveDirectlyToward(const FVector& Destination, float DeltaTime)
+{
+	APawn* MyPawn = GetPawn();
+	if (!MyPawn) return;
+
+	ACharacter* MyChar = Cast<ACharacter>(MyPawn);
+	if (!MyChar) return;
+
+	UCharacterMovementComponent* MoveComp = MyChar->GetCharacterMovement();
+	if (!MoveComp) return;
+
+	FVector Dir = Destination - MyPawn->GetActorLocation();
+	Dir.Z = 0.f;
+
+	const float Dist = Dir.Size();
+	if (Dist < 1.0f) return;
+
+	Dir /= Dist; // Normalize
+
+	// CharacterMovementComponent에 입력 전달
+	MyChar->AddMovementInput(Dir, 1.0f);
 }
 
 void ACompanionPawnController::SyncMovementSpeedWithLeader()
@@ -200,7 +272,6 @@ void ACompanionPawnController::SyncMovementSpeedWithLeader()
 
 	if (LeaderChar && MyChar)
 	{
-		// 리더의 걷기/뛰기 최고 속도를 동료 AI에게도 똑같이 적용
 		MyChar->GetCharacterMovement()->MaxWalkSpeed = LeaderChar->GetCharacterMovement()->MaxWalkSpeed;
 	}
 }
@@ -209,33 +280,24 @@ FVector ACompanionPawnController::GetFormationLocation() const
 {
 	if (!IsValid(LeaderActor)) return FVector::ZeroVector;
 
-	// 부채꼴 대형 계산 로직 (PartyIndex 기반)
-	FVector LeaderLocation = LeaderActor->GetActorLocation();
-	FVector LeaderForward = LeaderActor->GetActorForwardVector();
+	const FVector LeaderLocation = LeaderActor->GetActorLocation();
+	const FVector LeaderForward = LeaderActor->GetActorForwardVector();
 	
 	float AngleOffset = (PartyIndex % 2 != 0) ? -45.0f : 45.0f;
 	AngleOffset *= FMath::CeilToFloat(PartyIndex / 2.0f);
 	
-	FVector Direction = LeaderForward.RotateAngleAxis(AngleOffset, FVector::UpVector);
+	const FVector Direction = LeaderForward.RotateAngleAxis(AngleOffset, FVector::UpVector);
 	
-	FVector TargetPos = LeaderLocation - (Direction * FollowStopRadius);
-	
-	UNavigationSystemV1* NavSys = UNavigationSystemV1::GetCurrent(GetWorld());
-	FNavLocation ProjectedLocation;
-	if (NavSys && NavSys->ProjectPointToNavigation(TargetPos, ProjectedLocation))
-	{
-		return ProjectedLocation.Location;
-	}
-
-	return TargetPos;
+	// NavMesh 미사용 — 직접 계산한 위치 반환
+	return LeaderLocation - (Direction * FollowStopRadius);
 }
 
 bool ACompanionPawnController::IsInCameraFrustum() const
 {
 	if (!GetPawn()) return false;
 	
-	float PawnLastRenderTime = GetPawn()->GetLastRenderTime();
-	float CurrentTime = GetWorld()->GetTimeSeconds();
+	const float PawnLastRenderTime = GetPawn()->GetLastRenderTime();
+	const float CurrentTime = GetWorld()->GetTimeSeconds();
 	
 	return (CurrentTime - PawnLastRenderTime) < 0.2f;
 }
