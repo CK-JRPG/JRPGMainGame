@@ -1,188 +1,342 @@
-﻿// Source/JRPGCombat/Private/Combat/AI/EnemyAIController.cpp
-
 #include "Combat/AI/EnemyAIController.h"
-
 
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Skills/SkillComponent.h"
 #include "Combat/AI/CombatAIInterfaces.h"
 #include "Combat/AI/CombatAIPresetAsset.h"
+#include "Combat/Characters/CombatCharacterComponent.h"
+#include "Combat/Characters/CombatCharacterDataAsset.h"
 
 #include "GameFramework/Pawn.h"
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Engine/World.h"
 
 AEnemyAIController::AEnemyAIController()
 {
-	PrimaryActorTick.bCanEverTick = true;
+PrimaryActorTick.bCanEverTick = true;
 }
 
-void AEnemyAIController::OnPossess(APawn *InPawn)
+void AEnemyAIController::OnPossess(APawn* InPawn)
 {
-	Super::OnPossess(InPawn);
+Super::OnPossess(InPawn);
 
-	ControlledPawn = InPawn;
-	ThreatComp = InPawn ? InPawn->FindComponentByClass<UThreatComponent>() : nullptr;
-	SkillComp  = InPawn ? InPawn->FindComponentByClass<USkillComponent>() : nullptr;
+ControlledPawn = InPawn;
+ThreatComp = InPawn ? InPawn->FindComponentByClass<UThreatComponent>() : nullptr;
+SkillComp  = InPawn ? InPawn->FindComponentByClass<USkillComponent>() : nullptr;
+CharComp   = InPawn ? InPawn->FindComponentByClass<UCombatCharacterComponent>() : nullptr;
 
-	State = EEnemyCombatState::Engage;
+LoadRangeParamsFromCharacterData();
+State = EEnemyCombatState::Engage;
+}
+
+void AEnemyAIController::LoadRangeParamsFromCharacterData()
+{
+if (!CharComp) return;
+
+const UCombatCharacterDataAsset* Data = CharComp->GetCharacterData();
+if (!Data) return;
+
+bIsRanged = Data->bIsRangedCombatant;
+AttackRange = Data->AttackRange;
+PreferredMinRange = Data->PreferredMinRange;
+ChaseLeashRange = Data->ChaseLeashRange;
 }
 
 void AEnemyAIController::Tick(float DeltaSeconds)
 {
-	Super::Tick(DeltaSeconds);
+Super::Tick(DeltaSeconds);
 
-	if (!ControlledPawn)
-		return;
+if (!ControlledPawn) return;
 
-	RefreshStateFromGroggyAndChain();
+RefreshStateFromGroggyAndChain();
 
-	switch (State)
-	{
-	case EEnemyCombatState::Combat_Normal:
-		TickCombatNormal(DeltaSeconds);
-		break;
-	case EEnemyCombatState::Groggy_Stunned:
-		TickGroggyStunned(DeltaSeconds);
-		break;
-	case EEnemyCombatState::Rising:
-		TickRising(DeltaSeconds);
-		break;
-	case EEnemyCombatState::SuppressedByChain:
-		// 체인 시퀀스 중에는 적 AI 완전 억제(별도 전투처럼 보이게)
-		return;
-	default:
-		break;
-	}
+switch (State)
+{
+case EEnemyCombatState::Engage:
+RefreshTarget();
+if (CurrentTarget.IsValid())
+{
+const float Dist = GetDistanceToTarget();
+if (Dist <= AttackRange)
+State = EEnemyCombatState::Attack;
+else
+State = EEnemyCombatState::Chase;
+}
+break;
+
+case EEnemyCombatState::Chase:
+TickChase(DeltaSeconds);
+break;
+
+case EEnemyCombatState::Attack:
+TickAttack(DeltaSeconds);
+break;
+
+case EEnemyCombatState::Retreat:
+TickRetreat(DeltaSeconds);
+break;
+
+case EEnemyCombatState::Groggy_Stunned:
+TickGroggyStunned(DeltaSeconds);
+break;
+
+case EEnemyCombatState::Rising:
+TickRising(DeltaSeconds);
+break;
+
+case EEnemyCombatState::SuppressedByChain:
+return;
+
+default:
+break;
+}
 }
 
 void AEnemyAIController::RefreshStateFromGroggyAndChain()
 {
-	// Chain Active면 무조건 억제
-	if (IsChainSequenceActive())
-	{
-		State = EEnemyCombatState::SuppressedByChain;
-		return;
-	}
-
-	EJRPGGroggyPhase Phase = EJRPGGroggyPhase::Normal;
-	if (ReadGroggy(Phase))
-	{
-		if (Phase == EJRPGGroggyPhase::Stunned)
-		{
-			State = EEnemyCombatState::Groggy_Stunned;
-			return;
-		}
-		if (Phase == EJRPGGroggyPhase::Rising)
-		{
-			State = EEnemyCombatState::Rising;
-			return;
-		}
-	}
-
-	// 기본 전투
-	if (State != EEnemyCombatState::Combat_Normal)
-		State = EEnemyCombatState::Combat_Normal;
+if (IsChainSequenceActive())
+{
+State = EEnemyCombatState::SuppressedByChain;
+return;
 }
 
-void AEnemyAIController::TickCombatNormal(float DeltaSeconds)
+EJRPGGroggyPhase Phase = EJRPGGroggyPhase::Normal;
+if (ReadGroggy(Phase))
 {
-	if (!ThreatComp || !SkillComp)
-		return;
+if (Phase == EJRPGGroggyPhase::Stunned)
+{
+State = EEnemyCombatState::Groggy_Stunned;
+return;
+}
+if (Phase == EJRPGGroggyPhase::Rising)
+{
+State = EEnemyCombatState::Rising;
+return;
+}
+}
 
-	// Threat 기반 타겟 :contentReference[oaicite:41]{index=41}
-	AActor *Target = ThreatComp->GetTopThreatSource();
-	if (!IsValid(Target))
-		return;
+// Groggy/Chain 에서 복귀
+if (State == EEnemyCombatState::Groggy_Stunned 
+|| State == EEnemyCombatState::Rising 
+|| State == EEnemyCombatState::SuppressedByChain)
+{
+State = EEnemyCombatState::Engage;
+}
+}
 
-	// 간단: 기본 공격 or 패턴 스킬 (패턴은 너희 SkillPatternTableId로 확장 가능 :contentReference[oaicite:42]{index=42})
-	
+void AEnemyAIController::RefreshTarget()
+{
+if (!ThreatComp) return;
 
-	SkillComp->RequestBasicAttack(Target);
-	
+AActor* TopThreat = ThreatComp->GetTopThreatSource();
+if (IsValid(TopThreat))
+{
+CurrentTarget = TopThreat;
+}
+}
+
+void AEnemyAIController::TickChase(float DeltaSeconds)
+{
+RefreshTarget();
+
+if (!CurrentTarget.IsValid())
+{
+State = EEnemyCombatState::Idle;
+return;
+}
+
+const float Dist = GetDistanceToTarget();
+
+if (Dist <= AttackRange)
+{
+State = EEnemyCombatState::Attack;
+return;
+}
+
+FaceTarget(CurrentTarget.Get());
+MoveDirectlyToward(CurrentTarget->GetActorLocation(), DeltaSeconds);
+}
+
+void AEnemyAIController::TickAttack(float DeltaSeconds)
+{
+RefreshTarget();
+
+if (!CurrentTarget.IsValid())
+{
+State = EEnemyCombatState::Idle;
+return;
+}
+
+const float Dist = GetDistanceToTarget();
+
+// 원거리: 너무 가까우면 Retreat
+if (bIsRanged && PreferredMinRange > 0.f && Dist < PreferredMinRange)
+{
+State = EEnemyCombatState::Retreat;
+return;
+}
+
+// 사거리 밖이면 Chase
+if (bIsRanged && Dist > ChaseLeashRange)
+{
+State = EEnemyCombatState::Chase;
+return;
+}
+if (!bIsRanged && Dist > AttackRange)
+{
+State = EEnemyCombatState::Chase;
+return;
+}
+
+FaceTarget(CurrentTarget.Get());
+
+if (SkillComp)
+{
+SkillComp->RequestBasicAttack(CurrentTarget.Get());
+}
+}
+
+void AEnemyAIController::TickRetreat(float DeltaSeconds)
+{
+if (!CurrentTarget.IsValid())
+{
+State = EEnemyCombatState::Idle;
+return;
+}
+
+const float Dist = GetDistanceToTarget();
+
+if (Dist >= PreferredMinRange)
+{
+State = EEnemyCombatState::Attack;
+return;
+}
+
+MoveDirectlyAwayFrom(CurrentTarget->GetActorLocation(), DeltaSeconds);
 }
 
 void AEnemyAIController::TickGroggyStunned(float DeltaSeconds)
 {
-	// 문서: 스턴(그로기) 상태에서 공격이 완전히 멈춘다 :contentReference[oaicite:43]{index=43}
-	// 공격/스킬/이동 행동 금지 :contentReference[oaicite:44]{index=44}
-	StopMovement();
+// 스턴 상태: 이동/공격 금지
 }
 
 void AEnemyAIController::TickRising(float DeltaSeconds)
 {
-	// 문서: Rising 동안 기본 공격 금지(또는 매우 제한) :contentReference[oaicite:45]{index=45}
-	// 옵션: 데이터로 허용 가능 :contentReference[oaicite:46]{index=46}
-	const bool bAllowed = PresetAsset ? PresetAsset->bEnemyRisingAttackAllowed : false;
-	if (!bAllowed)
-	{
-		StopMovement();
-		return;
-	}
+const bool bAllowed = PresetAsset ? PresetAsset->bEnemyRisingAttackAllowed : false;
+if (!bAllowed) return;
 
-	// 허용 시에도 타겟 전환을 최소화(락 시간 증가)
-	const double Now = FPlatformTime::Seconds();
-	if (Now < TargetLockUntilReal)
-	{
-		// 락 중: 기존 타겟 유지
-	}
-	else
-	{
-		const float Mult =PresetAsset ? PresetAsset->EnemyRisingTargetLockMultiplier :2.0f;
-		TargetLockUntilReal = Now+ (1.0 * Mult);
-	}
-
-	if (ThreatComp && SkillComp)
-	{
-		if (AActor *Target = ThreatComp->GetTopThreatSource())
-		{
-			SkillComp->RequestBasicAttack(Target);
-		}
-	}
+const double Now = FPlatformTime::Seconds();
+if (Now >= TargetLockUntilReal)
+{
+const float Mult = PresetAsset ? PresetAsset->EnemyRisingTargetLockMultiplier : 2.0f;
+TargetLockUntilReal = Now + (1.0 * Mult);
+RefreshTarget();
 }
 
-bool AEnemyAIController::IsChainSequenceActive()const
+if (CurrentTarget.IsValid() && SkillComp)
 {
-	if (!GetWorld())
-		return false;
-
-	// World 안에서 ICombatChainFlowProvider 구현 객체를 찾는다(TrinityChainSubsystem에서 구현하도록 연결)
-	for (TObjectIterator<UObject> It; It; ++It)
-	{
-		UObject *Obj = *It;
-		if (!Obj || Obj->GetWorld() != GetWorld())
-			continue;
-
-		if (Obj->GetClass()->ImplementsInterface(UCombatChainFlowProvider::StaticClass()))
-		{
-			ICombatChainFlowProvider *Chain = Cast<ICombatChainFlowProvider>(Obj);
-			if (Chain && Chain->IsChainSequenceActive())
-				return true;
-		}
-	}
-	return false;
+FaceTarget(CurrentTarget.Get());
+SkillComp->RequestBasicAttack(CurrentTarget.Get());
+}
 }
 
-bool AEnemyAIController::ReadGroggy(EJRPGGroggyPhase &OutPhase)const
+// ---- NavMesh 미사용 직접 이동 ----
+
+void AEnemyAIController::MoveDirectlyToward(const FVector& Destination, float DeltaTime)
 {
-	OutPhase = EJRPGGroggyPhase::Normal;
+ACharacter* MyChar = Cast<ACharacter>(ControlledPawn.Get());
+if (!MyChar) return;
 
-	if (!ControlledPawn)
-		return false;
+FVector Dir = Destination - MyChar->GetActorLocation();
+Dir.Z = 0.f;
 
-	TArray<UActorComponent*> Comps;
-	ControlledPawn->GetComponents(Comps);
+const float Dist = Dir.Size();
+if (Dist < 10.0f) return;
 
-	for (UActorComponent *C : Comps)
-	{
-		if (C && C->GetClass()->ImplementsInterface(UCombatGroggyProvider::StaticClass()))
-		{
-			ICombatGroggyProvider *G = Cast<ICombatGroggyProvider>(C);
-			if (G)
-			{
-				OutPhase = G->GetGroggyPhase();
-				return true;
-			}
-		}
-	}
-	return false;
+Dir /= Dist;
+MyChar->AddMovementInput(Dir, 1.0f);
+}
+
+void AEnemyAIController::MoveDirectlyAwayFrom(const FVector& ThreatLocation, float DeltaTime)
+{
+ACharacter* MyChar = Cast<ACharacter>(ControlledPawn.Get());
+if (!MyChar) return;
+
+FVector Dir = MyChar->GetActorLocation() - ThreatLocation;
+Dir.Z = 0.f;
+
+const float Dist = Dir.Size();
+if (Dist < 1.0f)
+{
+Dir = MyChar->GetActorForwardVector();
+}
+else
+{
+Dir /= Dist;
+}
+
+MyChar->AddMovementInput(Dir, 1.0f);
+}
+
+void AEnemyAIController::FaceTarget(AActor* Target)
+{
+if (!Target || !ControlledPawn) return;
+
+FVector Dir = Target->GetActorLocation() - ControlledPawn->GetActorLocation();
+Dir.Z = 0.f;
+if (!Dir.IsNearlyZero())
+{
+ControlledPawn->SetActorRotation(Dir.Rotation());
+}
+}
+
+float AEnemyAIController::GetDistanceToTarget() const
+{
+if (!CurrentTarget.IsValid() || !ControlledPawn) return MAX_FLT;
+return FVector::Dist2D(ControlledPawn->GetActorLocation(), CurrentTarget->GetActorLocation());
+}
+
+// ---- 유틸리티 ----
+
+bool AEnemyAIController::IsChainSequenceActive() const
+{
+if (!GetWorld()) return false;
+
+for (TObjectIterator<UObject> It; It; ++It)
+{
+UObject* Obj = *It;
+if (!Obj || Obj->GetWorld() != GetWorld()) continue;
+
+if (Obj->GetClass()->ImplementsInterface(UCombatChainFlowProvider::StaticClass()))
+{
+ICombatChainFlowProvider* Chain = Cast<ICombatChainFlowProvider>(Obj);
+if (Chain && Chain->IsChainSequenceActive())
+return true;
+}
+}
+return false;
+}
+
+bool AEnemyAIController::ReadGroggy(EJRPGGroggyPhase& OutPhase) const
+{
+OutPhase = EJRPGGroggyPhase::Normal;
+if (!ControlledPawn) return false;
+
+TArray<UActorComponent*> Comps;
+ControlledPawn->GetComponents(Comps);
+
+for (UActorComponent* C : Comps)
+{
+if (C && C->GetClass()->ImplementsInterface(UCombatGroggyProvider::StaticClass()))
+{
+ICombatGroggyProvider* G = Cast<ICombatGroggyProvider>(C);
+if (G)
+{
+OutPhase = G->GetGroggyPhase();
+return true;
+}
+}
+}
+return false;
 }

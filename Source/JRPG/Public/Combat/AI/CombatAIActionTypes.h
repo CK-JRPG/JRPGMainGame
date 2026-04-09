@@ -11,13 +11,14 @@ enum class EPartyAIState : uint8
 {
 	Follow,
 	Engage,
+	Chase,              // 타겟 추적 (사거리 밖)
+	Attack,             // 사거리 내 공격
+	KeepDistance,       // 원거리 캐릭터 거리 유지
 	ExecuteRole,
 	Reposition,
 	ExecuteReservation,
 	Recover,
-
-	// Chain이 Active면 일반 AI를 완전히 억제
-	SuppressedByChain,
+	SuppressedByChain, 	// Chain이 Active면 일반 AI를 완전히 억제
 };
 
 UENUM(BlueprintType)
@@ -26,12 +27,13 @@ enum class EEnemyCombatState : uint8
 	Idle,
 	Engage,
 	Combat_Normal,
+	Chase,              // 타겟 추적 (사거리 밖)
+	Attack,             // 사거리 내 공격
+	Retreat,            // 원거리 캐릭터 거리 유지
 	Groggy_Stunned,
 	Rising,
 	Disengage,
-
-	// Chain 시퀀스 동안 적 AI도 억제 (연출/입력 레이어 분리)
-	SuppressedByChain,
+	SuppressedByChain, 	// Chain 시퀀스 동안 적 AI도 억제 (연출/입력 레이어 분리)
 };
 
 UENUM(BlueprintType)

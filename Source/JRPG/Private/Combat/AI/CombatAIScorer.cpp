@@ -20,7 +20,7 @@ float UCombatAIScorer::ScoreAction(const UCombatAIContext &Ctx, const FJRPGComba
 	if (Ctx.bSelfIsDead)
 		return -FLT_MAX;
 
-	// 기본: Wait는 매우 낮게
+	// 기본 Wait는 매우 낮게
 	if (Action.Type == EJRPGCombatAIActionType::Wait)
 		return 0.05f;
 
