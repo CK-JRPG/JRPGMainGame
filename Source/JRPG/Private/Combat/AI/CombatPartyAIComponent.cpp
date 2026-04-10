@@ -328,6 +328,7 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 
 	if (Action.Type == EJRPGCombatAIActionType::UseSkill)
 	{
+		UE_LOG(LogTemp, Log, TEXT("UseSkill"));
 		Context->SkillComp->RequestUseSkillByAI(Action.SkillId, Action.Target.Get());
 		return;
 	}
