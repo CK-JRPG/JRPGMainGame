@@ -11,7 +11,7 @@ int32 UCombatLevelProviderComponent::GetCharacterLevel(const AActor* /*Character
 	return 1;
 }
 
-int32 UCombatLevelProviderComponent::GetPartyLevel()const
+int32 UCombatLevelProviderComponent::GetPartyLevel() const
 {
 	return GetCharacterLevel(nullptr);
 }
