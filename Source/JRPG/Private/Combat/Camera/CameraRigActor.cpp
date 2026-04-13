@@ -69,30 +69,19 @@ void ACameraRigActor::Tick(float DeltaTime)
 void ACameraRigActor::SetCameraTarget(AActor* NewTarget)
 {
 	TargetActor = NewTarget;
-	
-	if (NewTarget)
-	{
-		if (ICameraTargetInterface* T = Cast<ICameraTargetInterface>(NewTarget))
-		{
-			SetActorLocation(T->GetCameraTargetLocation());
-			SetActorRotation(T->GetCameraTargetRotation());
-			
-			// 타겟 전환 시 그 타겟의 기본 ArmLength로 리셋할지 여부
-			// -> 타겟마다 다르면 이 라인 살리고, 아니면 제거
-			SpringArm->TargetArmLength = T->GetCameraTargetArmLength();
-		}
-	}
 }
 
 void ACameraRigActor::AdjustZoom(float Delta)
 {
 	ArmLength = FMath::Clamp(ArmLength + Delta, MinArmLength, MaxArmLength);
+	SetArmLength(ArmLength + Delta, false);
 	UE_LOG(LogTemp, Warning, TEXT("Adjusting : Delta=%f , Zoom=%f"), Delta, ArmLength);
 }
 
 void ACameraRigActor::ResetZoom()
 {
 	ArmLength = DefaultArmLength;
+	SetArmLength(DefaultArmLength, false);
 }
 
 void ACameraRigActor::SetCameraTargetSmooth(AActor* NewTarget)
@@ -109,4 +98,13 @@ void ACameraRigActor::SetLockOnTarget(AActor* Target)
 void ACameraRigActor::ClearLockOnTarget()
 {
 	LockOnTarget.Reset();
+}
+
+void ACameraRigActor::SetArmLength(float NewArmLength, bool bApplyImmediately)
+{
+	ArmLength = FMath::Clamp(NewArmLength, MinArmLength, MaxArmLength);
+	if (bApplyImmediately && SpringArm)
+	{
+		SpringArm->TargetArmLength = ArmLength;
+	}
 }

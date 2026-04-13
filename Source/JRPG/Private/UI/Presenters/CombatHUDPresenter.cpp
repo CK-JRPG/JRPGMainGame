@@ -5,14 +5,16 @@
 #include "UI/Combat/CombatPartyRosterWidget.h"
 #include "UI/Combat/CombatPartySlotWidget.h"
 #include "UI/Combat/EnemyHPBarWidget.h"
+#include "UI/Combat/TacticalUIWidget.h"
 #include "UI/ViewModels/CombatViewModels.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
+#include "Combat/Tactical/TacticalModeSubsystem.h"
 #include "Components/WidgetComponent.h"
 #include "Kismet/GameplayStatics.h"
 
-void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass)
+void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass)
 {
     if (!InWorld) return;
 
@@ -35,6 +37,22 @@ void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidge
         }
     }
 
+    if (TacticalClass)
+	{
+		TacticalWidget = CreateWidget<UTacticalUIWidget>(InWorld, TacticalClass);
+		if (TacticalWidget)
+		{
+			TacticalWidget->AddToViewport(10); 
+			TacticalWidget->SetVisibility(ESlateVisibility::Hidden);
+		}
+	}
+
+    if (UTacticalModeSubsystem* TacticalSub = InWorld->GetSubsystem<UTacticalModeSubsystem>())
+    {
+        TacticalSub->OnTacticalModeEntered.AddUObject(this, &UCombatHUDPresenter::OnTacticalModeEntered);
+        TacticalSub->OnTacticalModeExited.AddUObject(this, &UCombatHUDPresenter::OnTacticalModeExited);
+    }
+
     if (UBattleSessionSubsystem* BattleSub = InWorld->GetSubsystem<UBattleSessionSubsystem>())
     {
         BattleSub->OnBattleStarted.AddUObject(this, &UCombatHUDPresenter::OnBattleStarted);
@@ -51,7 +69,23 @@ void UCombatHUDPresenter::Shutdown()
     for (auto& VM : PartyVMs) { if (VM) VM->Unbind(); }
     for (auto& VM : EnemyHPBarVMs) { if (VM) VM->Unbind(); }
 
+    if (UWorld* World = GetWorld())
+    {
+        if (UBattleSessionSubsystem* BattleSub = World->GetSubsystem<UBattleSessionSubsystem>())
+        {
+            BattleSub->OnBattleStarted.RemoveAll(this);
+            BattleSub->OnBattleEnded.RemoveAll(this);
+        }
+
+        if (UTacticalModeSubsystem* TacticalSub = World->GetSubsystem<UTacticalModeSubsystem>())
+        {
+            TacticalSub->OnTacticalModeEntered.RemoveAll(this);
+            TacticalSub->OnTacticalModeExited.RemoveAll(this);
+        }
+    }
+
     if (CombatWidget) { CombatWidget->RemoveFromParent(); CombatWidget = nullptr; }
+    if (TacticalWidget) { TacticalWidget->RemoveFromParent(); TacticalWidget = nullptr; }
 }
 
 void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot)
@@ -142,6 +176,22 @@ void UCombatHUDPresenter::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, 
                 HPBarComp->SetVisibility(false);
             }
         }
+    }
+}
+
+void UCombatHUDPresenter::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
+{
+    if (TacticalWidget)
+    {
+        TacticalWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+    }
+}
+
+void UCombatHUDPresenter::OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot)
+{
+    if (TacticalWidget)
+    {
+        TacticalWidget->SetVisibility(ESlateVisibility::Hidden);
     }
 }
 

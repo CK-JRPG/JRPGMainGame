@@ -7,7 +7,10 @@ UENUM()
 enum class ETacticalModeState : uint8
 {
 	Inactive,
-	Active
+	Idle,
+	Entering,
+	Active,
+	Exiting
 };
 
 USTRUCT()
@@ -29,7 +32,7 @@ struct FTacticalModeSnapshot
 	GENERATED_BODY()
 
 	UPROPERTY() FGuid BattleSessionId;
-	UPROPERTY() ETacticalModeState State = ETacticalModeState::Inactive;
+	UPROPERTY() ETacticalModeState State = ETacticalModeState::Idle;
 
 	UPROPERTY() TWeakObjectPtr<AActor> OperatorActor;
 	UPROPERTY() FName EnterReason = NAME_None;

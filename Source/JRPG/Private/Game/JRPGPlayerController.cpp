@@ -14,6 +14,7 @@
 #include "Combat/Items/InventorySubsystem.h"
 #include "UI/JRPGHUD.h"
 #include "Game/HubSubsystem.h"
+#include "Game/Companion/FieldCompanionSubsystem.h"
 
 void AJRPGPlayerController::BeginPlay()
 {
@@ -176,6 +177,11 @@ void AJRPGPlayerController::SetupInputComponent()
 	{
 		EIC->BindAction(IA_Interact, ETriggerEvent::Started, this, &AJRPGPlayerController::OnInteract);
 	}
+
+	if (IA_TogglePartyStatus)
+	{
+		EIC->BindAction(IA_TogglePartyStatus, ETriggerEvent::Started, this, &AJRPGPlayerController::OnTogglePartyStatus);
+	}
 }
 
 void AJRPGPlayerController::OnMove(const FInputActionValue& Value)
@@ -285,11 +291,16 @@ void AJRPGPlayerController::OnInteract()
 			}
 
 			HubSub->VisitHub(FocusedHub, PlayerPawn->GetActorLocation());
+			
+			// 컴패니언 위치도 함께 스냅샷 저장 (패배 리스폰 시 사용)
+			if (UFieldCompanionSubsystem* CompanionSub = GetWorld()->GetSubsystem<UFieldCompanionSubsystem>())
+			{
+				CompanionSub->SaveCompanionLocations();
+			}
 			return;
 		}
 	}
-
-
+	
 	// 향후 상자, NPC 등 다른 상호작용 대상 추가 가능
 }
 
@@ -305,10 +316,29 @@ void AJRPGPlayerController::UpdateCameraTargetForPawn(APawn* InPawn) const
 
 void AJRPGPlayerController::OnToggleMainMenu()
 {
+	//UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: "));
+
 	if (AJRPGHUD* HUD = Cast<AJRPGHUD>(GetHUD()))
 	{
 		HUD->ToggleMainMenu();
 	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: HUD가 존재하지 않음"));
+	}
+}
+
+void AJRPGPlayerController::OnTogglePartyStatus()
+{
+	if (AJRPGHUD* HUD = Cast<AJRPGHUD>(GetHUD()))
+	{
+		HUD->TogglePartyInfo();
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: HUD가 존재하지 않음"));
+	}
+
 }
 
 AActor* AJRPGPlayerController::GetCheatTargetActor(FName CharacterId) const

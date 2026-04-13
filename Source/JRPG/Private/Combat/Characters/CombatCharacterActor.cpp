@@ -62,6 +62,10 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 
 	HPBarWidgetComponent->SetWidgetSpace(EWidgetSpace::Screen);
 	HPBarWidgetComponent->SetDrawSize(FVector2D(150.f, 20.f));
+
+	bUseControllerRotationPitch = false;
+	bUseControllerRotationYaw = false;
+	bUseControllerRotationRoll = false;
 }
 
 void ACombatCharacterActor::BeginPlay()
