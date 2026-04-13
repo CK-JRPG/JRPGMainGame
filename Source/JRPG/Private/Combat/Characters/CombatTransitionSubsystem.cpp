@@ -65,6 +65,7 @@ void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 	}
 
 	// 상태 저장
+	const FRotator FieldControlRotation = PC->GetControlRotation();
 	CombatPlayerController = PC;
 	SetOriginalPlayerCharacterID(LeaderCharacterID);
 	CachedFieldPawn = PC->GetPawn();
@@ -111,7 +112,7 @@ void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 		if (CombatPC)
 		{
 			// 필드 컨트롤러의 카메라 회전값을 전투 컨트롤러에 동기화 (끊김 방지)
-			CombatPC->SetControlRotation(PC->GetControlRotation());
+			CombatPC->SetControlRotation(FieldControlRotation);
 
 			// 필드 컨트롤러 → 전투 컨트롤러로 LocalPlayer 스왑
 			if (AGameModeBase* GM = World->GetAuthGameMode())
@@ -126,6 +127,7 @@ void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 			}
 
 			CombatPC->Possess(LeaderActor);
+			CombatPC->SetControlRotation(FieldControlRotation);
 			CombatPlayerController = CombatPC;
 
 			// 필드 폰 → 전투 액터 이동 속도/입력 동기화
@@ -142,6 +144,7 @@ void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 
 	// 폴백 : CombatPlayerController 스폰 실패 시 기존 필드 PC 사용
 	PC->Possess(LeaderActor);
+	PC->SetControlRotation(FieldControlRotation);
 	CombatPlayerController = PC;
 
 	// 폴백 경로에서도 필드 폰 → 전투 액터 이동 속도/입력 동기화
@@ -326,6 +329,12 @@ void UCombatTransitionSubsystem::HandleDefeatTransition()
 
 void UCombatTransitionSubsystem::OnDefeatFadeOutComplete()
 {
+	// 전투 종료 직전 카메라 상태를 필드 복귀용 스냅샷으로 갱신
+	if (UCameraSubsystem* CamSub = GetWorld() ? GetWorld()->GetSubsystem<UCameraSubsystem>() : nullptr)
+	{
+		CamSub->SaveFieldSnapshot(CachedFieldPawn.Get());
+	}
+
 	// 주인공 캐릭터에 빙의 복귀
 	ReturnPossessionToLeader();
 
@@ -371,6 +380,12 @@ void UCombatTransitionSubsystem::OnDefeatFadeOutComplete()
 
 	// 필드 폰 복원 (허브 위치로)
 	RestoreFieldPawn(ControllerToRestore, HubLocation, FRotator::ZeroRotator, true);
+
+	// 필드 컨트롤러/폰 복원 완료 후 카메라 복원
+	if (UCameraSubsystem* CamSub = GetWorld() ? GetWorld()->GetSubsystem<UCameraSubsystem>() : nullptr)
+	{
+		CamSub->RestoreFieldSnapshot();
+	}
 	
 	// 전투 컨트롤러 파괴
 	if (CombatPCToDestroy)
@@ -466,6 +481,12 @@ void UCombatTransitionSubsystem::TickPostBattleRecovery()
 
 void UCombatTransitionSubsystem::PerformTransition(bool bUseLeaderPosition)
 {
+	// 전투 종료 직전 카메라 상태를 필드 복귀용 스냅샷으로 갱신
+	if (UCameraSubsystem* CamSub = GetWorld() ? GetWorld()->GetSubsystem<UCameraSubsystem>() : nullptr)
+	{
+		CamSub->SaveFieldSnapshot(CachedFieldPawn.Get());
+	}
+
 	// 주인공 캐릭터에 빙의 복귀
 	ReturnPossessionToLeader();
 
@@ -497,6 +518,12 @@ void UCombatTransitionSubsystem::PerformTransition(bool bUseLeaderPosition)
 
 	// 필드 폰 복원
 	RestoreFieldPawn(ControllerToRestore, LeaderFinalLocation, LeaderFinalRotation, bHasLeaderTransform);
+
+	// 필드 컨트롤러/폰 복원 완료 후 카메라 복원
+	if (UCameraSubsystem* CamSub = GetWorld() ? GetWorld()->GetSubsystem<UCameraSubsystem>() : nullptr)
+	{
+		CamSub->RestoreFieldSnapshot();
+	}
 
 	// 전투 컨트롤러 파괴
 	if (CombatPCToDestroy)
@@ -593,9 +620,26 @@ void UCombatTransitionSubsystem::RestoreFieldController(APlayerController*& OutC
 	OutControllerToRestore = nullptr;
 	OutCombatPCToDestroy = nullptr;
 
+	FRotator RestoredControlRotation = FRotator::ZeroRotator;
+	bool bHasRestoredControlRotation = false;
+
+	if (UCameraSubsystem* CamSub = GetWorld() ? GetWorld()->GetSubsystem<UCameraSubsystem>() : nullptr)
+	{
+		bHasRestoredControlRotation = CamSub->GetSavedFieldControlRotation(RestoredControlRotation);
+	}
+	if (!bHasRestoredControlRotation && IsValid(CombatPlayerController))
+	{
+		RestoredControlRotation = CombatPlayerController->GetControlRotation();
+		bHasRestoredControlRotation = true;
+		UE_LOG(LogTemp, Warning, TEXT("CombatTransitionSubsystem::RestoreFieldController : 카메라 스냅샷 회전이 없어 CombatPlayerController 회전으로 폴백합니다."));
+	}
+
 	if (IsValid(CachedFieldController) && IsValid(CombatPlayerController) && CombatPlayerController != CachedFieldController)
 	{
-		CachedFieldController->SetControlRotation(CombatPlayerController->GetControlRotation());
+		if (bHasRestoredControlRotation)
+		{
+			CachedFieldController->SetControlRotation(RestoredControlRotation);
+		}
 
 		if (AGameModeBase* GM = GetWorld()->GetAuthGameMode())
 		{
@@ -626,7 +670,10 @@ void UCombatTransitionSubsystem::RestoreFieldController(APlayerController*& OutC
 			APlayerController* NewFieldPC = World->SpawnActor<APlayerController>(GM->PlayerControllerClass, FTransform::Identity, SpawnParams);
 			if (NewFieldPC)
 			{
-				NewFieldPC->SetControlRotation(CombatPlayerController->GetControlRotation());
+				if (bHasRestoredControlRotation)
+				{
+					NewFieldPC->SetControlRotation(RestoredControlRotation);
+				}
 
 				// SwapPlayerControllers는 LocalPlayer 연결을 이전하고 기존 컨트롤러를 분리함
 				GM->SwapPlayerControllers(CombatPlayerController.Get(), NewFieldPC);

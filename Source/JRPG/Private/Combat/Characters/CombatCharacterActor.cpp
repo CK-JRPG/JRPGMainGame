@@ -66,6 +66,12 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->bOrientRotationToMovement = true;
+		MoveComp->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
+	}
 }
 
 void ACombatCharacterActor::BeginPlay()
