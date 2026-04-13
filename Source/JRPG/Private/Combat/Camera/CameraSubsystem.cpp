@@ -108,7 +108,7 @@ void UCameraSubsystem::SaveFieldSnapshot()
     FieldSnapshot.FRotator  = CameraRig->GetActorRotation();
     FieldSnapshot.ArmLength = CameraRig->SpringArm
                               ? CameraRig->SpringArm->TargetArmLength
-                              : 400.f;
+                              : 550.f;
     FieldSnapshot.Target    = CameraRig->GetCurrentTarget(); // 필드 타겟(JRPGPlayerPawn) 보관
 
     UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 필드 카메라 스냅샷 저장 완료"));
@@ -294,7 +294,7 @@ void UCameraSubsystem::RefreshEnemyList()
         }
     }
 
-    // 플레이어와의 거리 기준 정렬 (const T& 패턴 — UE5 Sort 호환)
+    // 플레이어와의 거리 기준 정렬
     const FVector PlayerLoc = PlayerPawn->GetActorLocation();
     CachedEnemies.Sort([&PlayerLoc](const TWeakObjectPtr<AActor>& A, const TWeakObjectPtr<AActor>& B)
         {
