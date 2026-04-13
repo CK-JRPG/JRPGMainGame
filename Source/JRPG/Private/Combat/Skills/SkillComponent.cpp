@@ -377,8 +377,23 @@ bool USkillComponent::CanUseSkill(FName SkillId) const
 	USkillDataAsset* Skill = GetSkillDef(SkillId);
 	if (!Skill)
 		return false;
-	
-	return ValidateCast(*Skill, TArray<AActor*>()).bOk; //b.Ok로 변경.
+
+	if (!AP.IsValid() || !SP.IsValid())
+		return false;
+
+	if (Skill->APCost > 0 && !AP->CanConsume(Skill->APCost))
+		return false;
+
+	if (Skill->SPCost > 0 && SP->GetSP() < Skill->SPCost)
+		return false;
+
+	if (GetCooldownRemaining(Skill->SkillId) > 0.f)
+		return false;
+
+	if (bHasPrepared)
+		return false;
+
+	return true;
 }
 
 void USkillComponent::RequestBasicAttack(AActor* Target)
