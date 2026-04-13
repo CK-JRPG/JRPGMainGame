@@ -30,7 +30,9 @@ void UMainMenuPresenter::ToggleMenu()
 
 void UMainMenuPresenter::OpenMenu()
 {
+	UE_LOG(LogTemp, Warning, TEXT("MainMenuPresenter::OpenMenu()"));
 	if (!MainMenuWidget || bIsOpen) return;
+	UE_LOG(LogTemp, Warning, TEXT("MainMenuPresenter::OpenMenu()"));
 	bIsOpen = true;
 	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 

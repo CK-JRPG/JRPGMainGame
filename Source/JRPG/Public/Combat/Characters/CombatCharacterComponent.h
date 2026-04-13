@@ -25,6 +25,7 @@ public:
 	FName GetCharacterId() const { return CharacterId; }
 	ECombatTeam GetTeam() const { return Team; }
 	EJRPGPartyRole GetRole() const { return Role; }
+	const UCombatCharacterDataAsset* GetCharacterData() const { return CharacterDef; }
 
 	void InitializeFromDef();
 

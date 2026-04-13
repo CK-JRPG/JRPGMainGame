@@ -1,4 +1,5 @@
 #include "Game/HubSubsystem.h"
+#include "Game/InteractableInterface.h"
 
 // ==== 허브 등록 ====
 void UHubSubsystem::RegisterHub(AActor* HubActor)
@@ -34,6 +35,12 @@ void UHubSubsystem::SetFocusedHub(AActor* HubActor)
 {
 	FocusedHub = HubActor;
 	UE_LOG(LogTemp, Log, TEXT("HubSubsystem : 포커스 허브 설정 - %s"), *GetNameSafe(HubActor));
+
+	// UI를 켜고 텍스트 전달
+	if (IInteractableInterface* InteractableTarget = Cast<IInteractableInterface>(HubActor))
+	{
+		OnInteractableTargetChanged.Broadcast(true, InteractableTarget->GetInteractText());
+	}
 }
 
 void UHubSubsystem::ClearFocusedHub(AActor* HubActor)
@@ -43,6 +50,9 @@ void UHubSubsystem::ClearFocusedHub(AActor* HubActor)
 	{
 		FocusedHub = nullptr;
 		UE_LOG(LogTemp, Log, TEXT("HubSubsystem : 포커스 허브 해제 - %s"), *GetNameSafe(HubActor));
+
+		// UI 끄기
+		OnInteractableTargetChanged.Broadcast(false, TEXT(""));
 	}
 }
 
@@ -75,11 +85,18 @@ FVector UHubSubsystem::GetRespawnLocation(const FVector& FallbackOrigin) const
 	}
 
 	// 마지막 방문 허브가 없으면 가장 가까운 허브로 폴백
-	UE_LOG(LogTemp, Warning, TEXT("HubSubsystem : 마지막 방문 허브 없음. 가장 가까운 허브로 폴백."));
-	return FindNearestHubLocation(FallbackOrigin);
+	bool bFoundNearestHub = false;
+	const FVector NearestHubLocation = FindNearestHubLocation(FallbackOrigin, bFoundNearestHub);
+	if (bFoundNearestHub)
+	{
+		return NearestHubLocation + FVector(0.f, 0.f, 100.f);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("HubSubsystem : 등록된 허브가 없어 FallbackOrigin 사용 - %s"), *FallbackOrigin.ToString());
+	return FallbackOrigin;
 }
 
-FVector UHubSubsystem::FindNearestHubLocation(const FVector& Origin) const
+FVector UHubSubsystem::FindNearestHubLocation(const FVector& Origin, bool& bOutFoundHub) const
 {
 	FVector BestLocation = FVector::ZeroVector;
 	float BestDistSq = TNumericLimits<float>::Max();
@@ -99,10 +116,6 @@ FVector UHubSubsystem::FindNearestHubLocation(const FVector& Origin) const
 		}
 	}
 
-	if (!bFound)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("HubSubsystem : 등록된 허브 위치 없음. 원점 사용."));
-	}
-
+	bOutFoundHub = bFound;
 	return BestLocation;
 }

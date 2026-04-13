@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "NiagaraComponent.h"
+#include "Game/InteractableInterface.h"
 #include "HubActor.generated.h"
 
 class USphereComponent;
@@ -14,12 +15,15 @@ class USphereComponent;
  * 실제 상호작용(E키) 입력은 JRPGPlayerController가 처리
  */
 UCLASS()
-class JRPG_API AHubActor : public AActor
+class JRPG_API AHubActor : public AActor, public IInteractableInterface
 {
 	GENERATED_BODY()
 	
 public:	
 	AHubActor();
+
+	// InteractableInterface 함수
+	virtual FString GetInteractText() const override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -44,4 +48,8 @@ private:
 	UFUNCTION()
 	void OnTriggerEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
 		UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+
+	// UI에 띄워줄 상호작용 텍스트
+	UPROPERTY(EditAnywhere, Category = "Hub|Interact")
+	FString InteractText = TEXT("휴식하기");
 };

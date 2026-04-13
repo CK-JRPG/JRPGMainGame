@@ -196,6 +196,8 @@ void UCharacterRuntimeSubsystem::ModifyHP(const FName& CharacterID, float Delta)
 
 	UE_LOG(LogTemp, Log, TEXT("CharacterRuntimeSubsystem : HP 수정 [%s] %.1f → %.1f"),
 		*CharacterID.ToString(), Snap->HP - Delta, Snap->HP);
+
+	OnHPChanged.Broadcast(CharacterID, Snap->HP, Snap->MaxHP);
 }
 
 void UCharacterRuntimeSubsystem::ModifyAP(const FName& CharacterID, int32 Delta)
@@ -204,6 +206,8 @@ void UCharacterRuntimeSubsystem::ModifyAP(const FName& CharacterID, int32 Delta)
 	if (!Snap) return;
 
 	Snap->AP = FMath::Clamp(Snap->AP + Delta, 0, Snap->MaxAP);
+
+	OnAPChanged.Broadcast(CharacterID, Snap->AP, Snap->MaxAP);
 }
 
 void UCharacterRuntimeSubsystem::ModifySP(const FName& CharacterID, int32 Delta)
@@ -212,6 +216,8 @@ void UCharacterRuntimeSubsystem::ModifySP(const FName& CharacterID, int32 Delta)
 	if (!Snap) return;
 
 	Snap->SP = FMath::Clamp(Snap->SP + Delta, 0, Snap->MaxSP);
+
+	OnSPChanged.Broadcast(CharacterID, Snap->SP, Snap->MaxSP);
 }
 
 const FCharacterResourceSnapshot* UCharacterRuntimeSubsystem::GetSnapshot(const FName& CharacterID) const

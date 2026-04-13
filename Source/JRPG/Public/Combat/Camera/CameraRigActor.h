@@ -44,7 +44,8 @@ public:
 public:
 	void AdjustZoom(float Delta);
 	void ResetZoom();
-	
+	void SetArmLength(float NewArmLength, bool bApplyImmediately = true);
+
 private:
 	UPROPERTY()
 	TWeakObjectPtr<AActor> TargetActor;
