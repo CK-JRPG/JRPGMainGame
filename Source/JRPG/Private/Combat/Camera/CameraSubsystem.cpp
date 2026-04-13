@@ -108,7 +108,7 @@ void UCameraSubsystem::SaveFieldSnapshot()
     FieldSnapshot.FRotator  = CameraRig->GetActorRotation();
     FieldSnapshot.ArmLength = CameraRig->SpringArm
                               ? CameraRig->SpringArm->TargetArmLength
-                              : 400.f;
+                              : 550.f;
     FieldSnapshot.Target    = CameraRig->GetCurrentTarget(); // 필드 타겟(JRPGPlayerPawn) 보관
 
     UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 필드 카메라 스냅샷 저장 완료"));
@@ -125,11 +125,13 @@ void UCameraSubsystem::RestoreFieldSnapshot()
 
     // CameraRig 위치/회전 즉시 복원 (박용석 : 회전은 ControlRotation 동기화쪽에서 전환)
     CameraRig->SetActorLocation(FieldSnapshot.FLocation);
+    CameraRig->SetActorRotation(FieldSnapshot.FRotator);
     if (CameraRig->SpringArm)
-        CameraRig->SpringArm->TargetArmLength = FieldSnapshot.ArmLength;
+    {
+        CameraRig->SetArmLength(FieldSnapshot.ArmLength, true);
+    }
 
-    ResetZoom(); // 전투 종료 후 카메라 줌 초기화
-    SetTarget(FieldSnapshot.Target.Get());
+    SetTargetSmooth(FieldSnapshot.Target.Get());
 
     UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 필드 카메라 스냅샷 복원 완료"));
 }
@@ -292,7 +294,7 @@ void UCameraSubsystem::RefreshEnemyList()
         }
     }
 
-    // 플레이어와의 거리 기준 정렬 (const T& 패턴 — UE5 Sort 호환)
+    // 플레이어와의 거리 기준 정렬
     const FVector PlayerLoc = PlayerPawn->GetActorLocation();
     CachedEnemies.Sort([&PlayerLoc](const TWeakObjectPtr<AActor>& A, const TWeakObjectPtr<AActor>& B)
         {
@@ -325,5 +327,5 @@ void UCameraSubsystem::OnCharacterPossessed(AActor* NewCharacter)
     if (bLockedOn)
         return;
 
-    SetTarget(NewCharacter);
+    SetTargetSmooth(NewCharacter);
 }
