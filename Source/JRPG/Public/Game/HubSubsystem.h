@@ -38,7 +38,7 @@ public:
 	
 private:
 	// 가장 가까운 허브 위치 검색 (폴백용)
-	FVector FindNearestHubLocation(const FVector& Origin) const;
+	FVector FindNearestHubLocation(const FVector& Origin, bool& bOutFoundHub) const;
 	
 	// 나중에 전체 허브 목록이 필요할거 같아서 제작했음.
 	// 예) 패스트 트래블 UI, 미니맵 허브 표시

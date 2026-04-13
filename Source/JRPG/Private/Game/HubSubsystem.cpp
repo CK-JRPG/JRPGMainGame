@@ -85,11 +85,18 @@ FVector UHubSubsystem::GetRespawnLocation(const FVector& FallbackOrigin) const
 	}
 
 	// 마지막 방문 허브가 없으면 가장 가까운 허브로 폴백
-	UE_LOG(LogTemp, Warning, TEXT("HubSubsystem : 마지막 방문 허브 없음. 가장 가까운 허브로 폴백."));
-	return FindNearestHubLocation(FallbackOrigin);
+	bool bFoundNearestHub = false;
+	const FVector NearestHubLocation = FindNearestHubLocation(FallbackOrigin, bFoundNearestHub);
+	if (bFoundNearestHub)
+	{
+		return NearestHubLocation + FVector(0.f, 0.f, 100.f);
+	}
+
+	UE_LOG(LogTemp, Warning, TEXT("HubSubsystem : 등록된 허브가 없어 FallbackOrigin 사용 - %s"), *FallbackOrigin.ToString());
+	return FallbackOrigin;
 }
 
-FVector UHubSubsystem::FindNearestHubLocation(const FVector& Origin) const
+FVector UHubSubsystem::FindNearestHubLocation(const FVector& Origin, bool& bOutFoundHub) const
 {
 	FVector BestLocation = FVector::ZeroVector;
 	float BestDistSq = TNumericLimits<float>::Max();
@@ -109,10 +116,6 @@ FVector UHubSubsystem::FindNearestHubLocation(const FVector& Origin) const
 		}
 	}
 
-	if (!bFound)
-	{
-		UE_LOG(LogTemp, Warning, TEXT("HubSubsystem : 등록된 허브 위치 없음. 원점 사용."));
-	}
-
+	bOutFoundHub = bFound;
 	return BestLocation;
 }
