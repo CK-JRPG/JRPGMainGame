@@ -125,11 +125,13 @@ void UCameraSubsystem::RestoreFieldSnapshot()
 
     // CameraRig 위치/회전 즉시 복원 (박용석 : 회전은 ControlRotation 동기화쪽에서 전환)
     CameraRig->SetActorLocation(FieldSnapshot.FLocation);
+    CameraRig->SetActorRotation(FieldSnapshot.FRotator);
     if (CameraRig->SpringArm)
-        CameraRig->SpringArm->TargetArmLength = FieldSnapshot.ArmLength;
+    {
+        CameraRig->SetArmLength(FieldSnapshot.ArmLength, true);
+    }
 
-    ResetZoom(); // 전투 종료 후 카메라 줌 초기화
-    SetTarget(FieldSnapshot.Target.Get());
+    SetTargetSmooth(FieldSnapshot.Target.Get());
 
     UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 필드 카메라 스냅샷 복원 완료"));
 }
@@ -325,5 +327,5 @@ void UCameraSubsystem::OnCharacterPossessed(AActor* NewCharacter)
     if (bLockedOn)
         return;
 
-    SetTarget(NewCharacter);
+    SetTargetSmooth(NewCharacter);
 }
