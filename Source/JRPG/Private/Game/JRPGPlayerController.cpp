@@ -59,6 +59,16 @@ void AJRPGPlayerController::OnPossess(APawn* InPawn)
 
 void AJRPGPlayerController::OnUnPossess()
 {
+	// 빙의 해제 전 폰의 이동 입력 상태 초기화 (전투 전환 시 잔존 입력 방지)
+	if (APawn* pawn = GetPawn())
+	{
+		if (ULocomotionComponent* Loco = pawn->FindComponentByClass<ULocomotionComponent>())
+		{
+			Loco->SetMoveInput(FVector2D::ZeroVector);
+			Loco->SetSprint(false);
+		}
+	}
+
 	Super::OnUnPossess();
 }
 

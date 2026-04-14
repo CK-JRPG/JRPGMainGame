@@ -3,6 +3,7 @@
 #include "Combat/Battle/EnemyEncounterComponent.h"
 
 #include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Characters/CombatCharacterActor.h"
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Characters/CombatTransitionSubsystem.h"
@@ -82,6 +83,12 @@ void UEnemyEncounterComponent::OnTriggerOverlap(UPrimitiveComponent* OverlappedC
 	if (UBattleSessionSubsystem* BattleSub = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
 	{
 		if (BattleSub->IsBattleActive()) return;
+	}
+
+	// 전투 → 필드 전환 중이면 무시 (전환 직후 인카운터 재발동 방지)
+	if (UCombatTransitionSubsystem* TransSub = GetWorld()->GetSubsystem<UCombatTransitionSubsystem>())
+	{
+		if (TransSub->IsTransitioning()) return;
 	}
 
 	AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(OtherActor);
@@ -264,6 +271,16 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 	{
 		UE_LOG(LogTemp, Log, TEXT("EncounterComponent : BattleSession 시작 실패, 기능 점검 다시 "));
 		bHasTriggered = false;
+
+		// 배틀 시작 실패 시 이미 스폰된 플레이어 CombatCharacterActor 정리
+		if (UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
+		{
+			TArray<ACombatCharacterActor*> Actors = SpawnSub->GetSpawnedActors();
+			if (Actors.Num() > 0)
+			{
+				SpawnSub->DespawnCombatActors(Actors);
+			}
+		}
 	}
 }
 

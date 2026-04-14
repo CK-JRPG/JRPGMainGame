@@ -1,4 +1,4 @@
-// Copyright 2022 (c) Microsoft. All rights reserved.
+﻿// Copyright 2022 (c) Microsoft. All rights reserved.
 
 #include "VisualStudioToolsCommandlet.h"
 

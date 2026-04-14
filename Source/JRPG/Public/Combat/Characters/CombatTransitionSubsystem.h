@@ -38,6 +38,10 @@ public:
 
 	void SetCombatControllerClass(TSubclassOf<APlayerController> InClass);
 
+	// 전환 중 여부 반환 (인카운터 트리거에서 사용)
+	bool IsTransitioning() const { return bIsTransitioning; }
+
+
 private:
 	// 승리/패배 분기 처리
 	void HandleVictoryTransition();
@@ -88,6 +92,10 @@ private:
 	// 패배 처리용 타이머
 	FTimerHandle DefeatFadeOutTimerHandle;
 	FTimerHandle DefeatFadeInTimerHandle;
+
+	// 전투 -> 필드 전환 중 인카운터 재발동 방지 플래그
+	bool bIsTransitioning = false;
+	FTimerHandle EncounterImmuneTimerHandle;
 	
 	// 승리 후 회복용 타이머
 	FTimerHandle PostBattleRecoveryTimerHandle;

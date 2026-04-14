@@ -172,11 +172,15 @@ void UCombatTransitionSubsystem::SyncMovementStateToLeader(APawn* FieldPawn, ACo
 
 	if (ULocomotionComponent* FieldLoco = FieldPawn->FindComponentByClass<ULocomotionComponent>())
 	{
-		if (ULocomotionComponent* CombatLoco = LeaderActor->FindComponentByClass<ULocomotionComponent>())
-		{
-			CombatLoco->SetMoveInput(FieldLoco->GetMoveInput());
-			CombatLoco->SetSprint(FieldLoco->IsSprinting());
-		}
+		FieldLoco->SetMoveInput(FVector2D::ZeroVector);
+		FieldLoco->SetSprint(false);
+	}
+
+	// 전투 캐릭터의 입력도 제로로 초기화 (깨끗한 상태로 시작)
+	if (ULocomotionComponent* CombatLoco = LeaderActor->FindComponentByClass<ULocomotionComponent>())
+	{
+		CombatLoco->SetMoveInput(FVector2D::ZeroVector);
+		CombatLoco->SetSprint(false);
 	}
 }
 
@@ -267,6 +271,8 @@ void UCombatTransitionSubsystem::OnBattleEnded(EBattleEndReason Reason)
 		UE_LOG(LogTemp, Error, TEXT("CombatTransitionSubsystem::OnBattleEnded : OriginalPlayerCharacterID 미설정."));
 		return;
 	}
+
+	bIsTransitioning = true;
 
 	if (Reason == EBattleEndReason::Victory)
 	{
@@ -748,6 +754,20 @@ void UCombatTransitionSubsystem::ResetTransitionState()
 	OriginalPlayerCharacterID  = NAME_None;
 	CurrentPlayerCharacterID   = NAME_None;
 	CachedFieldPawn            = nullptr;
+
+	// 짧은 딜레이 후 전환 면역 해제 (동일 프레임 오버랩 이벤트 방지)
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(EncounterImmuneTimerHandle);
+		World->GetTimerManager().SetTimer(EncounterImmuneTimerHandle, [this]()
+		{
+			bIsTransitioning = false;
+		}, 0.5f, false);
+	}
+	else
+	{
+		bIsTransitioning = false;
+	}
 }
 
 void UCombatTransitionSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason Reason)
