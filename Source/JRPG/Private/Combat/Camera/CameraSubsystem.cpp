@@ -4,6 +4,7 @@
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Battle/BattleSessionTypes.h"
 #include "EngineUtils.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 
 void UCameraSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -100,7 +101,7 @@ void UCameraSubsystem::SetTargetSmooth(AActor* NewTarget)
 }
 
 
-void UCameraSubsystem::SaveFieldSnapshot()
+void UCameraSubsystem::SaveFieldSnapshot(AActor* OverrideTarget)
 {
     if (!CameraRig.IsValid()) return;
 
@@ -109,7 +110,14 @@ void UCameraSubsystem::SaveFieldSnapshot()
     FieldSnapshot.ArmLength = CameraRig->SpringArm
                               ? CameraRig->SpringArm->TargetArmLength
                               : 550.f;
-    FieldSnapshot.Target    = CameraRig->GetCurrentTarget(); // 필드 타겟(JRPGPlayerPawn) 보관
+    FieldSnapshot.Target = OverrideTarget ? OverrideTarget : CameraRig->GetCurrentTarget();
+    FieldSnapshot.bHasControlRotation = false;
+
+    if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+    {
+        FieldSnapshot.ControlRotation = PC->GetControlRotation();
+        FieldSnapshot.bHasControlRotation = true;
+    }
 
     UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 필드 카메라 스냅샷 저장 완료"));
 }
@@ -123,7 +131,15 @@ void UCameraSubsystem::RestoreFieldSnapshot()
         return;
     }
 
-    // CameraRig 위치/회전 즉시 복원 (박용석 : 회전은 ControlRotation 동기화쪽에서 전환)
+    if (FieldSnapshot.bHasControlRotation)
+    {
+        if (APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr)
+        {
+            PC->SetControlRotation(FieldSnapshot.ControlRotation);
+        }
+    }
+
+    // (가능한 경우) ControlRotation 동기화 후 CameraRig 위치/회전/거리 복원
     CameraRig->SetActorLocation(FieldSnapshot.FLocation);
     CameraRig->SetActorRotation(FieldSnapshot.FRotator);
     if (CameraRig->SpringArm)
@@ -134,6 +150,17 @@ void UCameraSubsystem::RestoreFieldSnapshot()
     SetTargetSmooth(FieldSnapshot.Target.Get());
 
     UE_LOG(LogTemp, Log, TEXT("UCameraSubsystem: 필드 카메라 스냅샷 복원 완료"));
+}
+
+bool UCameraSubsystem::GetSavedFieldControlRotation(FRotator& OutControlRotation) const
+{
+    if (!FieldSnapshot.bHasControlRotation)
+    {
+        return false;
+    }
+
+    OutControlRotation = FieldSnapshot.ControlRotation;
+    return true;
 }
 
 void UCameraSubsystem::AdjustZoom(float NormalizedDelta)
@@ -318,8 +345,6 @@ void UCameraSubsystem::OnBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/,
     {
         CameraRig->ClearLockOnTarget();
     }
-
-    RestoreFieldSnapshot();
 }
 
 void UCameraSubsystem::OnCharacterPossessed(AActor* NewCharacter)

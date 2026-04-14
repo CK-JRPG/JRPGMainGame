@@ -73,7 +73,6 @@ void ACameraRigActor::SetCameraTarget(AActor* NewTarget)
 
 void ACameraRigActor::AdjustZoom(float Delta)
 {
-	ArmLength = FMath::Clamp(ArmLength + Delta, MinArmLength, MaxArmLength);
 	SetArmLength(ArmLength + Delta, false);
 	UE_LOG(LogTemp, Warning, TEXT("Adjusting : Delta=%f , Zoom=%f"), Delta, ArmLength);
 }
