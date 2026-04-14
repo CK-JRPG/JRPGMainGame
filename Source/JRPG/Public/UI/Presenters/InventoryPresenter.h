@@ -24,6 +24,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UI|Presenter")
 	bool IsMenuOpen() const { return bIsOpen; }
 
+	UFUNCTION(BlueprintCallable)
+	void HandleItemAction(FGuid InstanceId, AActor* TargetCharacter);
+
 private:
 	UPROPERTY() TObjectPtr<UUserWidget> MenuWidgetInstance;
 	UPROPERTY() TObjectPtr<UInventoryViewModel> InventoryViewModel;
