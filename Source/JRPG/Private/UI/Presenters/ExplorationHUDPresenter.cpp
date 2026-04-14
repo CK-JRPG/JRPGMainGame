@@ -86,10 +86,15 @@ void UExplorationHUDPresenter::TogglePartyInfo()
 
 void UExplorationHUDPresenter::StartPostCombatRegenUI(float Duration)
 {
-	// Tab 창이 켜져있다면 회복 UI 연출을 띄울 필요가 없습니다.
-	if (bIsTabInfoOpen) return;
+	//UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::StartPostCombatRegenUI"));
+	if (bIsTabInfoOpen)
+	{
+		return;
+	}
+
 
 	bIsPostCombatRegenActive = true;
+	//UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::StartPostCombatRegenUI : Update Party Status UI"));
 	UpdatePartyStatusUI();
 
 	// N초 뒤에 UI를 끄는 타이머 설정
@@ -149,10 +154,8 @@ void UExplorationHUDPresenter::RefreshPartyStatusData()
 		SlotVM->OnHPUIUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotHPUpdated, SlotWidget);
 		SlotVM->OnAPUIUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotAPUpdated, SlotWidget);
 
-		// 액터 대신 ID를 주입!
 		SlotVM->BindToCharacter(CharID);
 
-		// 패널에 추가
 		PartyViewModels.Add(SlotVM);
 		RosterPanel->AddPartySlot(SlotWidget);
 	}
@@ -193,6 +196,7 @@ void UExplorationHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Sna
 void UExplorationHUDPresenter::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason)
 {
 	ShowExplorationUI();
+	StartPostCombatRegenUI();
 }
 
 void UExplorationHUDPresenter::UpdatePartyStatusUI()
@@ -205,6 +209,7 @@ void UExplorationHUDPresenter::UpdatePartyStatusUI()
 	}
 	else if (bIsPostCombatRegenActive)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::UpdatePartyStatusUI : 전투 종료 후 파티 스탯 표시"));
 		ExplorationWidget->SetPartyStatusMode(1); // 회복 모드 (체력 위주 표시)
 	}
 	else
