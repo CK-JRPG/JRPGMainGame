@@ -98,12 +98,121 @@ bool UCombatAIActionSelectorComponent::CanAffordSkill(const USkillDataAsset &Ski
 
 USkillDataAsset* UCombatAIActionSelectorComponent::PickBestHealSkill(TArray<AActor*>& OutTargets) const
 {
-	return nullptr;
+	if (!SkillComp.IsValid())
+		return nullptr;
+
+	UCombatTargetingSubsystem* Targeting = GetTargeting();
+	if (!Targeting)
+		return nullptr;
+
+	// 아군 중 HP가 HealThresholdRatio 이하인 대상이 있는지 먼저 확인
+	UBattleSessionSubsystem* Battle = GetBattle();
+	if (!Battle)
+		return nullptr;
+
+	TArray<AActor*> Allies;
+	Battle->GetAlliesFor(GetOwner(), Allies);
+	if (!Allies.Contains(GetOwner()))
+		Allies.Add(GetOwner());
+
+	bool bNeedHeal = false;
+	for (AActor* Ally : Allies)
+	{
+		if (GetHPRatio(Ally) <= HealThresholdRatio)
+		{
+			bNeedHeal = true;
+			break;
+		}
+	}
+
+	if (!bNeedHeal)
+		return nullptr;
+
+	// KnownSkills에서 힐 스킬 중 사용 가능한 최고의 스킬 선택
+	USkillDataAsset* BestSkill = nullptr;
+	float BestHealPower = 0.f;
+	TArray<AActor*> BestTargets;
+
+	for (USkillDataAsset* Skill : SkillComp->KnownSkills)
+	{
+		if (!Skill || Skill->HealPower <= 0.f)
+			continue;
+
+		if (!CanAffordSkill(*Skill))
+			continue;
+
+		const FTargetingResult Result = Targeting->ResolvePreferredTargetsForSkill(GetOwner(), Skill);
+		if (!Result.bOk || Result.Targets.Num() <= 0)
+			continue;
+
+		if (Skill->HealPower > BestHealPower)
+		{
+			BestHealPower = Skill->HealPower;
+			BestSkill = Skill;
+			BestTargets.Reset();
+			for (const TWeakObjectPtr<AActor>& T : Result.Targets)
+			{
+				if (T.IsValid())
+					BestTargets.Add(T.Get());
+			}
+		}
+	}
+
+	if (BestSkill)
+	{
+		OutTargets = MoveTemp(BestTargets);
+	}
+
+	return BestSkill;
 }
 
 USkillDataAsset* UCombatAIActionSelectorComponent::PickBestOffensiveSkill(TArray<AActor*>& OutTargets) const
 {
-	return nullptr;
+	if (!SkillComp.IsValid())
+		return nullptr;
+
+	UCombatTargetingSubsystem* Targeting = GetTargeting();
+	if (!Targeting)
+		return nullptr;
+
+	USkillDataAsset* BestSkill = nullptr;
+	float BestScore = 0.f;
+	TArray<AActor*> BestTargets;
+
+	for (USkillDataAsset* Skill : SkillComp->KnownSkills)
+	{
+		if (!Skill || Skill->BasePower <= 0.f)
+			continue;
+
+		if (!CanAffordSkill(*Skill))
+			continue;
+
+		const FTargetingResult Result = Targeting->ResolvePreferredTargetsForSkill(GetOwner(), Skill);
+		if (!Result.bOk || Result.Targets.Num() <= 0)
+			continue;
+
+		// BasePower * AttackScale 기반 점수, AoE는 타겟 수 보너스
+		const float Score = Skill->BasePower * Skill->AttackScale * FMath::Max(1, Result.Targets.Num());
+
+		if (Score > BestScore)
+		{
+			BestScore = Score;
+			BestSkill = Skill;
+			BestTargets.Reset();
+			for (const TWeakObjectPtr<AActor>& T : Result.Targets)
+			{
+				if (T.IsValid())
+					BestTargets.Add(T.Get());
+			}
+		}
+	}
+
+	if (BestSkill)
+	{
+		OutTargets = MoveTemp(BestTargets);
+	}
+
+	return BestSkill;
 }
 
 // PickBestHealSkill / PickBestOffensiveSkill는 이전 버전 그대로 사용 가능
