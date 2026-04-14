@@ -8,6 +8,8 @@
 #include "Combat/Motion/CombatMotionTypes.h"
 #include "CombatCharacterDataAsset.generated.h"
 
+class USkillDataAsset;
+
 USTRUCT()
 struct FCharacterBaseParams
 {
@@ -51,7 +53,10 @@ public:
 	UPROPERTY(EditAnywhere) FName BasicAttackHitCueTag = "Attack.Hit";
 	UPROPERTY(EditAnywhere) FName BasicAttackFinishCueTag = "Attack.Finish";
 
+	// 스킬 ID만 보관 (에디터에서 KnownSkills에 이미 DA가 있을 때 해금 용도)
 	UPROPERTY(EditAnywhere) TArray<FName> StartingSkillIds;
+	// DA 직접 레퍼런스 (이 배열에 넣으면 BeginPlay 시 자동으로 LearnSkill 호출)
+	UPROPERTY(EditAnywhere) TArray<TObjectPtr<USkillDataAsset>> StartingSkills;
 	UPROPERTY(EditAnywhere) TMap<FName,int32> StartingItems;
 
 	UPROPERTY(EditAnywhere) bool bHasBasicAttackMotion = false;
