@@ -16,7 +16,6 @@ void AJRPGHUD::BeginPlay()
         MainMenuPresenter->Initialize(GetWorld(), MainMenuWidgetClass);
         MainMenuPresenter->OnTabSelected.AddUObject(this, &AJRPGHUD::OnMainMenuTabSelected);
 
-        // 2. 인벤토리 프레젠터 초기화 (메인 메뉴 안의 위젯을 넘겨줌)
         if (UMainMenuUIWidget* MenuUI = MainMenuPresenter->GetWidget())
         {
             InventoryPresenter = NewObject<UInventoryPresenter>(this);
@@ -31,6 +30,7 @@ void AJRPGHUD::BeginPlay()
     // 전투 UI 프레젠터 초기화 (파티, 스탯)
     CombatPresenter = NewObject<UCombatHUDPresenter>(this);
     CombatPresenter->Initialize(GetWorld(), CombatWidgetClass, TacticalWidgetClass);
+    if (CombatPresenter) CombatPresenter->DamageTextClass = DamageTextClass;
 }
 
 void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
