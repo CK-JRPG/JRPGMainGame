@@ -8,6 +8,7 @@
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 
 #include "GameFramework/Pawn.h"
@@ -32,6 +33,8 @@ void UCombatPartyAIComponent::BeginPlay()
 	Scorer->Initialize(FGetSkillAIMetaDelegate::CreateUObject(
 		this, &UCombatPartyAIComponent::ResolveSkillMeta
 	));
+
+	CachedPresentation = GetOwner() ? GetOwner()->FindComponentByClass<UCombatPresentationComponent>() : nullptr;
 
 	LoadRangeParams();
 }
@@ -316,20 +319,25 @@ FJRPGCombatAIAction UCombatPartyAIComponent::ChooseBestAction() const
 
 void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 {
-	if (!Context->SkillComp.IsValid()) return;
-
 	if (Action.Type == EJRPGCombatAIActionType::Wait) return;
 
 	if (Action.Type == EJRPGCombatAIActionType::BasicAttack)
 	{
-		Context->SkillComp->RequestBasicAttack(Action.Target.Get());
+		if (CachedPresentation.IsValid() && Action.Target.IsValid())
+		{
+			CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
+		}		
 		return;
 	}
 
 	if (Action.Type == EJRPGCombatAIActionType::UseSkill)
 	{
-		UE_LOG(LogTemp, Log, TEXT("UseSkill"));
-		Context->SkillComp->RequestUseSkillByAI(Action.SkillId, Action.Target.Get());
+		if (CachedPresentation.IsValid() && Action.Target.IsValid())
+		{
+			TArray<AActor*> Targets;
+			Targets.Add(Action.Target.Get());
+			CachedPresentation->TryPresentSkill(Action.SkillId, Targets, false);
+		}
 		return;
 	}
 }
