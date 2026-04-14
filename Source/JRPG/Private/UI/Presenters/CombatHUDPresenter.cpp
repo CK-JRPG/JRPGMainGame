@@ -89,6 +89,7 @@ void UCombatHUDPresenter::Shutdown()
 
     if (CombatWidget) { CombatWidget->RemoveFromParent(); CombatWidget = nullptr; }
     if (TacticalWidget) { TacticalWidget->RemoveFromParent(); TacticalWidget = nullptr; }
+    DamageTextPool.Empty();
 }
 
 void UCombatHUDPresenter::ShowDamageText(AActor* Target, float Damage, bool bIsCritical)
@@ -97,14 +98,40 @@ void UCombatHUDPresenter::ShowDamageText(AActor* Target, float Damage, bool bIsC
     UCanvasPanel* Canvas = CombatWidget->GetDamageCanvas();
     if (!Canvas) return;
 
-    UDamageTextWidget* DmgWidget = CreateWidget<UDamageTextWidget>(GetWorld(), DamageTextClass);
-    if (DmgWidget) {
-        Canvas->AddChild(DmgWidget);
-        DmgWidget->InitializeDamage(Target, Damage, bIsCritical);
-        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(DmgWidget->Slot)) {
-            Slot->SetAlignment(FVector2D(0.5f, 0.5f));
-            Slot->SetAutoSize(true);
+    UDamageTextWidget* DmgWidget = nullptr;
+
+    if (DamageTextPool.Num() > 0)
+    {
+        DmgWidget = DamageTextPool.Pop();
+    }
+    else
+    {
+        DmgWidget = CreateWidget<UDamageTextWidget>(GetWorld(), DamageTextClass);
+        if (DmgWidget)
+        {
+            Canvas->AddChild(DmgWidget);
+            if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(DmgWidget->Slot))
+            {
+                Slot->SetAlignment(FVector2D(0.5f, 0.5f));
+                Slot->SetAutoSize(true);
+            }
+
+            DmgWidget->OnDamageTextFinished.BindUObject(this, &UCombatHUDPresenter::ReturnDamageTextToPool);
         }
+    }
+
+    if (DmgWidget)
+    {
+        DmgWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+        DmgWidget->InitializeDamage(Target, Damage, bIsCritical);
+    }
+}
+
+void UCombatHUDPresenter::ReturnDamageTextToPool(UDamageTextWidget* Widget)
+{
+    if (Widget)
+    {
+        DamageTextPool.Add(Widget);
     }
 }
 

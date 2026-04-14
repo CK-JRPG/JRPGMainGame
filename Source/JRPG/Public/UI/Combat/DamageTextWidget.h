@@ -4,12 +4,16 @@
 #include "Blueprint/UserWidget.h"
 #include "DamageTextWidget.generated.h"
 
+DECLARE_DELEGATE_OneParam(FOnDamageTextFinished, class UDamageTextWidget*);
+
 UCLASS()
 class JRPG_API UDamageTextWidget : public UUserWidget
 {
 	GENERATED_BODY()
 public:
     void InitializeDamage(AActor* InTarget, float DamageAmount, bool bIsCritical);
+
+    FOnDamageTextFinished OnDamageTextFinished;
 
 protected:
     virtual void NativeTick(const FGeometry& MyGeometry, float InDeltaTime) override;

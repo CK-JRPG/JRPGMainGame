@@ -27,6 +27,11 @@ private:
     UPROPERTY() TArray<TObjectPtr<class UCombatPartySlotViewModel>> PartyVMs;
     UPROPERTY() TArray<TObjectPtr<class UEnemyViewModel>> EnemyHPBarVMs;
 
+    UPROPERTY()
+    TArray<TObjectPtr<class UDamageTextWidget>> DamageTextPool;
+
+    void ReturnDamageTextToPool(class UDamageTextWidget* Widget);
+
     void OnBattleStarted(const FBattleSessionSnapshot& Snapshot);
     void OnBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);
 
