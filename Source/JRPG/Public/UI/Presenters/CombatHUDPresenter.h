@@ -16,6 +16,9 @@ public:
     void Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass);
     void Shutdown();
 
+    void ShowDamageText(AActor* Target, float Damage, bool bIsCritical);
+    UPROPERTY() TSubclassOf<class UDamageTextWidget> DamageTextClass;
+
 private:
     UPROPERTY() TObjectPtr<UCombatUIWidget> CombatWidget;
     UPROPERTY() TObjectPtr<UTacticalUIWidget> TacticalWidget;

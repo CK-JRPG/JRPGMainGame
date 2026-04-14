@@ -7,11 +7,14 @@
 #include "UI/Combat/EnemyHPBarWidget.h"
 #include "UI/Combat/TacticalUIWidget.h"
 #include "UI/ViewModels/CombatViewModels.h"
+#include "UI/Combat/DamageTextWidget.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
 #include "Combat/Tactical/TacticalModeSubsystem.h"
 #include "Components/WidgetComponent.h"
+#include "Components/CanvasPanel.h"
+#include "Components/CanvasPanelSlot.h"
 #include "Kismet/GameplayStatics.h"
 
 void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass)
@@ -86,6 +89,23 @@ void UCombatHUDPresenter::Shutdown()
 
     if (CombatWidget) { CombatWidget->RemoveFromParent(); CombatWidget = nullptr; }
     if (TacticalWidget) { TacticalWidget->RemoveFromParent(); TacticalWidget = nullptr; }
+}
+
+void UCombatHUDPresenter::ShowDamageText(AActor* Target, float Damage, bool bIsCritical)
+{
+    if (!CombatWidget || !DamageTextClass || !Target) return;
+    UCanvasPanel* Canvas = CombatWidget->GetDamageCanvas();
+    if (!Canvas) return;
+
+    UDamageTextWidget* DmgWidget = CreateWidget<UDamageTextWidget>(GetWorld(), DamageTextClass);
+    if (DmgWidget) {
+        Canvas->AddChild(DmgWidget);
+        DmgWidget->InitializeDamage(Target, Damage, bIsCritical);
+        if (UCanvasPanelSlot* Slot = Cast<UCanvasPanelSlot>(DmgWidget->Slot)) {
+            Slot->SetAlignment(FVector2D(0.5f, 0.5f));
+            Slot->SetAutoSize(true);
+        }
+    }
 }
 
 void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot)

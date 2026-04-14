@@ -38,6 +38,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UI|Presenter")
 	UInventoryPresenter* GetInventoryPresenter() const { return InventoryPresenter; }
 
+	UFUNCTION(BlueprintPure) class UCombatHUDPresenter* GetCombatPresenter() const { return CombatPresenter; }
+	UPROPERTY(EditDefaultsOnly, Category = "UI|Classes") TSubclassOf<class UDamageTextWidget> DamageTextClass;
+
 	// 플레이어 컨트롤러에서 호출할 메뉴 토글 함수
 	void ToggleMainMenu();
 
