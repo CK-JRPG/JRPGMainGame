@@ -24,10 +24,12 @@ private:
     UPROPERTY() TObjectPtr<UCombatUIWidget> CombatWidget;
     UPROPERTY() TObjectPtr<UTacticalUIWidget> TacticalWidget;
     UPROPERTY() TObjectPtr<class UActionPaletteViewModel> ActionPaletteVM;
+
     UPROPERTY() TObjectPtr<class UEnemyViewModel> TargetVM;
     UPROPERTY() TArray<TObjectPtr<class UCombatPartySlotViewModel>> PartyVMs;
     UPROPERTY() TArray<TObjectPtr<class UEnemyViewModel>> EnemyHPBarVMs;
     UPROPERTY() TArray<TObjectPtr<class UDamageTextWidget>> DamageTextPool;
+    UPROPERTY() TArray<TObjectPtr<class UCombatPartySlotViewModel>> TagSwapVMs;
 
     void ReturnDamageTextToPool(class UDamageTextWidget* Widget);
 
