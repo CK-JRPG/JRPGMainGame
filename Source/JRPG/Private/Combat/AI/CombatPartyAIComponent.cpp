@@ -15,6 +15,7 @@
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
+#include "Combat/Stats/HPComponent.h"
 
 UCombatPartyAIComponent::UCombatPartyAIComponent()
 {
@@ -84,6 +85,11 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	if (!Context || !Scorer) return;
 
+	if (Context->bSelfIsDead)
+	{
+		return;
+	}
+
 	// 플레이어 조작 우선
 	if (APawn* P = Cast<APawn>(GetOwner()))
 	{
@@ -137,8 +143,30 @@ void UCombatPartyAIComponent::RefreshContext()
 
 void UCombatPartyAIComponent::RefreshTarget()
 {
+	auto IsAliveTarget = [](AActor* InTarget) -> bool
+		{
+			if (!IsValid(InTarget))
+			{
+				return false;
+			}
+
+			const UHPComponent* HP = InTarget->FindComponentByClass<UHPComponent>();
+			return !HP || !HP->IsDead();
+		};
+
+	if (CurrentTarget.IsValid() && !IsAliveTarget(CurrentTarget.Get()))
+	{
+		CurrentTarget = nullptr;
+	}
+
+	if (LastAttacker.IsValid() && !IsAliveTarget(LastAttacker.Get()))
+	{
+		LastAttacker = nullptr;
+	}
+
+
 	// 자기를 마지막으로 때린 적
-	if (LastAttacker.IsValid())
+	if (LastAttacker.IsValid() && IsAliveTarget(LastAttacker.Get()))
 	{
 		CurrentTarget = LastAttacker;
 		return;
@@ -146,49 +174,51 @@ void UCombatPartyAIComponent::RefreshTarget()
 
 	// 팀원을 공격하는 적 (ThreatComponent에서 가장 위협적인 적 찾기)
 	UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
-	if (Battle)
-	{
-		TArray<AActor*> Enemies;
-		Battle->GetOpponentsFor(GetOwner(), Enemies);
-
-		// 아군 중 누군가를 때리고 있는 적을 우선
-		for (AActor* Enemy : Enemies)
+		if (Battle)
 		{
-			if (!IsValid(Enemy)) continue;
-			UThreatComponent* EnemyThreat = Enemy->FindComponentByClass<UThreatComponent>();
-			if (!EnemyThreat) continue;
+			TArray<AActor*> Enemies;
+			Battle->GetOpponentsFor(GetOwner(), Enemies);
 
-			TArray<AActor*> Allies;
-			Battle->GetAlliesFor(GetOwner(), Allies);
-
-			for (AActor* Ally : Allies)
+			// 아군 중 누군가를 때리고 있는 적을 우선
+			for (AActor* Enemy : Enemies)
 			{
-				if (EnemyThreat->GetThreat(Ally) > 0.f)
+
+				if (!IsAliveTarget(Enemy)) continue;
+				UThreatComponent* EnemyThreat = Enemy->FindComponentByClass<UThreatComponent>();
+				if (!EnemyThreat) continue;
+
+				TArray<AActor*> Allies;
+				Battle->GetAlliesFor(GetOwner(), Allies);
+
+				for (AActor* Ally : Allies)
 				{
-					CurrentTarget = Enemy;
-					return;
+					if (EnemyThreat->GetThreat(Ally) > 0.f)
+					{
+						CurrentTarget = Enemy;
+						return;
+					}
 				}
 			}
-		}
 
-		// 가장 가까운 적
-		float ClosestDist = MAX_FLT;
-		AActor* ClosestEnemy = nullptr;
-		for (AActor* Enemy : Enemies)
-		{
-			if (!IsValid(Enemy)) continue;
-			const float Dist = FVector::Dist2D(GetOwner()->GetActorLocation(), Enemy->GetActorLocation());
-			if (Dist < ClosestDist)
+			// 가장 가까운 적
+			float ClosestDist = MAX_FLT;
+			AActor* ClosestEnemy = nullptr;
+			for (AActor* Enemy : Enemies)
 			{
-				ClosestDist = Dist;
-				ClosestEnemy = Enemy;
+
+				if (!IsAliveTarget(Enemy)) continue;
+				const float Dist = FVector::Dist2D(GetOwner()->GetActorLocation(), Enemy->GetActorLocation());
+				if (Dist < ClosestDist)
+				{
+					ClosestDist = Dist;
+					ClosestEnemy = Enemy;
+				}
+			}
+			if (ClosestEnemy)
+			{
+				CurrentTarget = ClosestEnemy;
 			}
 		}
-		if (ClosestEnemy)
-		{
-			CurrentTarget = ClosestEnemy;
-		}
-	}
 }
 
 void UCombatPartyAIComponent::UpdateStateMachine()

@@ -7,6 +7,8 @@
 #include "Combat/AI/CombatAIPresetAsset.h"
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
+#include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Stats/HPComponent.h"
 
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Character.h"
@@ -50,6 +52,13 @@ void AEnemyAIController::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 
 	if (!ControlledPawn) return;
+
+	if (const UHPComponent* SelfHP = ControlledPawn->FindComponentByClass<UHPComponent>(); SelfHP && SelfHP->IsDead())
+	{
+		StopMovement();
+		State = EEnemyCombatState::Idle;
+		return;
+	}
 
 	RefreshStateFromGroggyAndChain();
 
@@ -129,12 +138,58 @@ void AEnemyAIController::RefreshStateFromGroggyAndChain()
 
 void AEnemyAIController::RefreshTarget()
 {
-	if (!ThreatComp) return;
+	auto IsAliveTarget = [](AActor* InTarget) -> bool
+		{
+			if (!IsValid(InTarget))
+			{
+				return false;
+			}
+			const UHPComponent* HP = InTarget->FindComponentByClass<UHPComponent>();
+			return !HP || !HP->IsDead();
+		};
 
-	AActor* TopThreat = ThreatComp->GetTopThreatSource();
-	if (IsValid(TopThreat))
+	if (CurrentTarget.IsValid() && !IsAliveTarget(CurrentTarget.Get()))
 	{
-		CurrentTarget = TopThreat;
+		CurrentTarget = nullptr;
+	}
+
+	if (ThreatComp)
+	{
+		AActor* TopThreat = ThreatComp->GetTopThreatSource();
+		if (IsAliveTarget(TopThreat))
+		{
+			CurrentTarget = TopThreat;
+			return;
+		}
+
+	}
+
+	UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	if (!Battle || !ControlledPawn) return;
+
+	TArray<AActor*> Opponents;
+	Battle->GetOpponentsFor(ControlledPawn.Get(), Opponents);
+
+	float ClosestDistSq = FLT_MAX;
+	AActor* Closest = nullptr;
+	for (AActor* Opponent : Opponents)
+	{
+		if (!IsAliveTarget(Opponent))
+		{
+			continue;
+		}
+
+		const float DistSq = FVector::DistSquared2D(ControlledPawn->GetActorLocation(), Opponent->GetActorLocation());
+		if (DistSq < ClosestDistSq)
+		{
+			ClosestDistSq = DistSq;
+			Closest = Opponent;
+		}
+	}
+
+	if (Closest)
+	{
+		CurrentTarget = Closest;
 	}
 }
 
@@ -192,11 +247,7 @@ void AEnemyAIController::TickAttack(float DeltaSeconds)
 	}
 
 	FaceTarget(CurrentTarget.Get());
-
-	if (PresentationComp)
-	{
-		PresentationComp->TryPresentBasicAttack(CurrentTarget.Get());
-	}
+	TryExecuteOffensiveAction(CurrentTarget.Get());
 }
 
 void AEnemyAIController::TickRetreat(float DeltaSeconds)
@@ -239,8 +290,19 @@ void AEnemyAIController::TickRising(float DeltaSeconds)
 	if (CurrentTarget.IsValid() && PresentationComp) 
 	{
 		FaceTarget(CurrentTarget.Get());
-		PresentationComp->TryPresentBasicAttack(CurrentTarget.Get());
+		TryExecuteOffensiveAction(CurrentTarget.Get());
 	}
+}
+
+void AEnemyAIController::TryExecuteOffensiveAction(AActor* Target)
+{
+	if (!PresentationComp || !IsValid(Target))
+	{
+		return;
+	}
+
+	// TODO: 몬스터 스킬 우선순위(쿨다운/거리/상태이상)를 추가할 수 있도록 진입점 분리.
+	PresentationComp->TryPresentBasicAttack(Target);
 }
 
 // ---- NavMesh 미사용 직접 이동 ----

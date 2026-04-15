@@ -58,6 +58,7 @@ private:
 	void TickRetreat(float DeltaSeconds);
 	void TickGroggyStunned(float DeltaSeconds);
 	void TickRising(float DeltaSeconds);
+	void TryExecuteOffensiveAction(AActor* Target);
 
 	// NavMesh 미사용 직접 이동
 	void MoveDirectlyToward(const FVector& Destination, float DeltaTime);
