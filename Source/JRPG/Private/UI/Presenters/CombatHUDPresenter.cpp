@@ -16,6 +16,9 @@
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Kismet/GameplayStatics.h"
+#include "UI/Combat/CombatTagSwapWidget.h"
+#include "Combat/Characters/CombatTransitionSubsystem.h"
+#include "Combat/Characters/PartySubsystem.h"
 
 void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass)
 {
@@ -62,6 +65,11 @@ void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidge
         BattleSub->OnBattleEnded.AddUObject(this, &UCombatHUDPresenter::OnBattleEnded);
 
         if (BattleSub->IsBattleActive()) OnBattleStarted(FBattleSessionSnapshot());
+    }
+
+    if (UCombatTransitionSubsystem* TransitionSub = InWorld->GetSubsystem<UCombatTransitionSubsystem>())
+    {
+        TransitionSub->OnPartyMemberChangedDelegate.AddUObject(this, &UCombatHUDPresenter::OnActiveCharacterChanged);
     }
 }
 
@@ -125,6 +133,28 @@ void UCombatHUDPresenter::ShowDamageText(AActor* Target, float Damage, bool bIsC
         DmgWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
         DmgWidget->InitializeDamage(Target, Damage, bIsCritical);
     }
+}
+
+void UCombatHUDPresenter::OnActiveCharacterChanged(FName NewActiveID)
+{
+    UPartySubsystem* PartySys = GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>();
+    if (!PartySys || !CombatWidget || !CombatWidget->TagSwapPanel) return;
+
+    const TArray<FName>& PartyIds = PartySys->GetPartyIds();
+    int32 TotalCount = PartyIds.Num();
+    if (TotalCount < 2) return;
+
+    int32 CurrentIdx = PartyIds.IndexOfByKey(NewActiveID);
+    if (CurrentIdx == INDEX_NONE) return;
+
+    // 순환 공식을 이용해 Q(이전)와 E(다음) 대상 계산
+    FName LeftID = PartyIds[(CurrentIdx - 1 + TotalCount) % TotalCount];
+    FName RightID = (TotalCount > 2) ? PartyIds[(CurrentIdx + 1) % TotalCount] : NAME_None;
+
+    UCombatPartySlotViewModel* LeftVM = GetPartySLotVM(LeftID);
+    UCombatPartySlotViewModel* RightVM = GetPartySLotVM(RightID);
+
+    CombatWidget->TagSwapPanel->UpdateSwapUI(LeftVM, RightVM);
 }
 
 void UCombatHUDPresenter::ReturnDamageTextToPool(UDamageTextWidget* Widget)
@@ -202,6 +232,11 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
             }
         }
     }
+
+    if (UCombatTransitionSubsystem* TransitionSub = GetWorld()->GetSubsystem<UCombatTransitionSubsystem>())
+    {
+        OnActiveCharacterChanged(TransitionSub->GetCurrentPlayerCharacterID());
+    }
 }
 
 void UCombatHUDPresenter::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason)
@@ -277,4 +312,13 @@ void UCombatHUDPresenter::OnPartySlotAPUpdated(float Percent, UCombatPartySlotWi
 void UCombatHUDPresenter::OnEnemyHPBarUpdated(float Percent, const FString& Text, UEnemyHPBarWidget* View)
 {
     if (View) View->UpdateHP(Percent);
+}
+
+UCombatPartySlotViewModel* UCombatHUDPresenter::GetPartySLotVM(FName CharID)
+{
+    for (UCombatPartySlotViewModel* VM : PartyVMs)
+    {
+        if (VM && VM->GetCharacterID() == CharID) return VM;
+    }
+    return nullptr;
 }

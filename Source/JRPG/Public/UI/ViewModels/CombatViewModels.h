@@ -23,6 +23,8 @@ public:
     FOnHPUIUpdated OnHPUIUpdated;
     FOnAPUIUpdated OnAPUIUpdated;
 
+    FName GetCharacterID() const { return BoundCharacterID; }
+
 private:
     FName BoundCharacterID;
 

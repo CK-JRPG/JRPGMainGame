@@ -261,6 +261,8 @@ void UCombatTransitionSubsystem::OnPartyMemberChanged(const FName& NewCharacterI
 	CombatPlayerController->Possess(TargetActor);
 	CurrentPlayerCharacterID = NewCharacterID;
 
+	OnPartyMemberChangedDelegate.Broadcast(NewCharacterID);
+
 	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 빙의 전환 완료 → %s"), *NewCharacterID.ToString());
 }
 

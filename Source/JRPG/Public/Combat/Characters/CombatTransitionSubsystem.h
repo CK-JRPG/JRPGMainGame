@@ -15,6 +15,7 @@ class ACombatCharacterActor;
 // 전투 중 빙의 전환 (OnPartyMemberChanged)
 // 이동 상태 동기화 (양방향)
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPartyMemberChanged, FName /*NewCharacterID*/);
 
 UCLASS()
 class JRPG_API UCombatTransitionSubsystem : public UWorldSubsystem
@@ -41,6 +42,7 @@ public:
 	// 전환 중 여부 반환 (인카운터 트리거에서 사용)
 	bool IsTransitioning() const { return bIsTransitioning; }
 
+	FOnPartyMemberChanged OnPartyMemberChangedDelegate;
 
 private:
 	// 승리/패배 분기 처리
