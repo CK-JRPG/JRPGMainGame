@@ -33,4 +33,9 @@ void UDamageTextWidget::NativeTick(const FGeometry& MyGeometry, float InDeltaTim
 	}
 }
 
-void UDamageTextWidget::OnFloatAnimFinished() { RemoveFromParent(); }
+void UDamageTextWidget::OnFloatAnimFinished()
+{
+	SetVisibility(ESlateVisibility::Collapsed);
+
+	OnDamageTextFinished.ExecuteIfBound(this);
+}

@@ -10,6 +10,7 @@
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Kismet/GameplayStatics.h"
+#include "Combat/Characters/CharacterRuntimeSubsystem.h"
 
 void UExplorationHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UExplorationUIWidget> WidgetClass)
 {
@@ -36,8 +37,6 @@ void UExplorationHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UExplorat
 
 	// 3. 임시 통합 테스트용 퀘스트 데이터 로드 지시
 	ViewModel->LoadTempQuestData();
-
-	RefreshPartyStatusData();
 
 	if (UHubSubsystem* HubSub = InWorld->GetSubsystem<UHubSubsystem>())
 	{
@@ -135,12 +134,30 @@ void UExplorationHUDPresenter::RefreshPartyStatusData()
 	TArray<FName> PartyIDs;
 	if (UPartySubsystem* PartySys = GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>())
 	{
-		PartyIDs = PartySys->GetPartyIds(); // 예: ["Party1", "Party2", "Party3"]
+		PartyIDs = PartySys->GetPartyIds();
 	}
+
 
 	// 3. 뷰모델 및 위젯 생성 & 바인딩
 	for (FName CharID : PartyIDs)
 	{
+		//if (UCharacterRuntimeSubsystem* CRSys = GetWorld()->GetGameInstance()->GetSubsystem<UCharacterRuntimeSubsystem>())
+		//{
+		//	if (CRSys->HasSnapshot(CharID))
+		//	{
+		//		const FCharacterResourceSnapshot* Snapshot = CRSys->GetSnapshot(CharID);
+		//		UE_LOG(LogTemp, Warning, TEXT("[SnapShot] %s, HP : %f, AP : %d, SP : %d"), *CharID.ToString(), Snapshot->HP, Snapshot->AP, Snapshot->SP);
+		//	}
+		//	else
+		//	{
+		//		UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter : %s Snapshot is Invaild"), *CharID.ToString());
+		//	}
+		//}
+		//else
+		//{
+		//	UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter : UCharacterRuntimeSubsystem is Invaild"));
+		//}
+		//UE_LOG(LogTemp, Warning, TEXT("PartyID : %s"), *CharID.ToString());
 		if (CharID.IsNone() || !RosterPanel->PartySlotClass) continue;
 
 		// 슬롯 위젯 생성
@@ -195,8 +212,10 @@ void UExplorationHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Sna
 
 void UExplorationHUDPresenter::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason)
 {
-	ShowExplorationUI();
-	StartPostCombatRegenUI();
+	//UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::OnBattleEnded"));
+	//RefreshPartyStatusData();
+	//ShowExplorationUI();
+	//StartPostCombatRegenUI();
 }
 
 void UExplorationHUDPresenter::UpdatePartyStatusUI()
@@ -230,6 +249,7 @@ void UExplorationHUDPresenter::OnPartySlotNameUpdated(const FString& Name, UComb
 }
 void UExplorationHUDPresenter::OnPartySlotHPUpdated(float Percent, const FString& Text, UCombatPartySlotWidget* SlotWidget)
 {
+	//UE_LOG(LogTemp, Error, TEXT("UExplorationHUDPresenter::OnPartySlotHPUpdated"));
 	if (SlotWidget) SlotWidget->UpdateHP(Percent, Text);
 }
 void UExplorationHUDPresenter::OnPartySlotAPUpdated(float Percent, UCombatPartySlotWidget* SlotWidget)

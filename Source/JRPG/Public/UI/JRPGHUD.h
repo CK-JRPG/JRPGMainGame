@@ -38,6 +38,9 @@ public:
 	UFUNCTION(BlueprintPure, Category = "UI|Presenter")
 	UInventoryPresenter* GetInventoryPresenter() const { return InventoryPresenter; }
 
+	UFUNCTION(BlueprintPure, Category = "UI|Presenter")
+	UExplorationHUDPresenter* GetExplorationPresenter() const { return ExplorationPresenter; }
+
 	UFUNCTION(BlueprintPure) class UCombatHUDPresenter* GetCombatPresenter() const { return CombatPresenter; }
 	UPROPERTY(EditDefaultsOnly, Category = "UI|Classes") TSubclassOf<class UDamageTextWidget> DamageTextClass;
 

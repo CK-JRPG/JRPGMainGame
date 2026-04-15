@@ -13,6 +13,8 @@
 #include "GameFramework/HUD.h"
 #include "Camera/PlayerCameraManager.h"
 #include "Game/HubSubsystem.h"
+#include "UI/JRPGHUD.h"
+#include "UI/Presenters/ExplorationHUDPresenter.h"
 
 
 void UCombatTransitionSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -259,6 +261,8 @@ void UCombatTransitionSubsystem::OnPartyMemberChanged(const FName& NewCharacterI
 	CombatPlayerController->Possess(TargetActor);
 	CurrentPlayerCharacterID = NewCharacterID;
 
+	OnPartyMemberChangedDelegate.Broadcast(NewCharacterID);
+
 	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 빙의 전환 완료 → %s"), *NewCharacterID.ToString());
 }
 
@@ -461,6 +465,18 @@ void UCombatTransitionSubsystem::StartPostBattleRecovery()
 
 	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 승리 후 점진적 HP 회복 시작 (%.1f초 간격, MaxHP의 %.0f%% 회복)."),
 		PostBattleRecoveryInterval, PostBattleRecoveryRatio * 100.f);
+
+	// UI 호출
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	{
+		if (AJRPGHUD* HUD = Cast<AJRPGHUD>(PC->GetHUD()))
+		{
+			if (UExplorationHUDPresenter* Presenter = HUD->GetExplorationPresenter())
+			{
+				Presenter->StartPostCombatRegenUI();
+			}
+		}
+	}
 }
 
 void UCombatTransitionSubsystem::TickPostBattleRecovery()
