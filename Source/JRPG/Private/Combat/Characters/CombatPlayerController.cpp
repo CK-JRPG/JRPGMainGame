@@ -8,10 +8,14 @@
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Movement/LocomotionComponent.h"
+#include "Combat/Battle/CombatTargetingSubsystem.h"
+#include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Tactical/TacticalModeSubsystem.h"
 #include "UI/JRPGHUD.h"
 
 #include "GameFramework/Character.h"
+#include "GameFramework/Pawn.h"
+#include "InputCoreTypes.h"
 
 void ACombatPlayerController::SetupInputComponent()
 {
@@ -59,6 +63,16 @@ void ACombatPlayerController::SetupInputComponent()
 	if (IA_ToggleMainMenu)
 	{
 		EIC->BindAction(IA_ToggleMainMenu, ETriggerEvent::Started, this, &ACombatPlayerController::OnToggleMainMenu);
+	}
+
+	if (IA_ToggleMainMenu)
+	{
+		EIC->BindAction(IA_ToggleMainMenu, ETriggerEvent::Started, this, &ACombatPlayerController::OnToggleMainMenu);
+	}
+
+	if (IA_Attack)
+	{
+		EIC->BindAction(IA_Attack, ETriggerEvent::Started, this, &ACombatPlayerController::OnBasicAttackMouseClick);
 	}
 }
 
@@ -260,5 +274,56 @@ void ACombatPlayerController::OnToggleMainMenu(const FInputActionValue& Value)
 	else
 	{
 		UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: HUD가 존재하지 않음"));
+	}
+}
+
+
+
+void ACombatPlayerController::OnBasicAttackMouseClick(const FInputActionValue& Value)
+{
+	if (!GetWorld())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[OnBasicAttackMouseClick] GetWorld() is null"));
+		return;
+	}
+
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[OnBasicAttackMouseClick] ControlledPawn is null"));
+		return;
+	}
+
+	UCombatPresentationComponent* Presentation = ControlledPawn->FindComponentByClass<UCombatPresentationComponent>();
+	if (!Presentation)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[OnBasicAttackMouseClick] CombatPresentationComponent not found on pawn: %s"), *ControlledPawn->GetName());
+		return;
+	}
+
+	UCombatTargetingSubsystem* Targeting = GetWorld()->GetSubsystem<UCombatTargetingSubsystem>();
+	if (!Targeting)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[OnBasicAttackMouseClick] CombatTargetingSubsystem not found"));
+		return;
+	}
+
+	const FTargetingResult BasicTarget = Targeting->ResolvePreferredBasicAttackTarget(ControlledPawn);
+	if (!BasicTarget.bOk || BasicTarget.Targets.Num() <= 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[OnBasicAttackMouseClick] No valid basic attack target found. bOk=%s, TargetCount=%d"),
+			BasicTarget.bOk ? TEXT("true") : TEXT("false"),
+			BasicTarget.Targets.Num());
+		return;
+	}
+
+	if (AActor* Target = BasicTarget.Targets[0].Get())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[OnBasicAttackMouseClick] Presenting basic attack on target: %s"), *Target->GetName());
+		Presentation->TryPresentBasicAttack(Target);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[OnBasicAttackMouseClick] BasicTarget.Targets[0] is null (stale pointer)"));
 	}
 }

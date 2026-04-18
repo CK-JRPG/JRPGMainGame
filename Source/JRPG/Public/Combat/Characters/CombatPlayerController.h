@@ -55,6 +55,9 @@ protected:
 	// 메인 메뉴 토글
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_ToggleMainMenu;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_Attack;
 
 private:
 	void OnMove(const FInputActionValue& Value);
@@ -67,4 +70,5 @@ private:
 	void UpdateCameraTargetForPawn(APawn* InPawn) const;
 	void OnTacticalModePressed(const FInputActionValue& Value);
 	void OnToggleMainMenu(const FInputActionValue& Value);
+	void OnBasicAttackMouseClick(const FInputActionValue& Value);
 };

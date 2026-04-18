@@ -4,6 +4,7 @@
 
 #include "Combat/Skills/SkillComponent.h"
 #include "Combat/Skills/SkillDataAsset.h"
+#include "Combat/Skills/SkillTypes.h"
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Threat/ThreatComponent.h"
@@ -36,6 +37,7 @@ void UCombatPartyAIComponent::BeginPlay()
 	));
 
 	CachedPresentation = GetOwner() ? GetOwner()->FindComponentByClass<UCombatPresentationComponent>() : nullptr;
+	RangedRepositionDirection = FMath::RandBool() ? 1.f : -1.f;
 
 	LoadRangeParams();
 }
@@ -138,6 +140,19 @@ void UCombatPartyAIComponent::RefreshContext()
 	Context->Role = Role;
 	Context->PresetAsset = PresetAsset;
 	Context->PrimaryTarget = CurrentTarget;
+	Context->PartyMembers.Reset();
+	if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+	{
+		TArray<AActor*> Allies;
+		Battle->GetAlliesFor(GetOwner(), Allies);
+		for (AActor* Ally : Allies)
+		{
+			if (Ally)
+			{
+				Context->PartyMembers.Add(Ally);
+			}
+		}
+	}
 	Context->Refresh();
 }
 
@@ -239,22 +254,19 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 
 	if (bIsRanged)
 	{
+		const float MinRangeWithTolerance = FMath::Max(0.f, PreferredMinRange - KeepDistanceTolerance);
 		// 원거리: 너무 가까우면 거리 유지, 사거리 안이면 공격, 밖이면 추적
-		if (PreferredMinRange > 0.f && Dist < PreferredMinRange)
+		if (PreferredMinRange > 0.f && Dist < MinRangeWithTolerance)
 		{
 			State = EPartyAIState::KeepDistance;
 		}
-		else if (Dist <= AttackRange)
-		{
-			State = EPartyAIState::Attack;
-		}
-		else if (Dist > ChaseLeashRange)
+	
+		else if (Dist > AttackRange)
 		{
 			State = EPartyAIState::Chase;
 		}
 		else
 		{
-			// 사거리와 리시 사이에서 공격 가능
 			State = EPartyAIState::Attack;
 		}
 	}
@@ -275,7 +287,10 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 {
 	if (!CurrentTarget.IsValid()) return;
-
+	if (RangedRepositionPauseRemaining > 0.f)
+	{
+		RangedRepositionPauseRemaining = FMath::Max(0.f, RangedRepositionPauseRemaining - DeltaTime);
+	}
 	switch (State)
 	{
 	case EPartyAIState::Chase:
@@ -298,8 +313,14 @@ void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 		break;
 
 	case EPartyAIState::KeepDistance:
-		// 원거리는 뒤로 물러남.
-		MoveDirectlyAwayFrom(CurrentTarget->GetActorLocation());
+
+		// 원거리: 뒤로만 도망가지 않게 거리 + 측면 이동을 섞어 고정거리 유지
+		if (RangedRepositionPauseRemaining <= 0.f)
+		{
+			MoveDirectlyAwayFrom(CurrentTarget->GetActorLocation(), 0.8f);
+			MoveLaterallyAround(CurrentTarget->GetActorLocation(), RangedRepositionDirection * 0.55f);
+			RangedRepositionPauseRemaining = 0.2f;
+		}
 		FaceTarget(CurrentTarget.Get());
 		break;
 
@@ -319,7 +340,7 @@ FJRPGCombatAIAction UCombatPartyAIComponent::ChooseBestAction() const
 
 	TWeakObjectPtr<AActor> Target = CurrentTarget;
 
-	FJRPGCombatAIAction Best = FJRPGCombatAIAction::MakeWait(0.05f);
+	FJRPGCombatAIAction Best = FJRPGCombatAIAction::MakeBasicAttack(Target, 0.5f);
 
 	{
 		const float S = Scorer->ScoreAction(*Context, FJRPGCombatAIAction::MakeBasicAttack(Target, 0.f));
@@ -362,10 +383,21 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 
 	if (Action.Type == EJRPGCombatAIActionType::UseSkill)
 	{
-		if (CachedPresentation.IsValid() && Action.Target.IsValid())
+		if (CachedPresentation.IsValid())
 		{
 			TArray<AActor*> Targets;
-			Targets.Add(Action.Target.Get());
+			if (IsValid(Context) && Context->SkillComp.IsValid())
+			{
+				Targets = BuildSkillTargets(Context->SkillComp->GetSkillDef(Action.SkillId));
+			}
+			if (Targets.Num() == 0 && Action.Target.IsValid())
+			{
+				Targets.Add(Action.Target.Get());
+			}
+			if (Targets.Num() <= 0)
+			{
+				return;
+			}
 			CachedPresentation->TryPresentSkill(Action.SkillId, Targets, false);
 		}
 		return;
@@ -388,7 +420,7 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 	MyChar->AddMovementInput(Dir, 1.0f);
 }
 
-void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation)
+void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale)
 {
 	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
 	if (!MyChar) return;
@@ -406,7 +438,29 @@ void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation
 		Dir /= Dist;
 	}
 
-	MyChar->AddMovementInput(Dir, 1.0f);
+	MyChar->AddMovementInput(Dir, Scale);
+}
+
+void UCombatPartyAIComponent::MoveLaterallyAround(const FVector& FocusLocation, float Scale)
+{
+	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
+	if (!MyChar) return;
+
+	FVector ToFocus = FocusLocation - MyChar->GetActorLocation();
+	ToFocus.Z = 0.f;
+	if (ToFocus.IsNearlyZero())
+	{
+		return;
+	}
+
+	ToFocus.Normalize();
+	const FVector Right = FVector::CrossProduct(FVector::UpVector, ToFocus).GetSafeNormal();
+	if (Right.IsNearlyZero())
+	{
+		return;
+	}
+
+	MyChar->AddMovementInput(Right, Scale);
 }
 
 void UCombatPartyAIComponent::FaceTarget(AActor* Target)
@@ -427,6 +481,100 @@ float UCombatPartyAIComponent::GetDistanceToTarget() const
 	return FVector::Dist2D(GetOwner()->GetActorLocation(), CurrentTarget->GetActorLocation());
 }
 
+TArray<AActor*> UCombatPartyAIComponent::BuildSkillTargets(const USkillDataAsset* SkillDef) const
+{
+	TArray<AActor*> Targets;
+	if (!SkillDef || !GetOwner())
+		 {
+		return Targets;
+		}
+	
+		UBattleSessionSubsystem * Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	if (!Battle)
+		 {
+		if (CurrentTarget.IsValid())
+			{
+			Targets.Add(CurrentTarget.Get());
+			}
+		 return Targets;
+		}
+
+		switch (SkillDef->TargetType)
+		{
+		case ESkillTargetType::Self:
+			Targets.Add(GetOwner());
+			break;
+		case ESkillTargetType::AllySingle:
+			if (AActor* CriticalAlly = IsValid(Context) ? Context->AllyCriticalTarget.Get() : nullptr)
+				 {
+				Targets.Add(CriticalAlly);
+				}
+			 else if (AActor* LowestHpAlly = FindLowestHpAlly())
+				 {
+				Targets.Add(LowestHpAlly);
+				}
+			 else
+				 {
+				Targets.Add(GetOwner());
+				}
+			 break;
+		case ESkillTargetType::EnemySingle:
+			if (CurrentTarget.IsValid())
+				 {
+				Targets.Add(CurrentTarget.Get());
+				}
+			 break;
+		case ESkillTargetType::AllyAll:
+			Battle->GetAlliesFor(GetOwner(), Targets);
+			break;
+		case ESkillTargetType::EnemyAll:
+			Battle->GetOpponentsFor(GetOwner(), Targets);
+			break;
+		default:
+			break;
+			}
+	
+		Targets.RemoveAll([](AActor* T) { return !IsValid(T); });
+	return Targets;
+	}
+
+AActor* UCombatPartyAIComponent::FindLowestHpAlly() const
+{
+	UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	if (!Battle || !GetOwner())
+	{
+		return nullptr;
+	}
+
+	TArray<AActor*> Allies;
+	Battle->GetAlliesFor(GetOwner(), Allies);
+
+	AActor* Lowest = nullptr;
+	float LowestRatio = 2.f;
+	for (AActor* Ally : Allies)
+	{
+		if (!IsValid(Ally))
+		{
+			continue;
+		}
+
+		const UHPComponent* HP = Ally->FindComponentByClass<UHPComponent>();
+		if (!HP || HP->IsDead())
+		{
+			continue;
+		}
+
+		const float Ratio = HP->GetHpRatio01();
+		if (Ratio < LowestRatio)
+		{
+			LowestRatio = Ratio;
+			Lowest = Ally;
+		}
+	}
+
+	return Lowest;
+}
+
 bool UCombatPartyAIComponent::ResolveSkillMeta(USkillComponent* SkillComp, FName SkillId, FSkillAIMeta& OutMeta) const
 {
 	OutMeta = FSkillAIMeta();
@@ -439,6 +587,9 @@ bool UCombatPartyAIComponent::ResolveSkillMeta(USkillComponent* SkillComp, FName
 		OutMeta.bIsBreak = Def->GroggyPower > 0.f;
 		OutMeta.bIsDebuff = Def->ApplyStatus != nullptr;
 		OutMeta.bIsHighDps = (Def->BasePower > 0.f && Def->AttackScale >= 1.0f);
+		OutMeta.bIsCleanse = Def->DispelAnyTags.Num() > 0;
+		OutMeta.bIsTaunt = Def->ThreatBase > 0.f || Def->ThreatFromDamageMul > 1.0f;
+		OutMeta.bIsBuff = Def->ApplyStatus != nullptr && (Def->TargetType == ESkillTargetType::Self || Def->TargetType == ESkillTargetType::AllySingle || Def->TargetType == ESkillTargetType::AllyAll);
 		return true;
 	}
 

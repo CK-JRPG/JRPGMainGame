@@ -255,6 +255,19 @@ void UCombatTransitionSubsystem::OnPartyMemberChanged(const FName& NewCharacterI
 
 	if (IsValid(OldPawn))
 	{
+		if (ULocomotionComponent* OldLoco = OldPawn->FindComponentByClass<ULocomotionComponent>())
+		{
+			OldLoco->SetMoveInput(FVector2D::ZeroVector);
+			OldLoco->SetSprint(false);
+		}
+
+		if (ACharacter* OldCharacter = Cast<ACharacter>(OldPawn))
+		{
+			if (UCharacterMovementComponent* OldMovement = OldCharacter->GetCharacterMovement())
+			{
+				OldMovement->StopMovementImmediately();
+			}
+		}
 		OldPawn->SpawnDefaultController();
 	}
 
