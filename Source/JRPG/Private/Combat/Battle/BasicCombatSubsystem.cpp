@@ -11,6 +11,7 @@
 
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Groggy/GroggyComponent.h"
+#include "Combat/AI/CombatPartyAIComponent.h"
 
 bool UBasicCombatSubsystem::IsFriendlyTarget(AActor* Attacker, AActor* Target) const
 {
@@ -81,6 +82,11 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 		);
 
 	TargetHP->ApplyDamage(Out.Breakdown.FinalDamage, Attacker, Req.ReasonTag);
+
+	if (UCombatPartyAIComponent* PartyAI = Target->FindComponentByClass<UCombatPartyAIComponent>())
+	{
+		PartyAI->NotifyDamagedBy(Attacker);
+	}
 	
 	if (TargetGroggy && Out.Breakdown.GroggyDamage > 0.f)
 	{

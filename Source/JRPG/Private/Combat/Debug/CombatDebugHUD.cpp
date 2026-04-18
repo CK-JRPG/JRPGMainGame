@@ -37,12 +37,12 @@ void ACombatDebugHUD::DrawHUD()
 
 	if (bShowSummary)
 	{
-		if (UBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+		if (UBattleSessionSubsystem* BattleSession = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
 		{
-			const FBattleSessionSnapshot& S = Battle->GetSnapshot();
+			const FBattleSessionSnapshot& S = BattleSession->GetSnapshot();
 			const FString BattleLine = FString::Printf(
 				TEXT("[Battle] Active=%s Phase=%d AliveP=%d AliveE=%d ActiveActions=%d Exclusive=%s(%s)"),
-					Battle->IsBattleActive() ? TEXT("true") : TEXT("false"),
+				BattleSession->IsBattleActive() ? TEXT("true") : TEXT("false"),
 					(int32)S.Phase,
 					S.AlivePlayers,
 					S.AliveEnemies,
@@ -55,7 +55,7 @@ void ACombatDebugHUD::DrawHUD()
 			Y += LineHeight;
 
 			TArray<FBattleActorRuntimeState> RuntimeStates;
-			Battle->GetParticipantRuntimeStates(RuntimeStates);
+			BattleSession->GetParticipantRuntimeStates(RuntimeStates);
 
 			for (const FBattleActorRuntimeState& R : RuntimeStates)
 			{

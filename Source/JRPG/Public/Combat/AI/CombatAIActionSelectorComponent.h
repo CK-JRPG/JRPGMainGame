@@ -42,6 +42,7 @@ private:
 
 	USkillDataAsset* PickBestHealSkill(TArray<AActor*> &OutTargets) const;
 	USkillDataAsset* PickBestOffensiveSkill(TArray<AActor*> &OutTargets) const;
+	USkillDataAsset* PickBestAggroSkill(TArray<AActor*> &OutTargets) const;
 
 	void ThinkAndAct();
 };

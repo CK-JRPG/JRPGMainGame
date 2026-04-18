@@ -233,7 +233,8 @@ FExplorationOp URewardServiceSubsystem::GrantRewards(const FRewardGrantRequest& 
 	OutGranted.Reset();
 
 	TArray<FRewardEntry> All;
-	if (Req.Table) All.Append(Req.Table->Entries);
+	// 빌드 오류 발생
+	//if (Req.Table) All.Append(Req.Table->Entries);
 	All.Append(Req.DirectEntries);
 
 	if (All.Num() == 0)

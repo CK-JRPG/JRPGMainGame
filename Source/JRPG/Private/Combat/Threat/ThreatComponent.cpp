@@ -1,5 +1,6 @@
 ﻿#include "JRPG/Public/Combat/Threat/ThreatComponent.h"
 #include "JRPG/Public/Combat/SP/SynergyPointSubsystem.h"
+#include "Combat/Stats/HPComponent.h"
 
 UThreatComponent::UThreatComponent()
 {
@@ -26,6 +27,8 @@ void UThreatComponent::AddThreat(AActor *Source, float Amount, FName)
 	if (!Source || Amount <= 0.f) 
 		return;
 
+	AActor* PrevTarget = GetTopThreatSource();
+
 	const double Now = FPlatformTime::Seconds();
 	const int32 Idx = FindIndex(Source);
 	if (Idx == INDEX_NONE)
@@ -42,7 +45,6 @@ void UThreatComponent::AddThreat(AActor *Source, float Amount, FName)
 		Table[Idx].LastUpdateReal = Now;
 	}
 	
-	AActor* PrevTarget = GetTopThreatSource();
 	AActor* NewTarget = GetTopThreatSource();
 
 	if (USynergyPointSubsystem *SP = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr)
@@ -100,10 +102,22 @@ void UThreatComponent::ClearAll()
 
 void UThreatComponent::Compact()
 {
-	Table.RemoveAll([](const FThreatEntry &E)
-	{
-		return !E.Source.IsValid() || E.Threat <= 0.f;
-	});
+	Table.RemoveAll([](const FThreatEntry& E)
+		{
+			if (!E.Source.IsValid() || E.Threat <= 0.f)
+			{
+				return true;
+			}
+
+			const AActor* SourceActor = E.Source.Get();
+			if (!SourceActor)
+			{
+				return true;
+			}
+
+			const UHPComponent* HP = SourceActor->FindComponentByClass<UHPComponent>();
+			return HP && HP->IsDead();
+		});
 }
 
 void UThreatComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponentTickFunction*)

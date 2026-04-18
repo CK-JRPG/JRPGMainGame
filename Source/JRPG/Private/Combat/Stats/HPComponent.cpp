@@ -1,4 +1,6 @@
 ﻿#include "Combat/Stats/HPComponent.h"
+#include "UI/JRPGHUD.h"
+#include "UI/Presenters/CombatHUDPresenter.h"
 
 UHPComponent::UHPComponent()
 {
@@ -40,6 +42,17 @@ void UHPComponent::ApplyDamage(float Amount, AActor* Instigator, FName ReasonTag
 	CurrentHP = FMath::Clamp(CurrentHP - Amount, 0.f, MaxHP);
 
 	OnHPChanged.Broadcast(Old, CurrentHP, ReasonTag);
+
+	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
+	{
+		if (AJRPGHUD* HUD = Cast<AJRPGHUD>(PC->GetHUD()))
+		{
+			if (UCombatHUDPresenter* Presenter = HUD->GetCombatPresenter())
+			{
+				Presenter->ShowDamageText(GetOwner(), Amount, false);
+			}
+		}
+	}
 
 	if (CurrentHP <= 0.f)
 	{

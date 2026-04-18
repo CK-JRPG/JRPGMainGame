@@ -16,13 +16,22 @@ public:
     void Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass);
     void Shutdown();
 
+    void ShowDamageText(AActor* Target, float Damage, bool bIsCritical);
+    UPROPERTY() TSubclassOf<class UDamageTextWidget> DamageTextClass;
+    void OnActiveCharacterChanged(FName NewActiveID);
+
 private:
     UPROPERTY() TObjectPtr<UCombatUIWidget> CombatWidget;
     UPROPERTY() TObjectPtr<UTacticalUIWidget> TacticalWidget;
     UPROPERTY() TObjectPtr<class UActionPaletteViewModel> ActionPaletteVM;
+
     UPROPERTY() TObjectPtr<class UEnemyViewModel> TargetVM;
     UPROPERTY() TArray<TObjectPtr<class UCombatPartySlotViewModel>> PartyVMs;
     UPROPERTY() TArray<TObjectPtr<class UEnemyViewModel>> EnemyHPBarVMs;
+    UPROPERTY() TArray<TObjectPtr<class UDamageTextWidget>> DamageTextPool;
+    UPROPERTY() TArray<TObjectPtr<class UCombatPartySlotViewModel>> TagSwapVMs;
+
+    void ReturnDamageTextToPool(class UDamageTextWidget* Widget);
 
     void OnBattleStarted(const FBattleSessionSnapshot& Snapshot);
     void OnBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);
@@ -41,4 +50,6 @@ private:
     void OnPartySlotAPUpdated(float Percent, class UCombatPartySlotWidget* View);
 
     void OnEnemyHPBarUpdated(float Percent, const FString& Text, class UEnemyHPBarWidget* View);
+
+    class UCombatPartySlotViewModel* GetPartySLotVM(FName CharID);
 };

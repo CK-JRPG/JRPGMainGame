@@ -9,6 +9,7 @@
 class UCombatAIContext;
 class UCombatAIScorer;
 class USkillComponent;
+class UCombatPresentationComponent;
 
 //NavMesh 미사용 및 FSM 로직으로 구현.
 
@@ -35,6 +36,8 @@ public:
 private:
 	UPROPERTY() TObjectPtr<UCombatAIContext> Context;
 	UPROPERTY() TObjectPtr<UCombatAIScorer> Scorer;
+
+	TWeakObjectPtr<UCombatPresentationComponent> CachedPresentation;
 
 	UPROPERTY() float DecisionAccum = 0.f;
 	UPROPERTY() TWeakObjectPtr<AActor> CurrentTarget;
