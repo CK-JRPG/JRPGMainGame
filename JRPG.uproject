@@ -9,6 +9,9 @@
 			"Type": "Runtime",
 			"LoadingPhase": "Default",
 			"AdditionalDependencies": [
+				"CoreUObject",
+				"DeveloperSettings",
+				"UMG",
 				"Engine"
 			]
 		}
@@ -16,9 +19,17 @@
 	"Plugins": [
 		{
 			"Name": "ModelingToolsEditorMode",
+			"Enabled": true
+		},
+		{
+			"Name": "JRPGFramework",
+			"Enabled": true
+		},
+		{
+			"Name": "VisualStudioTools",
 			"Enabled": true,
-			"TargetAllowList": [
-				"Editor"
+			"SupportedTargetPlatforms": [
+				"Win64"
 			]
 		}
 	]

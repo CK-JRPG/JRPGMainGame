@@ -1,0 +1,645 @@
+﻿#include "Combat/Motion/CombatMotionComponent.h"
+
+#include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "Animation/AnimInstance.h"
+
+#include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Groggy/GroggyComponent.h"
+
+#include "Combat/Debug/CombatDebugSubsystem.h"
+
+UCombatMotionComponent::UCombatMotionComponent()
+{
+	PrimaryComponentTick.bCanEverTick = true;
+	PrimaryComponentTick.TickInterval = 0.0f;
+}
+
+void UCombatMotionComponent::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (ACharacter* C = GetCharacterOwner())
+	{
+		CharMove = C->GetCharacterMovement();
+	}
+	Groggy = GetOwner() ? GetOwner()->FindComponentByClass<UGroggyComponent>() : nullptr;
+}
+
+ACharacter* UCombatMotionComponent::GetCharacterOwner() const
+{
+	return Cast<ACharacter>(GetOwner());
+}
+
+UBattleSessionSubsystem* UCombatMotionComponent::GetBattle() const
+{
+	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+}
+
+int32 UCombatMotionComponent::GetPriorityForType(EJRPGCombatMotionType Type) const
+{
+	switch (Type)
+	{
+	case EJRPGCombatMotionType::GrappleMove: return 300;
+	case EJRPGCombatMotionType::HitMove: return 200;
+	case EJRPGCombatMotionType::SkillMove: return 100;
+	default: return 0;
+	}
+}
+
+bool UCombatMotionComponent::ValidateRequest(const FJRPGCombatMotionRequest& Req, FName& OutReason) const
+{
+	OutReason = NAME_None;
+
+	if (!GetOwner())
+	{
+		OutReason = "Reject.NoOwner";
+		return false;
+	}
+
+	if (Req.Type == EJRPGCombatMotionType::None)
+	{
+		OutReason = "Reject.InvalidType";
+		return false;
+	}
+
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::VelocityCurve)
+	{
+		if (Req.Duration <= 0.f && Req.Distance <= 0.f)
+		{
+			OutReason = "Reject.InvalidVelocityCurveSpec";
+			return false;
+		}
+	}
+
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::RootMotion)
+	{
+		// 외부 몽타주 구동이면 RootMontage가 없어도 추적 가능
+	}
+
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::Teleport)
+	{
+		if (Req.TeleportDest.IsNearlyZero() && !Req.bComputeTeleportFromTarget && Req.Distance <= 0.f)
+		{
+			OutReason = "Reject.InvalidTeleportSpec";
+			return false;
+		}
+	}
+
+	// 문서상 SkillMove는 그로기 중 일반적으로 금지
+	if (Req.Type == EJRPGCombatMotionType::SkillMove && Groggy.IsValid() && Groggy->bGroggy && !Req.bAllowSkillMoveWhileGroggy)
+	{
+		OutReason ="Reject.GroggyBlocked";
+		return false;
+	}
+
+	if (Req.Type == EJRPGCombatMotionType::HitMove && Groggy.IsValid() && Groggy->bGroggy && !Req.bAllowHitMoveWhileGroggy)
+	{
+		OutReason = "Reject.GroggyHitMoveBlocked";
+		return false;
+	}
+
+	return true;
+}
+
+FVector UCombatMotionComponent::MakeDirectionFromTarget(AActor* TargetActor) const
+{
+	if (!GetOwner() || !TargetActor) return FVector::ZeroVector;
+
+	const FVector From = GetOwner()->GetActorLocation();
+	const FVector To = TargetActor->GetActorLocation();
+	FVector Dir = (To - From);
+	Dir.Z = 0.f;
+	return Dir.GetSafeNormal();
+}
+
+bool UCombatMotionComponent::ResolveRequestContext(FJRPGCombatMotionRequest& InOutReq, FName& OutReason)
+{
+	OutReason = NAME_None;
+
+	if (InOutReq.bComputeDirectionFromTarget)
+	{
+		AActor* Target = InOutReq.Target.Get();
+		if (!Target)
+		{
+			OutReason = "Reject.InvalidTarget";
+			return false;
+		}
+		const FVector Dir = MakeDirectionFromTarget(Target);
+		if (Dir.IsNearlyZero())
+		{
+			OutReason = "Reject.InvalidTarget";
+			return false;
+		}
+		InOutReq.Direction = Dir;
+	}
+
+	if (InOutReq.ExecMode == EJRPGCombatMotionExecMode::Teleport)
+	{
+		if (InOutReq.bComputeTeleportFromTarget)
+		{
+			AActor* Target = InOutReq.Target.Get();
+			if (!Target)
+			{
+				OutReason = "Reject.InvalidTarget";
+				return false;
+			}
+
+			FVector Dir = InOutReq.Direction;
+			if (Dir.IsNearlyZero())
+			{
+				Dir = MakeDirectionFromTarget(Target);
+			}
+			if (Dir.IsNearlyZero())
+			{
+				OutReason = "Reject.InvalidTarget";
+				return false;
+			}
+
+			const FVector TargetLoc = Target->GetActorLocation();
+			InOutReq.TeleportDest = TargetLoc - Dir * InOutReq.StopShortDistance;
+		}
+		else if (InOutReq.TeleportDest.IsNearlyZero() && InOutReq.Distance > 0.f)
+		{
+			FVector Dir = InOutReq.Direction;
+			if (Dir.IsNearlyZero())
+			{
+				OutReason = "Reject.InvalidDirection";
+				return false;
+			}
+			InOutReq.TeleportDest = GetOwner()->GetActorLocation() + Dir.GetSafeNormal() * InOutReq.Distance;
+		}
+	}
+	else
+	{
+		if (InOutReq.Direction.IsNearlyZero())
+		{
+			OutReason = "Reject.InvalidDirection";
+			return false;
+		}
+		InOutReq.Direction.Z = 0.f;
+		InOutReq.Direction = InOutReq.Direction.GetSafeNormal();
+	}
+
+	return true;
+}
+
+bool UCombatMotionComponent::CanReplaceCurrent(const FJRPGCombatMotionRequest& NewReq, FName& OutReason) const
+{
+	OutReason = NAME_None;
+
+	if (!IsMotionActive())
+		return true;
+
+	const FJRPGCombatMotionRequest& Cur = MotionState.ActiveRequest;
+
+	const int32 CurPriority = Cur.Priority > 0 ? Cur.Priority : GetPriorityForType(Cur.Type);
+	const int32 NewPriority = NewReq.Priority > 0 ? NewReq.Priority : GetPriorityForType(NewReq.Type);
+
+	if (NewPriority > CurPriority)
+	{
+		if (!Cur.bCancelable && !Cur.bCancelOnNewHigherPriority)
+		{
+			OutReason = "Reject.CurrentNotCancelable";
+			return false;
+		}
+		return true;
+	}
+
+	if (NewPriority == CurPriority)
+	{
+		// same priority -> Last Writer Wins
+		if (!Cur.bCancelable)
+		{
+			OutReason ="Reject.CurrentNotCancelable";
+			return false;
+		}
+		return true;
+	}
+
+	OutReason = "Reject.LowerPriority";
+	return false;
+}
+
+void UCombatMotionComponent::StartAcceptedMotion(const FJRPGCombatMotionRequest& Req, const FJRPGCombatMotionHandle& Handle, bool bBroadcastReplaced, const FJRPGCombatMotionHandle& ReplacedHandle)
+{
+	MotionState = FCombatMotionState();
+	MotionState.ActiveHandle = Handle;
+	MotionState.ActiveRequest = Req;
+	MotionState.StartTimeReal = FPlatformTime::Seconds();
+	MotionState.LastWorldLocation = GetOwner()->GetActorLocation();
+	MotionState.ResolvedDirection = Req.Direction;
+	MotionState.ResolvedTeleportDest = Req.TeleportDest;
+
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::RootMotion && !Req.bMontageDrivenExternally && Req.RootMontage)
+	{
+		if (ACharacter* C = GetCharacterOwner())
+		{
+			C->PlayAnimMontage(Req.RootMontage);
+		}
+	}
+
+	OnCombatMotionStarted.Broadcast(Handle, Req.Type);
+
+	if (bBroadcastReplaced)
+	{
+		OnCombatMotionReplaced.Broadcast(ReplacedHandle, Handle, "Cancel.ReplacedByHigher");
+	}
+	
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+		   ECombatDebugCategory::Motion,
+		   "Motion.Start",
+		   FString::Printf(
+			  TEXT("Motion started | Handle=%llu Type=%d Mode=%d Duration=%.2f Distance=%.1f"),
+				(unsigned long long)Handle.UniqueId,
+				(int32)Req.Type,
+				(int32)Req.ExecMode,
+				Req.Duration,
+				Req.Distance),
+		   GetOwner(),
+		   Req.Target.Get(),
+		   FLinearColor(0.7f, 1.f, 1.f));
+	}
+}
+
+void UCombatMotionComponent::FinishTeleportRequestImmediately(const FJRPGCombatMotionRequest& Req, const FJRPGCombatMotionHandle& Handle)
+{
+	bool bClamped = false;
+	FVector Dest = Req.TeleportDest;
+	if (Req.bAllowClamp)
+	{
+		Dest = ClampLocationToBattle(Dest, bClamped);
+	}
+
+	GetOwner()->SetActorLocation(Dest, false);
+	MotionState = FCombatMotionState();
+	MotionState.ActiveHandle = Handle;
+	MotionState.ActiveRequest = Req;
+	MotionState.bIsClampedThisFrame = bClamped;
+
+	OnCombatMotionStarted.Broadcast(Handle, Req.Type);
+	OnCombatMotionEnded.Broadcast(Handle, "End.TeleportApplied");
+
+	MotionState = FCombatMotionState();
+}
+
+FJRPGCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FJRPGCombatMotionRequest& InReq)
+{
+	FJRPGCombatMotionRequest Req = InReq;
+
+	if (Req.Priority <= 0)
+	{
+		Req.Priority = GetPriorityForType(Req.Type);
+	}
+	if (Req.OwnerTag.IsNone())
+	{
+		Req.OwnerTag = "Motion";
+	}
+
+	FName Reason = NAME_None;
+	if (!ValidateRequest(Req, Reason))
+	{
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Motion,
+				Reason,
+				TEXT("Motion request rejected"),
+				GetOwner(),
+				Req.Target.Get(),
+				FLinearColor::Red);
+		}
+		
+		return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, FJRPGCombatMotionHandle(), Reason);
+	}
+
+	if (!ResolveRequestContext(Req, Reason))
+	{
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Motion,
+				Reason,
+				TEXT("Motion request rejected"),
+				GetOwner(),
+				Req.Target.Get(),
+				FLinearColor::Red);
+		}
+		
+		return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, FJRPGCombatMotionHandle(), Reason);
+	}
+
+	const bool bHadActive = IsMotionActive();
+	FJRPGCombatMotionHandle OldHandle = MotionState.ActiveHandle;
+
+	if (bHadActive)
+	{
+		if (!CanReplaceCurrent(Req, Reason))
+		{
+			if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+			{
+				Debug->AddLog(
+					ECombatDebugCategory::Motion,
+					Reason,
+					TEXT("Motion request rejected"),
+					GetOwner(),
+					Req.Target.Get(),
+					FLinearColor::Red);
+			}
+			
+			return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, FJRPGCombatMotionHandle(), Reason);
+		}
+
+		OnCombatMotionEnded.Broadcast(MotionState.ActiveHandle, "Cancel.ReplacedByHigher");
+		MotionState = FCombatMotionState();
+	}
+
+	FJRPGCombatMotionHandle NewHandle;
+	NewHandle.OwnerTag = Req.OwnerTag;
+	NewHandle.UniqueId = NextMotionId++;
+
+	if (Req.ExecMode == EJRPGCombatMotionExecMode::Teleport)
+	{
+		FinishTeleportRequestImmediately(Req, NewHandle);
+		
+		if (UCombatDebugSubsystem*Debug =GetWorld() ?GetWorld()->GetSubsystem<UCombatDebugSubsystem>() :nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Motion,
+				"Motion.AcceptTeleport",
+				FString::Printf(TEXT("Teleport motion accepted | Type=%d OwnerTag=%s"), (int32)Req.Type, *Req.OwnerTag.ToString()),
+				GetOwner(),
+				Req.Target.Get(),
+				FLinearColor(0.7, 1.f, 0.7f));
+		}
+		
+		return FJRPGCombatMotionResponse::Make(
+			bHadActive ? EJRPGCombatMotionResult::ReplacedExisting : EJRPGCombatMotionResult::Accepted,
+			NewHandle,
+			bHadActive ? "Accept.Replace" : "Accept.Teleport");
+	}
+
+	StartAcceptedMotion(Req, NewHandle, bHadActive, OldHandle);
+
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Motion,
+			"Motion.Accept",
+			FString::Printf(TEXT("Motion accepted | Type=%d Mode=%d Priority=%d OwnerTag=%s"),
+				(int32)Req.Type,
+				(int32)Req.ExecMode,
+				Req.Priority,
+				*Req.OwnerTag.ToString()),
+			GetOwner(),
+			Req.Target.Get(),
+			FLinearColor(0.7f,1.f,1.f));
+	}
+	
+	return FJRPGCombatMotionResponse::Make(
+		bHadActive ? EJRPGCombatMotionResult::ReplacedExisting : EJRPGCombatMotionResult::Accepted,
+		NewHandle,
+		bHadActive ? "Accept.Replace" : "Accept");
+}
+
+bool UCombatMotionComponent::CancelCombatMotion(FJRPGCombatMotionHandle Handle, FName ReasonTag)
+{
+	if (!IsMotionActive()) return false;
+	if (!(MotionState.ActiveHandle == Handle)) return false;
+
+	EndActiveMotion(ReasonTag.IsNone() ? "Cancel.Explicit" : ReasonTag);
+	return true;
+}
+
+int32 UCombatMotionComponent::CancelAllByOwner(FName OwnerTag, FName ReasonTag)
+{
+	if (!IsMotionActive()) return 0;
+	if (MotionState.ActiveHandle.OwnerTag != OwnerTag) return 0;
+
+	EndActiveMotion(ReasonTag.IsNone() ? "Cancel.ByOwner" : ReasonTag);
+	return 1;
+}
+
+void UCombatMotionComponent::EndActiveMotion(FName EndReasonTag)
+{
+	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+	{
+		Debug->AddLog(
+			ECombatDebugCategory::Motion,
+			EndReasonTag.IsNone() ?"Motion.End" :EndReasonTag,
+			FString::Printf(TEXT("Motion ended | Handle=%llu Type=%d"),
+				(unsigned long long)MotionState.ActiveHandle.UniqueId,
+				(int32)MotionState.ActiveRequest.Type),
+			GetOwner(),
+			MotionState.ActiveRequest.Target.Get(),
+			FLinearColor(0.9f, 0.9f, 1.f));
+	}
+	
+	if (!IsMotionActive()) return;
+
+	const FJRPGCombatMotionHandle Handle = MotionState.ActiveHandle;
+	if (CharMove.IsValid())
+	{
+		CharMove->StopMovementImmediately();
+	}
+
+	OnCombatMotionEnded.Broadcast(Handle, EndReasonTag);
+	MotionState = FCombatMotionState();
+}
+
+FVector UCombatMotionComponent::ClampLocationToBattle(const FVector& InLocation, bool& bWasClamped) const
+{
+	bWasClamped = false;
+
+	UBattleSessionSubsystem* Battle = GetBattle();
+	if (!Battle) return InLocation;
+
+	FVector Center;
+	float Radius = 0.f;
+	if (!Battle->GetCombatClamp(Center, Radius) || Radius <= 0.f)
+	{
+		return InLocation;
+	}
+
+	FVector Delta = InLocation - Center;
+	const float Z = Delta.Z;
+	Delta.Z = 0.f;
+
+	const float Dist2D = Delta.Size();
+	if (Dist2D <= Radius)
+	{
+		return InLocation;
+	}
+
+	bWasClamped = true;
+	const FVector Clamped2D = Delta.GetSafeNormal() * Radius;
+	return FVector(Center.X + Clamped2D.X, Center.Y + Clamped2D.Y, InLocation.Z + 0.f * Z);
+}
+
+void UCombatMotionComponent::ApplyClampIfNeeded()
+{
+	if (!IsMotionActive()) return;
+	if (!MotionState.ActiveRequest.bAllowClamp) return;
+
+	bool bClamped = false;
+	const FVector Cur = GetOwner()->GetActorLocation();
+	const FVector NewLoc = ClampLocationToBattle(Cur, bClamped);
+
+	MotionState.bIsClampedThisFrame = bClamped;
+	if (bClamped)
+	{
+		GetOwner()->SetActorLocation(NewLoc, false);
+
+		if (MotionState.ActiveRequest.EndPolicy == EJRPGCombatMotionEndPolicy::HitWallOrBlocked)
+		{
+			EndActiveMotion("End.ClampHit");
+		}
+	}
+}
+
+void UCombatMotionComponent::TickVelocityCurve(float DeltaTime)
+{
+	const FJRPGCombatMotionRequest& Req = MotionState.ActiveRequest;
+	if (!GetOwner()) return;
+
+	MotionState.Elapsed += DeltaTime;
+
+	float EvalX = MotionState.Elapsed;
+	if (Req.Duration > 0.f)
+	{
+		EvalX = FMath::Clamp(MotionState.Elapsed / Req.Duration, 0.f, 1.f);
+	}
+
+	float Speed = 0.f;
+	if (Req.SpeedCurve)
+	{
+		Speed = Req.SpeedCurve->GetFloatValue(EvalX);
+	}
+	else
+	{
+		if (Req.Duration > 0.f && Req.Distance > 0.f)
+		{
+			Speed = Req.Distance / Req.Duration;
+		}
+		else
+		{
+			Speed = 600.f;
+		}
+	}
+
+	const FVector Delta = MotionState.ResolvedDirection * Speed * DeltaTime;
+
+	FHitResult Hit;
+	const FVector Before = GetOwner()->GetActorLocation();
+	GetOwner()->AddActorWorldOffset(Delta, true, &Hit);
+	const FVector After = GetOwner()->GetActorLocation();
+
+	const float Moved = FVector::Dist2D(Before, After);
+	MotionState.AccumulatedDistance += Moved;
+	MotionState.LastWorldLocation = After;
+
+	if (Hit.IsValidBlockingHit())
+	{
+		MotionState.bBlocked = true;
+		MotionState.LastBlockHitResult = Hit;
+		OnCombatMotionBlocked.Broadcast(MotionState.ActiveHandle, Hit);
+		
+		if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
+		{
+			Debug->AddLog(
+				ECombatDebugCategory::Motion,
+				"Motion.Blocked",
+				FString::Printf(TEXT("Motion blocked by collision")),
+				GetOwner(),
+				MotionState.ActiveRequest.Target.Get(),
+				FLinearColor(1.f, 0.6f, 0.2f));
+		}
+
+		if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::HitWallOrBlocked)
+		{
+			EndActiveMotion("End.HitWall");
+			return;
+		}
+	}
+
+	ApplyClampIfNeeded();
+	if (!IsMotionActive()) return;
+
+	if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::DistanceReached && Req.Distance > 0.f && MotionState.AccumulatedDistance >= Req.Distance)
+	{
+		EndActiveMotion("End.DistanceReached");
+		return;
+	}
+
+	if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::TimeElapsed && Req.Duration > 0.f && MotionState.Elapsed >= Req.Duration)
+	{
+		EndActiveMotion("End.DurationElapsed");
+		return;
+	}
+}
+
+void UCombatMotionComponent::TickRootMotion(float DeltaTime)
+{
+	MotionState.Elapsed += DeltaTime;
+	ApplyClampIfNeeded();
+	if (!IsMotionActive()) return;
+
+	const FJRPGCombatMotionRequest& Req = MotionState.ActiveRequest;
+	
+	if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::MontageEnded)
+	{
+		bool bStillPlaying = false;
+
+		if (ACharacter* C = GetCharacterOwner())
+		{
+			if (USkeletalMeshComponent* Mesh = C->GetMesh())
+			{
+				if (UAnimInstance* Anim = Mesh->GetAnimInstance())
+				{
+					if (Req.RootMontage)
+					{
+						bStillPlaying = Anim->Montage_IsPlaying(Req.RootMontage);
+					}
+					else
+					{
+						bStillPlaying = Anim->IsAnyMontagePlaying();
+					}
+				}
+			}
+		}
+
+		if (!bStillPlaying)
+		{
+			EndActiveMotion("End.MontageEnded");
+			return;
+		}
+	}
+
+	if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::TimeElapsed && Req.Duration > 0.f && MotionState.Elapsed >= Req.Duration)
+	{
+		EndActiveMotion("End.DurationElapsed");
+		return;
+	}
+}
+
+void UCombatMotionComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponentTickFunction*)
+{
+	if (!IsMotionActive()) return;
+
+	switch (MotionState.ActiveRequest.ExecMode)
+	{
+	case EJRPGCombatMotionExecMode::VelocityCurve:
+		TickVelocityCurve(DeltaTime);
+		break;
+	
+	case EJRPGCombatMotionExecMode::RootMotion:
+		TickRootMotion(DeltaTime);
+		break;
+	
+	case EJRPGCombatMotionExecMode::Teleport:
+	default:
+		break;
+	}
+}
