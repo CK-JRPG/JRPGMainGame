@@ -64,7 +64,7 @@ private:
 };
 
 // ---------------------------------------------------------
-// 3. 액션 팔레트 뷰모델 (SP 처리)
+// 3. 액션 팔레트 뷰모델 (HP, AP 처리)
 // ---------------------------------------------------------
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSPUIUpdated, float /*Percent*/, const FString& /*Text*/);
 

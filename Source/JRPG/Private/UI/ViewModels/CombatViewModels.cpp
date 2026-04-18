@@ -73,12 +73,13 @@ void UCombatPartySlotViewModel::Unbind()
     BoundCharacterID = NAME_None;
 }
 
+// Exploration UI 전용 함수
 void UCombatPartySlotViewModel::HandleHPChanged(FName CharID, float NewHP, float MaxHP) 
 {
     if (CharID != BoundCharacterID) return;
 
     float Percent = MaxHP > 0.f ? NewHP / MaxHP : 0.f;
-    FString Text = FString::Printf(TEXT("%d / %d"), FMath::RoundToInt(NewHP), FMath::RoundToInt(MaxHP));
+    FString Text = FString::Printf(TEXT("%d"), FMath::RoundToInt(NewHP));
     OnHPUIUpdated.Broadcast(Percent, Text);
 }
 
@@ -90,12 +91,13 @@ void UCombatPartySlotViewModel::HandleAPChanged(FName CharID, int32 NewAP, int32
     OnAPUIUpdated.Broadcast(Percent);
 }
 
+// Combat UI 전용 함수
 void UCombatPartySlotViewModel::HandleHPChanged(float OldHP, float NewHP, FName Reason) 
 {
     if (CachedHPComp.IsValid()) {
         float MaxHP = CachedHPComp->MaxHP;
         float Percent = MaxHP > 0.f ? NewHP / MaxHP : 0.f;
-        FString Text = FString::Printf(TEXT("%d / %d"), FMath::RoundToInt(NewHP), FMath::RoundToInt(MaxHP));
+        FString Text = FString::Printf(TEXT("%d"), FMath::RoundToInt(NewHP));
         OnHPUIUpdated.Broadcast(Percent, Text);
     }
 }

@@ -19,6 +19,7 @@
 #include "UI/Combat/CombatTagSwapWidget.h"
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
+#include "Combat/Stats/HPComponent.h"
 
 void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass)
 {
@@ -101,12 +102,14 @@ void UCombatHUDPresenter::Shutdown()
 		}
 	}
 
+	ClearHPBindings();
+
 	if (CombatWidget) { CombatWidget->RemoveFromParent(); CombatWidget = nullptr; }
 	if (TacticalWidget) { TacticalWidget->RemoveFromParent(); TacticalWidget = nullptr; }
 	DamageTextPool.Empty();
 }
 
-void UCombatHUDPresenter::ShowDamageText(AActor* Target, float Damage, bool bIsCritical)
+void UCombatHUDPresenter::ShowDamageText(AActor* Target, float Damage, bool bIsCritical, EDamageTextType TextType)
 {
 	if (!CombatWidget || !DamageTextClass || !Target) return;
 	UCanvasPanel* Canvas = CombatWidget->GetDamageCanvas();
@@ -137,7 +140,7 @@ void UCombatHUDPresenter::ShowDamageText(AActor* Target, float Damage, bool bIsC
 	if (DmgWidget)
 	{
 		DmgWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		DmgWidget->InitializeDamage(Target, Damage, bIsCritical);
+		DmgWidget->InitializeDamage(Target, Damage, bIsCritical, TextType);
 	}
 }
 
@@ -217,6 +220,11 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 				PartyVMs.Add(SlotVM);
 
 				CombatWidget->PartyRosterPanel->AddPartySlot(SlotWidget);
+
+				if (UHPComponent* HPComp = Actor->FindComponentByClass<UHPComponent>()) {
+					HPComp->OnHPChanged.AddUObject(this, &UCombatHUDPresenter::HandleActorHPChangedForDamageText, Cast<AActor>(Actor));
+					BoundHPComps.Add(HPComp);
+				}
 			}
 		}
 	}
@@ -247,6 +255,11 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 					EnemyVM->BindToEnemy(Enemy);
 					EnemyHPBarVMs.Add(EnemyVM);
 				}
+			}
+
+			if (UHPComponent* HPComp = Enemy->FindComponentByClass<UHPComponent>()) {
+				HPComp->OnHPChanged.AddUObject(this, &UCombatHUDPresenter::HandleActorHPChangedForDamageText, Enemy);
+				BoundHPComps.Add(HPComp);
 			}
 		}
 	}
@@ -280,6 +293,7 @@ void UCombatHUDPresenter::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, 
 	if (TargetVM) TargetVM->Unbind();
 	for (auto& VM : PartyVMs) { if (VM) VM->Unbind(); }
 	for (auto& VM : EnemyHPBarVMs) { if (VM) VM->Unbind(); }
+	ClearHPBindings();
 
 	if (UBattleSessionSubsystem* BattleSub = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
 	{
@@ -293,6 +307,18 @@ void UCombatHUDPresenter::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, 
 			}
 		}
 	}
+}
+
+void UCombatHUDPresenter::ClearHPBindings()
+{
+	for (TWeakObjectPtr<UHPComponent> HPComp : BoundHPComps)
+	{
+		if (HPComp.IsValid())
+		{
+			HPComp->OnHPChanged.RemoveAll(this);
+		}
+	}
+	BoundHPComps.Empty();
 }
 
 void UCombatHUDPresenter::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
@@ -313,7 +339,7 @@ void UCombatHUDPresenter::OnTacticalModeExited(const FTacticalModeSnapshot& Snap
 
 // 뷰모델 -> 뷰 토스 (중개 콜백 구현)
 void UCombatHUDPresenter::OnActionPaletteSPUpdated(float Percent, const FString& Text) {
-	if (CombatWidget && CombatWidget->ActionPalettePanel) CombatWidget->ActionPalettePanel->UpdateSPUI(Percent, Text);
+	//if (CombatWidget && CombatWidget->ActionPalettePanel) CombatWidget->ActionPalettePanel->UpdateSPUI(Percent, Text);
 }
 
 void UCombatHUDPresenter::OnTargetNameUpdated(const FString& Name) {
@@ -346,6 +372,42 @@ void UCombatHUDPresenter::OnPartySlotAPUpdated(float Percent, UCombatPartySlotWi
 void UCombatHUDPresenter::OnEnemyHPBarUpdated(float Percent, const FString& Text, UEnemyHPBarWidget* View)
 {
 	if (View) View->UpdateHP(Percent);
+}
+
+void UCombatHUDPresenter::HandleActorHPChangedForDamageText(float OldHP, float NewHP, FName Reason, AActor* TargetActor)
+{
+	if (!TargetActor) return;
+
+	float Difference = NewHP - OldHP;
+
+	if (FMath::IsNearlyZero(Difference)) return;
+
+	bool bIsHeal = (Difference > 0.f);
+	float AbsoluteAmount = FMath::Abs(Difference);
+
+	bool bIsCritical = false;
+
+	EDamageTextType TextType = EDamageTextType::EnemyDamage;
+
+	if (bIsHeal)
+	{
+		TextType = EDamageTextType::Heal;
+	}
+	else
+	{
+		ICombatParticipantInterface* T = Cast<ICombatParticipantInterface>(TargetActor);
+
+		if (!T) return;
+
+		const ECombatTeam TT = T->GetCombatTeam();
+
+		if (TT == ECombatTeam::Player)
+		{
+			TextType = EDamageTextType::PlayerDamage;
+		}
+	}
+
+	ShowDamageText(TargetActor, AbsoluteAmount, bIsCritical, TextType);
 }
 
 UCombatPartySlotViewModel* UCombatHUDPresenter::GetPartySLotVM(FName CharID)
