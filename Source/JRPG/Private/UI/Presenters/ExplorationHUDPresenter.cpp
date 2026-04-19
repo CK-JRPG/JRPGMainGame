@@ -173,6 +173,8 @@ void UExplorationHUDPresenter::RefreshPartyStatusData()
 
 		SlotVM->BindToCharacter(CharID);
 
+		SlotVM->Refresh();
+
 		PartyViewModels.Add(SlotVM);
 		RosterPanel->AddPartySlot(SlotWidget);
 	}

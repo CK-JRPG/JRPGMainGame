@@ -3,6 +3,7 @@
 #include "UObject/NoExportTypes.h"
 #include "Combat/Battle/BattleSessionTypes.h"
 #include "Combat/Tactical/TacticalModeTypes.h"
+#include "UI/Combat/DamageTextWidget.h"
 #include "CombatHUDPresenter.generated.h"
 
 class UCombatUIWidget;
@@ -16,7 +17,7 @@ public:
     void Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass);
     void Shutdown();
 
-    void ShowDamageText(AActor* Target, float Damage, bool bIsCritical);
+    void ShowDamageText(AActor* Target, float Damage, bool bIsCritical, EDamageTextType TextType);
     UPROPERTY() TSubclassOf<class UDamageTextWidget> DamageTextClass;
     void OnActiveCharacterChanged(FName NewActiveID);
 
@@ -30,6 +31,7 @@ private:
     UPROPERTY() TArray<TObjectPtr<class UEnemyViewModel>> EnemyHPBarVMs;
     UPROPERTY() TArray<TObjectPtr<class UDamageTextWidget>> DamageTextPool;
     UPROPERTY() TArray<TObjectPtr<class UCombatPartySlotViewModel>> TagSwapVMs;
+    UPROPERTY() TArray<TWeakObjectPtr<class UHPComponent>> BoundHPComps;
 
     void ReturnDamageTextToPool(class UDamageTextWidget* Widget);
 
@@ -51,5 +53,18 @@ private:
 
     void OnEnemyHPBarUpdated(float Percent, const FString& Text, class UEnemyHPBarWidget* View);
 
+    void HandleActorHPChangedForDamageText(float OldHP, float NewHP, FName Reason, AActor* TargetActor);
+
     class UCombatPartySlotViewModel* GetPartySLotVM(FName CharID);
+
+    void ClearHPBindings();
+
+    // Action Palette용
+    UPROPERTY()
+    TMap<FName, TObjectPtr<class UCombatPartySlotWidget>> PartySlotWidgets;
+
+    TWeakObjectPtr<class UCombatPartySlotViewModel> CurrentActivePartyVM;
+
+    void OnActionPaletteHPUpdated(float Percent, const FString& Text);
+    void OnActionPaletteAPUpdated(float Percent);
 };
