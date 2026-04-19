@@ -75,4 +75,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "AI") float ChaseLeashRange = 1200.f;
 	
 	bool IsValidDef() const { return !CharacterId.IsNone(); }
+
+	virtual FPrimaryAssetId GetPrimaryAssetId() const override
+	{
+		return FPrimaryAssetId(FName("CombatCharacterData"), CharacterId);
+	}
 };

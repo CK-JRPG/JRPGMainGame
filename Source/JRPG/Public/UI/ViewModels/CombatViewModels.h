@@ -18,6 +18,7 @@ public:
     void BindToActor(AActor* MemberActor);
     void BindToCharacter(FName InCharacterID);
     void Unbind();
+    void Refresh();
 
     FOnNameUpdated OnNameUpdated;
     FOnHPUIUpdated OnHPUIUpdated;
@@ -28,14 +29,14 @@ public:
 private:
     FName BoundCharacterID;
 
-    void HandleHPChanged(FName CharID, float NewHP, float MaxHP);
-    void HandleAPChanged(FName CharID, int32 NewAP, int32 MaxAP);
+    void HandleSubsystemHPChanged(FName CharID, float NewHP, float MaxHP);
+    void HandleSubsystemAPChanged(FName CharID, int32 NewAP, int32 MaxAP);
 
     TWeakObjectPtr<class UHPComponent> CachedHPComp;
     TWeakObjectPtr<class UAPComponent> CachedAPComp;
 
-    void HandleHPChanged(float OldHP, float NewHP, FName Reason);
-    void HandleAPChanged(int32 OldAP, int32 NewAP, FName Reason);
+    void HandleActorHPChanged(float OldHP, float NewHP, FName Reason);
+    void HandleActorAPChanged(int32 OldAP, int32 NewAP, FName Reason);
 };
 
 // ---------------------------------------------------------
@@ -59,7 +60,7 @@ private:
     TWeakObjectPtr<class UHPComponent> CachedHPComp;
     TWeakObjectPtr<class UGroggyComponent> CachedGroggyComp;
 
-    void HandleHPChanged(float OldHP, float NewHP, FName Reason);
+    void HandleActorHPChanged(float OldHP, float NewHP, FName Reason);
     void HandleGroggyChanged(bool bGroggy);
 };
 

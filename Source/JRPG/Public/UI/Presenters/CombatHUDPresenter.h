@@ -58,4 +58,13 @@ private:
     class UCombatPartySlotViewModel* GetPartySLotVM(FName CharID);
 
     void ClearHPBindings();
+
+    // Action Palette용
+    UPROPERTY()
+    TMap<FName, TObjectPtr<class UCombatPartySlotWidget>> PartySlotWidgets;
+
+    TWeakObjectPtr<class UCombatPartySlotViewModel> CurrentActivePartyVM;
+
+    void OnActionPaletteHPUpdated(float Percent, const FString& Text);
+    void OnActionPaletteAPUpdated(float Percent);
 };
