@@ -291,6 +291,13 @@ void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 	{
 		RangedRepositionPauseRemaining = FMath::Max(0.f, RangedRepositionPauseRemaining - DeltaTime);
 	}
+	else if (State == EPartyAIState::KeepDistance)
+	{
+		// 측면 이동 방향을 주기적으로 반전해 자연스러운 스트래핑
+		RangedRepositionDirection *= -1.f;
+		RangedRepositionPauseRemaining = 2.f;
+	}
+	
 	switch (State)
 	{
 	case EPartyAIState::Chase:
@@ -314,13 +321,15 @@ void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 
 	case EPartyAIState::KeepDistance:
 
-		// 원거리: 뒤로만 도망가지 않게 거리 + 측면 이동을 섞어 고정거리 유지
-		if (RangedRepositionPauseRemaining <= 0.f)
+		// 원거리: 뒤로만 도망가지 않게 거리 + 측면 이동을 매 틱 적용해 부드러운 이동 유지
+		/*if (RangedRepositionPauseRemaining <= 0.f)
 		{
 			MoveDirectlyAwayFrom(CurrentTarget->GetActorLocation(), 0.8f);
 			MoveLaterallyAround(CurrentTarget->GetActorLocation(), RangedRepositionDirection * 0.55f);
 			RangedRepositionPauseRemaining = 0.2f;
-		}
+		}*/
+		MoveDirectlyAwayFrom(CurrentTarget->GetActorLocation(), 0.8f);
+		MoveLaterallyAround(CurrentTarget->GetActorLocation(), RangedRepositionDirection * 0.55f);
 		FaceTarget(CurrentTarget.Get());
 		break;
 
