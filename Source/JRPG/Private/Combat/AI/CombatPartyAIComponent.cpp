@@ -396,9 +396,17 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 			}
 			if (Targets.Num() <= 0)
 			{
+				if (Action.Target.IsValid())
+				{
+					CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
+				}
 				return;
 			}
-			CachedPresentation->TryPresentSkill(Action.SkillId, Targets, false);
+			const FSkillCastResult SkillResult = CachedPresentation->TryPresentSkill(Action.SkillId, Targets, false);
+			if (!SkillResult.bOk && Action.Target.IsValid())
+			{
+				CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
+			}
 		}
 		return;
 	}

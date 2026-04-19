@@ -65,6 +65,9 @@ private:
 		
 		FJRPGCombatMotionHandle MotionHandle;
 		bool bHasMotion = false;
+		double StartedAtRealSec = 0.0;
+		double AutoResolveAtRealSec = 0.0;
+		double AutoFinishAtRealSec = 0.0;
 	};
 
 	FActivePresentationState Active;

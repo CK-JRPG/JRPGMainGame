@@ -37,9 +37,28 @@ UTacticalModeSubsystem* UCombatPresentationComponent::GetTactical() const
 	return GetWorld() ? GetWorld()->GetSubsystem<UTacticalModeSubsystem>() : nullptr;
 }
 
+
 void UCombatPresentationComponent::TickComponent(float, ELevelTick, FActorComponentTickFunction*)
 {
-	if (!GetOwner() || HasActivePresentation()) return;
+	if (!GetOwner())
+	{
+		return;
+	}
+
+	if (HasActivePresentation())
+	{
+		const double Now = FPlatformTime::Seconds();
+		if (!Active.bResolved && Active.AutoResolveAtRealSec > 0.0 && Now >= Active.AutoResolveAtRealSec)
+		{
+			ResolveActivePresentation();
+		}
+		if (HasActivePresentation() && Active.AutoFinishAtRealSec > 0.0 && Now >= Active.AutoFinishAtRealSec)
+		{
+			FinishActivePresentation();
+		}
+		return;
+	}
+
 	TryConsumeTacticalReservation();
 }
 
@@ -152,24 +171,36 @@ void UCombatPresentationComponent::EmitCue(FName CueTag)
 void UCombatPresentationComponent::PlayActiveMontageOrResolve()
 {
 	EmitCue(Active.StartCueTag);
-
+	Active.StartedAtRealSec = FPlatformTime::Seconds();
+ 
 	if (Active.ResolveTiming == ECombatResolveTiming::Immediate || !Active.Montage)
 	{
+		Active.AutoResolveAtRealSec = Active.StartedAtRealSec;
+		Active.AutoFinishAtRealSec = Active.StartedAtRealSec;
 		ResolveActivePresentation();
 		FinishActivePresentation();
 		return;
 	}
+ 
+	const float MontageLengthSec = FMath::Max(0.05f, Active.Montage->GetPlayLength());
+	Active.AutoResolveAtRealSec = Active.StartedAtRealSec + (MontageLengthSec * 0.6f);
+	Active.AutoFinishAtRealSec = Active.StartedAtRealSec + MontageLengthSec + 0.1;
 
 	if (ACharacter *C = Cast<ACharacter>(GetOwner()))
 	{
-		C->PlayAnimMontage(Active.Montage);
+		const float PlayedLen = C->PlayAnimMontage(Active.Montage);
+		if (PlayedLen <= 0.f)
+		{
+			ResolveActivePresentation();
+			FinishActivePresentation();
+		}
 	}
 	else
 	{
 		ResolveActivePresentation();
 		FinishActivePresentation();
 	}
-}
+} 
 
 FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *Target)
 {
