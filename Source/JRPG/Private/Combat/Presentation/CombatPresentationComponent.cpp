@@ -11,6 +11,7 @@
 #include "Combat/Tactical/TacticalModeSubsystem.h"
 
 #include "Combat/Motion/CombatMotionComponent.h"
+#include "Combat/Movement/LocomotionComponent.h"
 
 #include "GameFramework/Character.h"
 
@@ -156,6 +157,37 @@ void UCombatPresentationComponent::CancelActiveMotionIfNeeded()
 	}
 }
 
+void UCombatPresentationComponent::AcquireInputLockForPresentation()
+{
+	if (APawn* P = Cast<APawn>(GetOwner()))
+	{
+		if (ULocomotionComponent* Loco = P->FindComponentByClass<ULocomotionComponent>())
+		{
+			const TJRPGResult<FJRPGHandle> Result = Loco->AcquireInputLock("Present.Action");
+			if (Result.bOk)
+			{
+				Active.InputLockHandle = Result.Value;
+				Active.bHasInputLock = true;
+			}
+		}
+	}
+}
+
+void UCombatPresentationComponent::ReleaseInputLockForPresentation()
+{
+	if (!Active.bHasInputLock)
+		return;
+
+	if (APawn* P = Cast<APawn>(GetOwner()))
+	{
+		if (ULocomotionComponent* Loco = P->FindComponentByClass<ULocomotionComponent>())
+		{
+			Loco->ReleaseInputLock(Active.InputLockHandle);
+			Active.bHasInputLock = false;
+		}
+	}
+}
+
 void UCombatPresentationComponent::EmitCue(FName CueTag)
 {
 	if (CueTag.IsNone())
@@ -235,6 +267,7 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 	}
 	
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
+	AcquireInputLockForPresentation();
 	PlayActiveMontageOrResolve();
 	
 	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
@@ -302,6 +335,7 @@ FSkillCastResult UCombatPresentationComponent::TryPresentSkill(FName SkillId, co
 	}
 	
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
+	AcquireInputLockForPresentation();
 	PlayActiveMontageOrResolve();
 
 	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
@@ -344,6 +378,7 @@ FCombatItemUseResult UCombatPresentationComponent::TryPresentItem(FName ItemId,c
 	}
 
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
+	AcquireInputLockForPresentation();
 	PlayActiveMontageOrResolve();
 
 	if (UCombatDebugSubsystem*Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
@@ -512,6 +547,7 @@ void UCombatPresentationComponent::FinishActivePresentation()
 	}
 
 	OnPresentationFinished.Broadcast(Active.Type, Active.ActionId);
+	ReleaseInputLockForPresentation();
 	ClearActiveState();
 }
 
@@ -547,6 +583,7 @@ void UCombatPresentationComponent::CancelActivePresentation(FName ReasonTag, boo
 	}
 
 	OnPresentationFinished.Broadcast(Active.Type, Active.ActionId);
+	ReleaseInputLockForPresentation();
 	ClearActiveState();
 }
 

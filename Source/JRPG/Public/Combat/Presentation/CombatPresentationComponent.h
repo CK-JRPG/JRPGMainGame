@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "JRPGCoreApiTypes.h"
 #include "Components/ActorComponent.h"
 #include "Animation/AnimMontage.h"
 
@@ -68,6 +69,9 @@ private:
 		double StartedAtRealSec = 0.0;
 		double AutoResolveAtRealSec = 0.0;
 		double AutoFinishAtRealSec = 0.0;
+		
+		FJRPGHandle InputLockHandle;
+		bool bHasInputLock = false;
 	};
 
 	FActivePresentationState Active;
@@ -86,4 +90,7 @@ private:
 	bool TryStartMotionForBasicAttack();
 	bool TryStartMotionForSkill(USkillDataAsset* SkillDef);
 	void CancelActiveMotionIfNeeded();
+	
+	void AcquireInputLockForPresentation();
+	void ReleaseInputLockForPresentation();
 };
