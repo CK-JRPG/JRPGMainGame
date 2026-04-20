@@ -65,6 +65,13 @@ public:
         meta = (ClampMin = "1.0", ClampMax = "50000.0"))
     float GIRange = 1000.f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling")
+    bool bNeverCullGIProxy = true;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling",
+        meta = (ClampMin = "1.0", ClampMax = "10000.0"))
+    float GIBoundsScale = 10.f;
+
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Intensity",
         meta = (ClampMin = "0.0", ClampMax = "100.0"))
     float GIIntensity = 1.f;
@@ -83,10 +90,10 @@ private:
     void ApplyMeshType();
     void ApplyAngle();
     void ApplyRange();
+    void ApplyCulling();
     void ApplyIntensity();
     void ApplyEnabled();
 
-    // Dynamic Material Instance (Gradient Mask 파라미터 제어용)
     UPROPERTY()
     TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
 };

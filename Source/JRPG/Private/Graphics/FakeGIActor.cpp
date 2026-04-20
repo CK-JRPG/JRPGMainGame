@@ -16,6 +16,11 @@ AFakeGIActor::AFakeGIActor()
     GIMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
     GIMesh->SetHiddenInGame(true);
     GIMesh->SetAffectIndirectLightingWhileHidden(true);
+    GIMesh->SetCullDistance(0.f);
+    GIMesh->bAllowCullDistanceVolume = false;
+    GIMesh->SetBoundsScale(GIBoundsScale);
+    GIMesh->SetVisibleInRayTracing(true);
+    GIMesh->RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_0_NEVER_CULL;
 
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
@@ -55,6 +60,7 @@ void AFakeGIActor::UpdateFakeGI()
     EnsureDynamicMaterial();
     ApplyAngle();
     ApplyRange();
+    ApplyCulling();
     ApplyIntensity();
     ApplyEnabled();
 }
@@ -130,6 +136,24 @@ void AFakeGIActor::ApplyRange()
     GIMesh->SetWorldScale3D(FVector(Scale));
 }
 
+void AFakeGIActor::ApplyCulling()
+{
+    if (!GIMesh)
+    {
+        return;
+    }
+
+    if (bNeverCullGIProxy)
+    {
+        GIMesh->SetCullDistance(0.f);
+        GIMesh->bAllowCullDistanceVolume = false;
+        GIMesh->SetVisibleInRayTracing(true);
+        GIMesh->RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_0_NEVER_CULL;
+    }
+
+    GIMesh->SetBoundsScale(FMath::Max(GIBoundsScale, 1.f));
+}
+
 void AFakeGIActor::ApplyIntensity()
 {
     if (DynamicMaterial)
@@ -154,4 +178,3 @@ void AFakeGIActor::SetFakeGIEnabled(bool bEnabled)
     bFakeGIEnabled = bEnabled;
     ApplyEnabled();
 }
-
