@@ -140,14 +140,15 @@ void UExplorationUIWidget::SetPartyStatusMode(int32 Mode)
 
 	if (Mode == 0) // 숨김
 	{
-		Widget_PartyStatus->SetVisibility(ESlateVisibility::Hidden);
+		PlayPartyStatusAnim(false);
+		//Widget_PartyStatus->SetVisibility(ESlateVisibility::Hidden);
 		// (필요 시 지역명도 숨김 처리)
 	}
 	else if (Mode == 1) // 전투 후 회복 모드 (Tab 텍스트 등은 가리고 체력바만 보여주는 연출)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("UExplorationUIWidget::SetPartyStatusMode : Mode = 회복 모드"));
 		Widget_PartyStatus->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		PlayPartyStatusAnim(false);
+		PlayPartyStatusAnim(true);
 	}
 	else if (Mode == 2) // Tab 전체 정보 모드
 	{
@@ -202,5 +203,17 @@ void UExplorationUIWidget::AddPartyChat(const FPartyChatMsg& Msg)
 	{
 		NewBubble->InitChatMessage(Msg);
 		VBox_PartyChat->AddChildToVerticalBox(NewBubble);
+	}
+}
+
+void UExplorationUIWidget::PlayPartyStatusAnim(bool bIsIntro)
+{
+	if (Anim_PartyStatusIntro && bIsIntro)
+	{
+		PlayAnimation(Anim_PartyStatusIntro);
+	}
+	else if (Anim_PartyStatusOuttro && !bIsIntro)
+	{
+		PlayAnimation(Anim_PartyStatusOuttro);
 	}
 }

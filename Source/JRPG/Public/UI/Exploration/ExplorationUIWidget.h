@@ -69,6 +69,14 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UCombatPartyRosterWidget> Widget_PartyStatus;
 
+	UPROPERTY(Transient, meta = (BindWidgetAnim))
+	class UWidgetAnimation* Anim_PartyStatusIntro;
+	UPROPERTY(Transient, meta = (BindWidgetAnim))
+	class UWidgetAnimation* Anim_PartyStatusOuttro;
+
+	UFUNCTION()
+	void PlayPartyStatusAnim(bool bIsIntro);
+
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UOverlay> Overlay_Interaction;
 
@@ -83,9 +91,6 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> Text_DialogueContent;
-
-	UFUNCTION(BlueprintImplementableEvent)
-	void PlayPartyStatusAnim(bool bIsTabMode);
 
 	UPROPERTY(meta = (BindWidget))
 	class UPanelWidget* Canvas_Indicators;
