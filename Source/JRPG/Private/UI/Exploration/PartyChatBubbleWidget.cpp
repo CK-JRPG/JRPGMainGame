@@ -20,6 +20,6 @@ void UPartyChatBubbleWidget::ForceDismiss()
 	if (!bIsDismissing)
 	{
 		bIsDismissing = true;
-		PlayOutroAnimation(); // 블루프린트에 퇴장 지시
+		PlayOutroAnimation();
 	}
 }

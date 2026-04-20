@@ -146,14 +146,14 @@ void UInventoryPresenter::HandleItemAction(FGuid InstanceId, AActor* TargetChara
 
 		FName TargetCharId = NAME_None;
 
-		// 방법 A: PartySubsystem에서 첫 번째 멤버 ID 가져오기 (가장 권장되는 임시 방법)
-		// ※ 서브시스템 이름과 배열 반환 함수명(GetPartyMembers)은 실제 프로젝트에 맞게 수정해주세요!
+		// 사용 이후 특정 캐릭터가 사용하도록 추후 수정
+		// 첫 번째 캐릭터 강제 지정
 		if (UPartySubsystem* PartySub = GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>())
 		{
 			TArray<FName> PartyList = PartySub->GetPartyIds();
 			if (PartyList.Num() > 0)
 			{
-				TargetCharId = PartyList[0]; // 첫 번째 캐릭터 강제 지정
+				TargetCharId = PartyList[0];
 			}
 		}
 

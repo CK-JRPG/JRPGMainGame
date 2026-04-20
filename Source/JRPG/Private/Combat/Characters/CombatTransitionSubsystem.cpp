@@ -12,6 +12,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Combat/AI/CombatPartyAIComponent.h"
 #include "Game/HubSubsystem.h"
 #include "UI/JRPGHUD.h"
 #include "UI/Presenters/ExplorationHUDPresenter.h"
@@ -255,10 +256,34 @@ void UCombatTransitionSubsystem::OnPartyMemberChanged(const FName& NewCharacterI
 
 	if (IsValid(OldPawn))
 	{
+		if (ULocomotionComponent* OldLoco = OldPawn->FindComponentByClass<ULocomotionComponent>())
+		{
+			OldLoco->SetMoveInput(FVector2D::ZeroVector);
+			OldLoco->SetSprint(false);
+		}
+
+		if (ACharacter* OldCharacter = Cast<ACharacter>(OldPawn))
+		{
+			if (UCharacterMovementComponent* OldMovement = OldCharacter->GetCharacterMovement())
+			{
+				OldMovement->StopMovementImmediately();
+			}
+		}
+		
+		if (UCombatPartyAIComponent* OldPartyAI = OldPawn->FindComponentByClass<UCombatPartyAIComponent>())
+		{
+			OldPartyAI->SetComponentTickEnabled(true);
+		}		
 		OldPawn->SpawnDefaultController();
 	}
 
 	CombatPlayerController->Possess(TargetActor);
+	
+	if (UCombatPartyAIComponent* NewPartyAI = TargetActor->FindComponentByClass<UCombatPartyAIComponent>())
+	{
+		NewPartyAI->SetComponentTickEnabled(true);
+	}	
+	
 	CurrentPlayerCharacterID = NewCharacterID;
 
 	OnPartyMemberChangedDelegate.Broadcast(NewCharacterID);

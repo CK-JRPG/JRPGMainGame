@@ -83,6 +83,12 @@ void ACombatCharacterActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// 사망 이벤트 바인딩
+	if (HPComp)
+	{
+		HPComp->OnDeath.AddUObject(this, &ACombatCharacterActor::HandleOnDeath);
+	}
+	
 	// 팀에 따라 AI 컴포넌트 활성화/비활성화
 	if (CharacterComp)
 	{
@@ -152,6 +158,47 @@ void ACombatCharacterActor::BeginPlay()
 			{
 				//HPWidget->BindHPComponent(MyHPComp);
 			}
+		}
+	}
+}
+
+void ACombatCharacterActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (HPComp)
+	{
+		HPComp->OnDeath.RemoveAll(this);
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
+{
+	UE_LOG(LogTemp, Log, TEXT("CombatCharacterActor::HandleOnDeath : %s 사망 (Reason=%s)"),
+	*GetName(), *ReasonTag.ToString());
+
+	// 진행 중인 프레젠테이션 취소 (몽타주 중단 + 기존 입력 잠금 해제)
+	if (PresentationComp)
+	{
+		PresentationComp->CancelActivePresentation("Death.Killed", false);
+	}
+
+	// 이동 영구 잠금 (액터 파괴 시 LocomotionComponent::EndPlay에서 자동 해제)
+	if (LocomotionComp)
+	{
+		const TJRPGResult<FJRPGHandle> Result = LocomotionComp->AcquireInputLock("Death");
+		if (Result.bOk)
+		{
+			DeathInputLockHandle = Result.Value;
+		}
+	}
+
+	// 사망 몽타주 재생
+	if (DeathMontage)
+	{
+		if (UAnimInstance* Anim = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+		{
+			Anim->Montage_Play(DeathMontage);
 		}
 	}
 }

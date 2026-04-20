@@ -9,6 +9,7 @@
 class UCombatAIContext;
 class UCombatAIScorer;
 class USkillComponent;
+class USkillDataAsset;
 class UCombatPresentationComponent;
 
 //NavMesh 미사용 및 FSM 로직으로 구현.
@@ -57,10 +58,17 @@ private:
 
 	void RefreshTarget();
 	void MoveDirectlyToward(const FVector& Destination);
-	void MoveDirectlyAwayFrom(const FVector& ThreatLocation);
+	void MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale = 1.0f);
+	void MoveLaterallyAround(const FVector& FocusLocation, float Scale = 1.0f);
 	void FaceTarget(AActor* Target);
 	float GetDistanceToTarget() const;
 	void LoadRangeParams();
+	TArray<AActor*> BuildSkillTargets(const USkillDataAsset* SkillDef) const;
+	AActor * FindLowestHpAlly() const;
 
 	bool ResolveSkillMeta(USkillComponent* SkillComp, FName SkillId, struct FSkillAIMeta& OutMeta) const;
+
+	float RangedRepositionPauseRemaining = 0.f;
+	float RangedRepositionDirection = 1.f;
+	float KeepDistanceTolerance = 60.f;
 };
