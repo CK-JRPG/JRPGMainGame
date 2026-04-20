@@ -12,8 +12,11 @@
 
 #include "Combat/Motion/CombatMotionComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
+#include "Combat/Stats/HPComponent.h"
 
 #include "GameFramework/Character.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "TimerManager.h"
 
 UCombatPresentationComponent::UCombatPresentationComponent()
 {
@@ -220,7 +223,42 @@ void UCombatPresentationComponent::PlayActiveMontageOrResolve()
 
 	if (ACharacter *C = Cast<ACharacter>(GetOwner()))
 	{
-		const float PlayedLen = C->PlayAnimMontage(Active.Montage);
+		float PlayedLen = 0.f;
+		if (CharacterComp.IsValid() && CharacterComp->GetTeam() == ECombatTeam::Enemy)
+		{
+			if (USkeletalMeshComponent* MeshComp = C->GetMesh())
+			{
+				MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+				MeshComp->PlayAnimation(Active.Montage, false);
+				PlayedLen = MontageLengthSec;
+
+				TWeakObjectPtr<USkeletalMeshComponent> WeakMesh = MeshComp;
+				FTimerHandle RestoreAnimModeHandle;
+				GetWorld()->GetTimerManager().SetTimer(
+					RestoreAnimModeHandle,
+					[WeakMesh]()
+					{
+						if (WeakMesh.IsValid())
+						{
+							if (AActor* MeshOwner = WeakMesh->GetOwner())
+							{
+								if (const UHPComponent* HP = MeshOwner->FindComponentByClass<UHPComponent>(); HP && HP->IsDead())
+								{
+									return;
+								}
+							}
+							WeakMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+						}
+					},
+					MontageLengthSec,
+					false);
+			}
+		}
+		else
+		{
+			PlayedLen = C->PlayAnimMontage(Active.Montage);
+		}
+
 		if (PlayedLen <= 0.f)
 		{
 			ResolveActivePresentation();
