@@ -1,8 +1,6 @@
-﻿// Fill out your copyright notice in the Description page of Project Settings.
-
-
-#include "Combat/Characters/CharacterBaseAnimInstance.h"
+﻿#include "Combat/Characters/CharacterBaseAnimInstance.h"
 #include "GameFramework/Character.h"
+
 
 void UCharacterBaseAnimInstance::NativeInitializeAnimation()
 {
@@ -10,8 +8,6 @@ void UCharacterBaseAnimInstance::NativeInitializeAnimation()
 
 	OwnerCharacter = Cast<ACharacter>(TryGetPawnOwner());
 	MovementComponent = OwnerCharacter->GetCharacterMovement();
-
-
 }
 
 void UCharacterBaseAnimInstance::NativeUpdateAnimation(float DeltaSeconds)
@@ -34,7 +30,4 @@ void UCharacterBaseAnimInstance::UpdateMovementVariables()
 		UE_LOG(LogTemp, Error, TEXT("CharacterBaseAnimInstance : MovementComponent is None"));
 		return;
 	}
-
-	
-
 }

@@ -71,4 +71,8 @@ private:
 
 	bool IsChainSequenceActive() const;
 	bool ReadGroggy(EJRPGGroggyPhase& OutPhase) const;
+	
+	mutable TWeakObjectPtr<UObject> CachedChainProviderObject;
+	mutable double NextChainProviderRescanAt = 0.0;
+	static constexpr double ChainProviderRescanIntervalSec = 1.0;
 };

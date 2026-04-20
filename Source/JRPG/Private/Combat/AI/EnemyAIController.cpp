@@ -363,24 +363,44 @@ float AEnemyAIController::GetDistanceToTarget() const
 
 // ---- 유틸리티 ----
 
+
 bool AEnemyAIController::IsChainSequenceActive() const
 {
 	if (!GetWorld()) return false;
+ 
+	if (UObject* CachedProvider = CachedChainProviderObject.Get())
+	{
+		if (ICombatChainFlowProvider* Chain = Cast<ICombatChainFlowProvider>(CachedProvider))
+		{
+			return Chain->IsChainSequenceActive();
+		}
+		CachedChainProviderObject = nullptr;
+	}
+
+	const double Now = FPlatformTime::Seconds();
+	if (Now < NextChainProviderRescanAt)
+	{
+		return false;
+	}
+	NextChainProviderRescanAt = Now + ChainProviderRescanIntervalSec;
 
 	for (TObjectIterator<UObject> It; It; ++It)
 	{
 		UObject* Obj = *It;
 		if (!Obj || Obj->GetWorld() != GetWorld()) continue;
-
+ 
 		if (Obj->GetClass()->ImplementsInterface(UCombatChainFlowProvider::StaticClass()))
 		{
 			ICombatChainFlowProvider* Chain = Cast<ICombatChainFlowProvider>(Obj);
 			if (Chain && Chain->IsChainSequenceActive())
+			{
+				CachedChainProviderObject = Obj;
 				return true;
+			}
 		}
 	}
 	return false;
-}
+} 
 
 bool AEnemyAIController::ReadGroggy(EJRPGGroggyPhase& OutPhase) const
 {
