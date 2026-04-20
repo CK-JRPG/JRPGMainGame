@@ -19,7 +19,6 @@
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
 
 #include "Combat/Stats/HPComponent.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
 #include "Combat/Stats/CombatStatsComponent.h"
@@ -197,15 +196,7 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 	// 사망 몽타주 재생
 	if (DeathMontage)
 	{
-		if (CharacterComp && CharacterComp->GetTeam() == ECombatTeam::Enemy)
-		{
-			if (USkeletalMeshComponent* MeshComp = GetMesh())
-			{
-				MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-				MeshComp->PlayAnimation(DeathMontage, false);
-			}
-		}
-		else if (UAnimInstance* Anim = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+		if (UAnimInstance* Anim = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 		{
 			Anim->Montage_Play(DeathMontage);
 		}
