@@ -20,6 +20,8 @@
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Stats/HPComponent.h"
+#include "Combat/Presentation/CombatPresentationTypes.h"
+#include "Combat/Presentation/CombatPresentationComponent.h"
 
 void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass)
 {
@@ -206,6 +208,18 @@ void UCombatHUDPresenter::OnActiveCharacterChanged(FName NewActiveID)
 	if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0)) {
 		if (ActionPaletteVM) ActionPaletteVM->BindToPlayer(PlayerPawn);
 	}
+
+	if (UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
+	{
+		if (ACombatCharacterActor* ActiveActor = SpawnSub->FindActorByCharacterID(NewActiveID))
+		{
+			if (UCombatPresentationComponent* PC = ActiveActor->FindComponentByClass<UCombatPresentationComponent>())
+			{
+				PC->OnPresentationStarted.RemoveAll(this);
+				PC->OnPresentationStarted.AddUObject(this, &UCombatHUDPresenter::OnCombatPresentationStarted);
+			}
+		}
+	}
 }
 
 void UCombatHUDPresenter::ReturnDamageTextToPool(UDamageTextWidget* Widget)
@@ -374,6 +388,18 @@ void UCombatHUDPresenter::OnActionPaletteSkillUpdated(const TArray<FString>& Ski
 	if (CombatWidget && CombatWidget->ActionPalettePanel)
 	{
 		CombatWidget->ActionPalettePanel->UpdateSkillList(SkillNames);
+	}
+}
+
+void UCombatHUDPresenter::OnCombatPresentationStarted(EPresentedCombatActionType ActionType, FName ActionId)
+{
+	if (ActionType == EPresentedCombatActionType::Skill)
+	{
+		if (CombatWidget)
+		{
+			FString DisplayName = ActionId.ToString();
+			CombatWidget->PlaySkillAnnouncer(DisplayName);
+		}
 	}
 }
 
