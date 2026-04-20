@@ -4,6 +4,8 @@
 #include "Combat/Battle/BattleSessionTypes.h"
 #include "Combat/Tactical/TacticalModeTypes.h"
 #include "UI/Combat/DamageTextWidget.h"
+#include "Combat/Presentation/CombatPresentationTypes.h"
+#include "Combat/Presentation/CombatPresentationComponent.h"
 #include "CombatHUDPresenter.generated.h"
 
 class UCombatUIWidget;
@@ -68,4 +70,6 @@ private:
     void OnActionPaletteHPUpdated(float Percent, const FString& Text);
     void OnActionPaletteAPUpdated(float Percent);
     void OnActionPaletteSkillUpdated(const TArray<FString>& SkillNames);
+
+    void OnCombatPresentationStarted(EPresentedCombatActionType ActionType, FName ActionId);
 };

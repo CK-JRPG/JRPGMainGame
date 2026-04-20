@@ -12,6 +12,7 @@
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Tactical/TacticalModeSubsystem.h"
 #include "UI/JRPGHUD.h"
+#include "UI/Presenters/CombatHUDPresenter.h"
 
 #include "GameFramework/Character.h"
 #include "GameFramework/Pawn.h"
