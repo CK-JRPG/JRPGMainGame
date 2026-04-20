@@ -2,6 +2,7 @@
 
 
 #include "Combat/Characters/CharacterBaseAnimInstance.h"
+#include "GameFramework/Character.h"
 
 void UCharacterBaseAnimInstance::NativeInitializeAnimation()
 {

@@ -20,6 +20,7 @@ public:
     void ShowDamageText(AActor* Target, float Damage, bool bIsCritical, EDamageTextType TextType);
     UPROPERTY() TSubclassOf<class UDamageTextWidget> DamageTextClass;
     void OnActiveCharacterChanged(FName NewActiveID);
+    void ShowSkillAnnouncer(const FString& SkillName);
 
 private:
     UPROPERTY() TObjectPtr<UCombatUIWidget> CombatWidget;
@@ -41,7 +42,6 @@ private:
     void OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot);
     void OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot);
 
-    // 중개 콜백들 (VM -> View)
     void OnActionPaletteSPUpdated(float Percent, const FString& Text);
     void OnTargetNameUpdated(const FString& Name);
     void OnTargetHPUpdated(float Percent, const FString& Text);
@@ -67,4 +67,5 @@ private:
 
     void OnActionPaletteHPUpdated(float Percent, const FString& Text);
     void OnActionPaletteAPUpdated(float Percent);
+    void OnActionPaletteSkillUpdated(const TArray<FString>& SkillNames);
 };

@@ -19,7 +19,7 @@ struct FPartyChatMsg
 };
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnQuestUpdated, UTexture2D* /*QuestIcon*/, const FString& /*Objective*/);
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnPartyChatReceived, const FPartyChatMsg&); // 채팅용
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPartyChatReceived, const FPartyChatMsg&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegionChanged, const FString&);
 
 UENUM(BlueprintType)
@@ -36,7 +36,7 @@ struct FEnemyIndicatorData
 	GENERATED_BODY()
 	UPROPERTY() FGuid EnemyId;
 	UPROPERTY() EEnemyIndicatorState State;
-	UPROPERTY() FVector WorldLocation; // 추후 3D->2D 투영에 사용
+	UPROPERTY() FVector WorldLocation;
 };
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInteractionChanged, bool /*bCanInteract*/, const FString& /*ActionText*/);
@@ -60,13 +60,13 @@ public:
 	FOnDialogueChanged OnDialogueChanged;
 	FOnEnemyIndicatorsUpdated OnEnemyIndicatorsUpdated;
 
-	// [테스트용] 프레젠터 등에서 호출하여 UI가 잘 뜨는지 확인하기 위한 함수
+	// [테스트용] 프레젠터 등에서 호출하여 UI 확인
 	void PushTestPartyChat(UTexture2D* Icon, const FString& Text);
 	void PushTestRegionName(const FString& RegionName);
 	void PushTestInteraction(bool bShow, const FString& Text = TEXT(""));
 	void PushTestDialogue(bool bShow, const FString& Speaker = TEXT(""), const FString& Text = TEXT(""));
 
-	// 통합 테스트를 위한 임시 퀘스트 데이터 푸시
+	// 통합 테스트를 위한 임시 퀘스트 데이터
 	void LoadTempQuestData();
 
 private:

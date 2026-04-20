@@ -68,6 +68,7 @@ private:
 // 3. 액션 팔레트 뷰모델 (HP, AP 처리)
 // ---------------------------------------------------------
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSPUIUpdated, float /*Percent*/, const FString& /*Text*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillListUpdated, const TArray<FString>& /*SkillNames*/);
 
 UCLASS()
 class JRPG_API UActionPaletteViewModel : public UObject
@@ -76,9 +77,12 @@ class JRPG_API UActionPaletteViewModel : public UObject
 public:
     void BindToPlayer(AActor* PlayerActor);
     void Unbind();
+
     FOnSPUIUpdated OnSPUIUpdated;
+    FOnSkillListUpdated OnSkillListUpdated;
 
 private:
     TWeakObjectPtr<class USPComponent> CachedSPComp;
     void HandleSPChanged(int32 OldSP, int32 NewSP, FName Reason);
+    void RefreshSkills(AActor* PlayerActor);
 };

@@ -14,7 +14,5 @@ void UCombatTagSwapSlotWidget::BindSwapData(UCombatPartySlotViewModel* InVM, con
 	if (!InVM || !Img_Portrait) return;
 	FName CharID = InVM->GetCharacterID();
 
-	// [TODO] 데이터 에셋/테이블에서 CharID로 초상화를 가져오는 로직 예시
-	// UTexture2D* PortraitTex = 가져오는 로직...
-	// Img_Portrait->SetBrushFromTexture(PortraitTex);
+	// TODO : 데이터 에셋/테이블에서 CharID로 초상화 연동
 }

@@ -229,7 +229,6 @@ void ACombatPlayerController::OnTacticalModePressed(const FInputActionValue& Val
 {
 	if (!GetWorld()) return;
 
-	// Source/JRPG에 위치한 TacticalModeSubsystem 호출
 	UTacticalModeSubsystem* TacticalSub = GetWorld()->GetSubsystem<UTacticalModeSubsystem>();
 	if (!TacticalSub) return;
 
