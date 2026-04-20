@@ -13,7 +13,6 @@ class UInventoryPresentationSubsystem;
 class UAugmentEquipComponent;
 class UWeaponEquipComponent;
 
-// --- [추가됨] 3개의 탭 정의 ---
 UENUM(BlueprintType)
 enum class EInventoryTab : uint8
 {
@@ -34,7 +33,6 @@ public:
 	void Initialize(UWorld* World);
 	void Deinitialize();
 
-	// === [위젯에서 구독할 이벤트] ===
 	UPROPERTY(BlueprintAssignable, Category = "InventoryUI|Events")
 	FOnInventoryListUpdated OnInventoryListUpdated;
 
@@ -44,7 +42,6 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "InventoryUI|Events")
 	FOnEquipPreviewUpdated OnEquipPreviewUpdated;
 
-	// === [위젯에서 호출할 명령] ===
 	UFUNCTION(BlueprintCallable, Category = "InventoryUI|Commands")
 	void SelectCharacter(AActor* CharacterActor);
 
@@ -91,7 +88,6 @@ private:
 	void SortEquipmentBucket(TArray<FItemInstance>& InOutItems);
 	int32 GetRoleScore(const UItemDataAsset* ItemDef, AActor* TargetChar) const;
 
-	// 이벤트 수신 콜백
 	UFUNCTION() void HandleInventoryChanged(EInventoryChangeType ChangeType, FGuid InstanceId, int32 Delta, FName ReasonTag);
 	UFUNCTION() void HandleAugmentEquipped(FName CharId, EAugmentEquipSlot Slot, FName Old, FName New, FName Reason);
 	UFUNCTION() void HandleWeaponEquipped(FName CharId, EEquipmentSlotType Slot, FGuid OldInstanceId, FGuid NewInstanceId, FName ReasonTag);

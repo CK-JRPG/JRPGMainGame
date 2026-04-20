@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "JRPGCoreApiTypes.h"
 #include "Combat/Camera/CameraTargetInterface.h"
 #include "GameFramework/Character.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
@@ -21,6 +22,7 @@ class UCombatMotionComponent;
 class ULocomotionComponent;
 class UEnemyEncounterComponent;
 class UCombatZoneTrackerComponent;
+class UCombatPartyAIComponent;
 
 class UHPComponent;
 class UAPComponent;
@@ -44,6 +46,7 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UThreatComponent> ThreatComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatAIActionSelectorComponent> AIActionSelectorComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatItemComponent> ItemComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPartyAIComponent> CombatPartyAIComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPresentationComponent> PresentationComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatMotionComponent> MotionComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<ULocomotionComponent> LocomotionComp;
@@ -74,10 +77,19 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "100.0"))
 	float CombatArmLength = 550.f;
 	
+	// 사망 몽타주
+	UPROPERTY(EditAnywhere, Category = "Combat|Death")
+	TObjectPtr<UAnimMontage> DeathMontage = nullptr;
+	
 protected:
 
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "UI")
 	TObjectPtr<UWidgetComponent> HPBarWidgetComponent;
+	
+private:
+	FJRPGHandle DeathInputLockHandle;
+	void HandleOnDeath(AActor* Killer, FName ReasonTag);
 };

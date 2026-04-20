@@ -10,6 +10,7 @@ class UThreatComponent;
 class USkillComponent;
 class UCombatAIPresetAsset;
 class UCombatCharacterComponent;
+class UCombatPresentationComponent;
 
 /**
  * 적 AI 컨트롤러 (Tales of Arise 스타일 FSM, NavMesh/BT 미사용)
@@ -36,6 +37,7 @@ private:
 	UPROPERTY() TObjectPtr<UThreatComponent> ThreatComp;
 	UPROPERTY() TObjectPtr<USkillComponent> SkillComp;
 	UPROPERTY() TObjectPtr<UCombatCharacterComponent> CharComp;
+	UPROPERTY() TObjectPtr<UCombatPresentationComponent> PresentationComp;
 
 	UPROPERTY() EEnemyCombatState State = EEnemyCombatState::Idle;
 	UPROPERTY() TWeakObjectPtr<AActor> CurrentTarget;
@@ -56,6 +58,7 @@ private:
 	void TickRetreat(float DeltaSeconds);
 	void TickGroggyStunned(float DeltaSeconds);
 	void TickRising(float DeltaSeconds);
+	void TryExecuteOffensiveAction(AActor* Target);
 
 	// NavMesh 미사용 직접 이동
 	void MoveDirectlyToward(const FVector& Destination, float DeltaTime);
@@ -68,4 +71,8 @@ private:
 
 	bool IsChainSequenceActive() const;
 	bool ReadGroggy(EJRPGGroggyPhase& OutPhase) const;
+	
+	mutable TWeakObjectPtr<UObject> CachedChainProviderObject;
+	mutable double NextChainProviderRescanAt = 0.0;
+	static constexpr double ChainProviderRescanIntervalSec = 1.0;
 };

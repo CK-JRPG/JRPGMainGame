@@ -66,10 +66,30 @@ void UCombatCharacterComponent::GiveStartingItems()
 void UCombatCharacterComponent::GiveStartingSkills()
 {
 	if (!CharacterDef) return;
-	if (USkillComponent *SC =GetOwner() ? GetOwner()->FindComponentByClass<USkillComponent>() : nullptr)
+
+	USkillComponent* SC = GetOwner() ? GetOwner()->FindComponentByClass<USkillComponent>() : nullptr;
+	if (!SC) return;
+
+	// StartingSkills 배열(DA 직접 레퍼런스)로 스킬 등록
+	for (USkillDataAsset* Skill : CharacterDef->StartingSkills)
 	{
-		// 여기선 SkillId만 있으므로 실제 SkillDataAsset 매핑은 프로젝트에서 AssetManager로 연결.
-		// SkillId 목록을 유지만 해두고, 런타임에 외부에서 LearnSkill로 주입해도 됨.
+		if (Skill)
+		{
+			SC->LearnSkill(Skill);
+		}
+	}
+
+	// StartingSkillIds(FName) fallback: 이미 KnownSkills에 있는 DA에서 매칭
+	for (const FName& SkillId : CharacterDef->StartingSkillIds)
+	{
+		if (SkillId.IsNone()) continue;
+		if (SC->HasSkill(SkillId)) continue;
+
+		// KnownSkills(에디터에서 직접 설정된 DA)에서 ID 매칭 시도
+		if (USkillDataAsset* Found = SC->GetSkillDef(SkillId))
+		{
+			SC->LearnSkill(Found);
+		}
 	}
 }
 

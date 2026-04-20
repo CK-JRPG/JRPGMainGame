@@ -71,6 +71,11 @@ private:
 
 	// Helpers: 인터페이스 구현 컴포넌트를 찾아서 읽는다.
 	static bool TryReadGroggyFromActor(AActor *Actor, EJRPGGroggyPhase &OutPhase, float &OutBreakRatio01);
-	static bool TryReadSPFromWorld(UWorld *World, int32 &OutCurrent, int32 &OutCap, bool &OutReady, FCombatSPSettingsView &OutSettings);
-	static bool TryReadChainActiveFromWorld(UWorld *World, bool &bOutChainActive);
+	bool TryReadSPFromWorld(UWorld *World, int32 &OutCurrent, int32 &OutCap, bool &OutReady, FCombatSPSettingsView &OutSettings);
+	bool TryReadChainActiveFromWorld(UWorld *World, bool &bOutChainActive);
+	
+	UPROPERTY(Transient) TWeakObjectPtr<UObject> CachedSPProviderObject;
+	UPROPERTY(Transient) TWeakObjectPtr<UObject> CachedChainProviderObject;
+	double NextProviderRescanAt = 0.0;
+	static constexpr double ProviderRescanIntervalSec = 1.0;
 };

@@ -9,7 +9,9 @@
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/AI/CombatAIActionSelectorComponent.h"
 #include "Combat/AI/CombatCharacterActorAIController.h"
+#include "Combat/AI/CombatPartyAIComponent.h"
 #include "Combat/Battle/EnemyEncounterComponent.h"
+#include "Combat/AI/EnemyAIController.h"
 #include "Combat/Items/CombatItemComponent.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Motion/CombatMotionComponent.h"
@@ -17,6 +19,7 @@
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
 
 #include "Combat/Stats/HPComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
 #include "Combat/Stats/CombatStatsComponent.h"
@@ -53,6 +56,9 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 	LocomotionComp = CreateDefaultSubobject<ULocomotionComponent>(TEXT("LocomotionComponent"));
 	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));
 	ZoneTrackerComp = CreateDefaultSubobject<UCombatZoneTrackerComponent>(TEXT("CombatZoneTracker"));
+	CombatPartyAIComp = CreateDefaultSubobject<UCombatPartyAIComponent>(TEXT("CombatPartyAIComponent"));
+	// PartyAIComp는 BeginPlay에서 팀 확인 후 활성화
+	CombatPartyAIComp->PrimaryComponentTick.bStartWithTickEnabled = false;
 
 	// HPBarWidget
 	HPBarWidgetComponent = CreateDefaultSubobject<UWidgetComponent>(TEXT("HPBarWidgetComponent"));
@@ -66,11 +72,83 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 	bUseControllerRotationPitch = false;
 	bUseControllerRotationYaw = false;
 	bUseControllerRotationRoll = false;
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->bOrientRotationToMovement = true;
+		MoveComp->RotationRate = FRotator(0.0f, 500.0f, 0.0f);
+	}
 }
 
 void ACombatCharacterActor::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// 사망 이벤트 바인딩
+	if (HPComp)
+	{
+		HPComp->OnDeath.AddUObject(this, &ACombatCharacterActor::HandleOnDeath);
+	}
+	
+	// 팀에 따라 AI 컴포넌트 활성화/비활성화
+	if (CharacterComp)
+	{
+		const ECombatTeam Team = CharacterComp->GetTeam();
+		if (Team == ECombatTeam::Player)
+		{
+			// Party AI 활성화 (이동 + 어그로 기반 공격)
+			if (CombatPartyAIComp)
+			{
+				CombatPartyAIComp->Role = CharacterComp->GetRole();
+				CombatPartyAIComp->SetComponentTickEnabled(true);
+			}
+			// CombatAIActionSelectorComponent 비활성화 (행동 중복 방지)
+			if (AIActionSelectorComp)
+			{
+				AIActionSelectorComp->SetComponentTickEnabled(false);
+			}
+		}
+		else if (Team == ECombatTeam::Enemy)
+		{
+			// Party AI 불필요
+			if (CombatPartyAIComp)
+			{
+				CombatPartyAIComp->SetComponentTickEnabled(false);
+			}
+			// CombatAIActionSelectorComponent 비활성화 (EnemyAIController가 공격 담당)
+			if (AIActionSelectorComp)
+			{
+				AIActionSelectorComp->SetComponentTickEnabled(false);
+			}
+			// 기본 AI 컨트롤러를 EnemyAIController로 교체 (FSM 이동 + 공격)
+			if (AController* OldController = GetController())
+			{
+				OldController->UnPossess();
+
+				if (IsValid(OldController))
+				{
+					OldController->Destroy();
+				}
+			}
+			if (UWorld* World = GetWorld())
+			{
+				AEnemyAIController* EnemyAI = World->SpawnActor<AEnemyAIController>();
+				if (EnemyAI)
+				{
+					EnemyAI->Possess(this);
+				}
+			}
+		}
+		else
+		{
+			// Enemy/Neutral제외하고 Party AI 불필요
+			if (CombatPartyAIComp)
+			{
+				CombatPartyAIComp->SetComponentTickEnabled(false);
+			}
+		}
+	}
+
 	// UserWidget 인스턴스를 가져와서 바인딩
 	if (HPBarWidgetComponent)
 	{
@@ -81,6 +159,55 @@ void ACombatCharacterActor::BeginPlay()
 			{
 				//HPWidget->BindHPComponent(MyHPComp);
 			}
+		}
+	}
+}
+
+void ACombatCharacterActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (HPComp)
+	{
+		HPComp->OnDeath.RemoveAll(this);
+	}
+
+	Super::EndPlay(EndPlayReason);
+}
+
+void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
+{
+	UE_LOG(LogTemp, Log, TEXT("CombatCharacterActor::HandleOnDeath : %s 사망 (Reason=%s)"),
+	*GetName(), *ReasonTag.ToString());
+
+	// 진행 중인 프레젠테이션 취소 (몽타주 중단 + 기존 입력 잠금 해제)
+	if (PresentationComp)
+	{
+		PresentationComp->CancelActivePresentation("Death.Killed", false);
+	}
+
+	// 이동 영구 잠금 (액터 파괴 시 LocomotionComponent::EndPlay에서 자동 해제)
+	if (LocomotionComp)
+	{
+		const TJRPGResult<FJRPGHandle> Result = LocomotionComp->AcquireInputLock("Death");
+		if (Result.bOk)
+		{
+			DeathInputLockHandle = Result.Value;
+		}
+	}
+
+	// 사망 몽타주 재생
+	if (DeathMontage)
+	{
+		if (CharacterComp && CharacterComp->GetTeam() == ECombatTeam::Enemy)
+		{
+			if (USkeletalMeshComponent* MeshComp = GetMesh())
+			{
+				MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+				MeshComp->PlayAnimation(DeathMontage, false);
+			}
+		}
+		else if (UAnimInstance* Anim = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
+		{
+			Anim->Montage_Play(DeathMontage);
 		}
 	}
 }

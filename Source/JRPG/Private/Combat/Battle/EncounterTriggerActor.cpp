@@ -52,6 +52,16 @@ void AEncounterTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 	if (bHasTriggered || !OtherActor)
 		return;
 
+	// 전투 중이거나 전환 중이면 무시
+	if (UBattleSessionSubsystem* BattleSub = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+	{
+		if (BattleSub->IsBattleActive()) return;
+	}
+	if (UCombatTransitionSubsystem* TransSub = GetWorld()->GetSubsystem<UCombatTransitionSubsystem>())
+	{
+		if (TransSub->IsTransitioning()) return;
+	}
+
 	AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(OtherActor);
 	if (!PlayerPawn)
 		return;
@@ -232,6 +242,16 @@ void AEncounterTriggerActor::ReadyforBattleSession(const FBattleSessionConfig& C
 	{
 		UE_LOG(LogTemp, Error, TEXT("EncounterTrigger : BattleSession 시작 실패"));
 		bHasTriggered = false;
+
+		// 배틀 시작 실패 시 이미 스폰된 플레이어 CombatCharacterActor 정리
+		if (UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
+		{
+			TArray<ACombatCharacterActor*> Actors = SpawnSub->GetSpawnedActors();
+			if (Actors.Num() > 0)
+			{
+				SpawnSub->DespawnCombatActors(Actors);
+			}
+		}
 
 		// 배틀 시작 실패 시 이미 생성된 CombatZone 정리
 		if (SpawnedZone)

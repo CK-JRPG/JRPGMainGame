@@ -24,7 +24,7 @@ void UExplorationUIWidget::NativeTick(const FGeometry& MyGeometry, float InDelta
 	FVector CameraLoc = PC->PlayerCameraManager->GetCameraLocation();
 	FRotator CameraRot = PC->PlayerCameraManager->GetCameraRotation();
 
-	// 뷰포트 크기가 아닌, DPI 스케일이 적용된 현재 UI(캔버스)의 실제 크기를 가져옴
+	// 뷰포트 크기가 아닌, DPI 스케일이 적용된 현재 UI(캔버스)의 실제 크기
 	FVector2D CanvasSize = MyGeometry.GetLocalSize();
 	FVector2D ScreenCenter = CanvasSize * 0.5f;
 
@@ -129,7 +129,6 @@ void UExplorationUIWidget::UpdateQuestInfo(UTexture2D* QuestIcon, const FString&
 		}
 		else
 		{
-			// 아이콘이 없으면 기본 설정된 이미지를 쓰거나 숨깁니다.
 			// Image_QuestIcon->SetVisibility(ESlateVisibility::Collapsed);
 		}
 	}
@@ -141,13 +140,15 @@ void UExplorationUIWidget::SetPartyStatusMode(int32 Mode)
 
 	if (Mode == 0) // 숨김
 	{
-		Widget_PartyStatus->SetVisibility(ESlateVisibility::Hidden);
+		PlayPartyStatusAnim(false);
+		//Widget_PartyStatus->SetVisibility(ESlateVisibility::Hidden);
 		// (필요 시 지역명도 숨김 처리)
 	}
 	else if (Mode == 1) // 전투 후 회복 모드 (Tab 텍스트 등은 가리고 체력바만 보여주는 연출)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UExplorationUIWidget::SetPartyStatusMode : Mode = 회복 모드"));
 		Widget_PartyStatus->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
-		PlayPartyStatusAnim(false);
+		PlayPartyStatusAnim(true);
 	}
 	else if (Mode == 2) // Tab 전체 정보 모드
 	{
@@ -189,8 +190,6 @@ void UExplorationUIWidget::AddPartyChat(const FPartyChatMsg& Msg)
 {
 	if (!VBox_PartyChat || !ChatBubbleClass) return;
 
-	// 최대 5개 유지. 5개(또는 그 이상)라면 가장 위에 있는(오래된) 말풍선을 퇴장시킵니다.
-	// 제거된 위젯은 스스로 애니메이션 종료 후 자신을 배열과 부모에서 제거(RemoveFromParent)할 것입니다.
 	if (VBox_PartyChat->GetChildrenCount() >= 5)
 	{
 		if (UPartyChatBubbleWidget* OldestBubble = Cast<UPartyChatBubbleWidget>(VBox_PartyChat->GetChildAt(0)))
@@ -199,11 +198,22 @@ void UExplorationUIWidget::AddPartyChat(const FPartyChatMsg& Msg)
 		}
 	}
 
-	// 새 말풍선 생성 및 아래에 추가
 	UPartyChatBubbleWidget* NewBubble = CreateWidget<UPartyChatBubbleWidget>(this, ChatBubbleClass);
 	if (NewBubble)
 	{
 		NewBubble->InitChatMessage(Msg);
 		VBox_PartyChat->AddChildToVerticalBox(NewBubble);
+	}
+}
+
+void UExplorationUIWidget::PlayPartyStatusAnim(bool bIsIntro)
+{
+	if (Anim_PartyStatusIntro && bIsIntro)
+	{
+		PlayAnimation(Anim_PartyStatusIntro);
+	}
+	else if (Anim_PartyStatusOuttro && !bIsIntro)
+	{
+		PlayAnimation(Anim_PartyStatusOuttro);
 	}
 }

@@ -1,4 +1,6 @@
 ﻿#include "Combat/Stats/HPComponent.h"
+#include "UI/JRPGHUD.h"
+#include "UI/Presenters/CombatHUDPresenter.h"
 
 UHPComponent::UHPComponent()
 {
