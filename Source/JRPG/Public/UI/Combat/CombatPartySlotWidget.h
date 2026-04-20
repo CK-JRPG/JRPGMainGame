@@ -13,7 +13,7 @@ public:
     void UpdateAP(float Percent);
 
 protected:
-    UPROPERTY(meta = (BindWidget)) class UImage* Image_Portrait;
+    //UPROPERTY(meta = (BindWidget)) class UImage* Image_Portrait;
     UPROPERTY(meta = (BindWidget)) class UTextBlock* Text_Name;
     UPROPERTY(meta = (BindWidget)) class UProgressBar* PB_HPBar;
     UPROPERTY(meta = (BindWidget)) class UTextBlock* Text_HP;

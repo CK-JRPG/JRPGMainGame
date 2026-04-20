@@ -170,6 +170,8 @@ bool UCharacterRuntimeSubsystem::RecoverPartyAfterVictory(float HPRecoverRatio)
 			const float RecoveryAmount = Snap.MaxHP * ClampedRatio;
 			Snap.HP = FMath::Min(Snap.HP + RecoveryAmount, Snap.MaxHP);
 			
+			OnHPChanged.Broadcast(Pair.Key, Snap.HP, Snap.MaxHP);
+
 			if (Snap.HP < Snap.MaxHP)
 			{
 				bStillRecovering = true;

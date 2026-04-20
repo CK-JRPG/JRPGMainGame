@@ -18,6 +18,8 @@ ACombatZoneActor::ACombatZoneActor()
 	ZoneBounds->SetGenerateOverlapEvents(true);
 
 	ZoneBounds->SetBoxExtent(FVector(1200.f, 1200.f, 300.f));
+	
+	bDrawDebug = true;
 }
 
 FVector ACombatZoneActor::ClampCharacterLocation(const FVector& WorldLocation, float CapsuleRadius, float CapsuleHalfHeight) const

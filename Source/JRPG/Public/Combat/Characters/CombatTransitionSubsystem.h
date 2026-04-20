@@ -15,6 +15,7 @@ class ACombatCharacterActor;
 // 전투 중 빙의 전환 (OnPartyMemberChanged)
 // 이동 상태 동기화 (양방향)
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPartyMemberChanged, FName /*NewCharacterID*/);
 
 UCLASS()
 class JRPG_API UCombatTransitionSubsystem : public UWorldSubsystem
@@ -37,6 +38,11 @@ public:
 	FName GetCurrentPlayerCharacterID() const { return CurrentPlayerCharacterID; }
 
 	void SetCombatControllerClass(TSubclassOf<APlayerController> InClass);
+
+	// 전환 중 여부 반환 (인카운터 트리거에서 사용)
+	bool IsTransitioning() const { return bIsTransitioning; }
+
+	FOnPartyMemberChanged OnPartyMemberChangedDelegate;
 
 private:
 	// 승리/패배 분기 처리
@@ -88,6 +94,10 @@ private:
 	// 패배 처리용 타이머
 	FTimerHandle DefeatFadeOutTimerHandle;
 	FTimerHandle DefeatFadeInTimerHandle;
+
+	// 전투 -> 필드 전환 중 인카운터 재발동 방지 플래그
+	bool bIsTransitioning = false;
+	FTimerHandle EncounterImmuneTimerHandle;
 	
 	// 승리 후 회복용 타이머
 	FTimerHandle PostBattleRecoveryTimerHandle;

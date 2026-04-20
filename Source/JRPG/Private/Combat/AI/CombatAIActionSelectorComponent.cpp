@@ -12,6 +12,9 @@
 #include "JRPG/Public/Combat/SP/SPComponent.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 
+#include "GameFramework/Pawn.h"
+#include "GameFramework/Controller.h"
+
 UCombatAIActionSelectorComponent::UCombatAIActionSelectorComponent()
 {
 	PrimaryComponentTick.bCanEverTick =true;
@@ -98,48 +101,233 @@ bool UCombatAIActionSelectorComponent::CanAffordSkill(const USkillDataAsset &Ski
 
 USkillDataAsset* UCombatAIActionSelectorComponent::PickBestHealSkill(TArray<AActor*>& OutTargets) const
 {
-	return nullptr;
+	if (!SkillComp.IsValid())
+		return nullptr;
+
+	UCombatTargetingSubsystem* Targeting = GetTargeting();
+	if (!Targeting)
+		return nullptr;
+
+	// 아군 중 HP가 HealThresholdRatio 이하인 대상이 있는지 먼저 확인
+	UBattleSessionSubsystem* Battle = GetBattle();
+	if (!Battle)
+		return nullptr;
+
+	TArray<AActor*> Allies;
+	Battle->GetAlliesFor(GetOwner(), Allies);
+	if (!Allies.Contains(GetOwner()))
+		Allies.Add(GetOwner());
+
+	bool bNeedHeal = false;
+	for (AActor* Ally : Allies)
+	{
+		if (GetHPRatio(Ally) <= HealThresholdRatio)
+		{
+			bNeedHeal = true;
+			break;
+		}
+	}
+
+	if (!bNeedHeal)
+		return nullptr;
+
+	// KnownSkills에서 힐 스킬 중 사용 가능한 최고의 스킬 선택
+	USkillDataAsset* BestSkill = nullptr;
+	float BestHealPower = 0.f;
+	TArray<AActor*> BestTargets;
+
+	for (USkillDataAsset* Skill : SkillComp->KnownSkills)
+	{
+		if (!Skill || Skill->HealPower <= 0.f)
+			continue;
+
+		if (!CanAffordSkill(*Skill))
+			continue;
+
+		const FTargetingResult Result = Targeting->ResolvePreferredTargetsForSkill(GetOwner(), Skill);
+		if (!Result.bOk || Result.Targets.Num() <= 0)
+			continue;
+
+		if (Skill->HealPower > BestHealPower)
+		{
+			BestHealPower = Skill->HealPower;
+			BestSkill = Skill;
+			BestTargets.Reset();
+			for (const TWeakObjectPtr<AActor>& T : Result.Targets)
+			{
+				if (T.IsValid())
+					BestTargets.Add(T.Get());
+			}
+		}
+	}
+
+	if (BestSkill)
+	{
+		OutTargets = MoveTemp(BestTargets);
+	}
+
+	return BestSkill;
 }
 
 USkillDataAsset* UCombatAIActionSelectorComponent::PickBestOffensiveSkill(TArray<AActor*>& OutTargets) const
 {
-	return nullptr;
+	if (!SkillComp.IsValid())
+		return nullptr;
+
+	UCombatTargetingSubsystem* Targeting = GetTargeting();
+	if (!Targeting)
+		return nullptr;
+
+	USkillDataAsset* BestSkill = nullptr;
+	float BestScore = 0.f;
+	TArray<AActor*> BestTargets;
+
+	for (USkillDataAsset* Skill : SkillComp->KnownSkills)
+	{
+		if (!Skill || Skill->BasePower <= 0.f)
+			continue;
+
+		if (!CanAffordSkill(*Skill))
+			continue;
+
+		const FTargetingResult Result = Targeting->ResolvePreferredTargetsForSkill(GetOwner(), Skill);
+		if (!Result.bOk || Result.Targets.Num() <= 0)
+			continue;
+
+		// BasePower * AttackScale 기반 점수, AoE는 타겟 수 보너스
+		const float Score = Skill->BasePower * Skill->AttackScale * FMath::Max(1, Result.Targets.Num());
+
+		if (Score > BestScore)
+		{
+			BestScore = Score;
+			BestSkill = Skill;
+			BestTargets.Reset();
+			for (const TWeakObjectPtr<AActor>& T : Result.Targets)
+			{
+				if (T.IsValid())
+					BestTargets.Add(T.Get());
+			}
+		}
+	}
+
+	if (BestSkill)
+	{
+		OutTargets = MoveTemp(BestTargets);
+	}
+
+	return BestSkill;
 }
 
-// PickBestHealSkill / PickBestOffensiveSkill는 이전 버전 그대로 사용 가능
+USkillDataAsset* UCombatAIActionSelectorComponent::PickBestAggroSkill(TArray<AActor*>& OutTargets) const
+{
+	if (!SkillComp.IsValid())
+		return nullptr;
+
+	UCombatTargetingSubsystem* Targeting = GetTargeting();
+	if (!Targeting)
+		return nullptr;
+
+	USkillDataAsset* BestSkill = nullptr;
+	float BestThreat = 0.f;
+	TArray<AActor*> BestTargets;
+
+	for (USkillDataAsset* Skill : SkillComp->KnownSkills)
+	{
+		if (!Skill || Skill->ThreatBase <= 0.f)
+			continue;
+
+		// 순수 어그로 스킬만 선택 (데미지/힐 스킬은 별도 Pick 함수에서 처리)
+		if (Skill->BasePower > 0.f || Skill->HealPower > 0.f)
+			continue;
+
+		if (!CanAffordSkill(*Skill))
+			continue;
+
+		const FTargetingResult Result = Targeting->ResolvePreferredTargetsForSkill(GetOwner(), Skill);
+		if (!Result.bOk || Result.Targets.Num() <= 0)
+			continue;
+
+		const float Score = Skill->ThreatBase * FMath::Max(1, Result.Targets.Num());
+
+		if (Score > BestThreat)
+		{
+			BestThreat = Score;
+			BestSkill = Skill;
+			BestTargets.Reset();
+			for (const TWeakObjectPtr<AActor>& T : Result.Targets)
+			{
+				if (T.IsValid())
+					BestTargets.Add(T.Get());
+			}
+		}
+	}
+
+	if (BestSkill)
+	{
+		OutTargets = MoveTemp(BestTargets);
+	}
+
+	return BestSkill;
+}
 
 void UCombatAIActionSelectorComponent::ThinkAndAct()
 {
 	UBattleSessionSubsystem* Battle = GetBattle();
 	UCombatTargetingSubsystem* Targeting = GetTargeting();
-	
-	if (!Battle || !Targeting || !PresentationComp.IsValid()) 
+
+	if (!Battle || !Targeting || !PresentationComp.IsValid())
 		return;
 
 	TArray<AActor*> HealTargets;
 	if (USkillDataAsset* HealSkill = PickBestHealSkill(HealTargets))
 	{
-		const FSkillCastResult R = PresentationComp->TryPresentSkill(HealSkill->SkillId,HealTargets,false);
+		const FSkillCastResult R = PresentationComp->TryPresentSkill(HealSkill->SkillId, HealTargets, false);
 		if (R.bOk)
 			return;
 	}
 
-	TArray<AActor*> OffensiveTargets;
-	if (USkillDataAsset* OffensiveSkill = PickBestOffensiveSkill(OffensiveTargets))
+	TArray<AActor*> AggroTargets;
+	if (USkillDataAsset* AggroSkill = PickBestAggroSkill(AggroTargets))
 	{
-		const FSkillCastResult R =PresentationComp->TryPresentSkill(OffensiveSkill->SkillId,OffensiveTargets,false);
-		if (R.bOk) 
+		const FSkillCastResult R = PresentationComp->TryPresentSkill(AggroSkill->SkillId, AggroTargets, false);
+		if (R.bOk)
 			return;
 	}
 
-	const FTargetingResult BasicTarget = Targeting->ResolvePreferredBasicAttackTarget(GetOwner());
-	if (BasicTarget.bOk && BasicTarget.Targets.Num() > 0)
-	{
-		if (AActor* Target = BasicTarget.Targets[0].Get())
+	const bool bOwnerIsPlayerControlled = [](const AActor* OwnerActor)
 		{
-			const FCombatActionResult R = PresentationComp->TryPresentBasicAttack(Target);
-			if (R.bOk)
-				return;
+			const APawn* Pawn = Cast<APawn>(OwnerActor);
+			const AController* Controller = Pawn ? Pawn->GetController() : nullptr;
+			return Controller && Controller->IsPlayerController();
+		}(GetOwner());
+
+	TArray<AActor*> OffensiveTargets;
+	if (USkillDataAsset* OffensiveSkill = PickBestOffensiveSkill(OffensiveTargets))
+	{
+		const FSkillCastResult R = PresentationComp->TryPresentSkill(OffensiveSkill->SkillId, OffensiveTargets, false);
+		if (R.bOk)
+			return;
+	}
+
+	//const FTargetingResult BasicTarget = Targeting->ResolvePreferredBasicAttackTarget(GetOwner());
+//	if (BasicTarget.bOk && BasicTarget.Targets.Num() > 0)
+	if (!bOwnerIsPlayerControlled)
+	{
+		//if (AActor* Target = BasicTarget.Targets[0].Get())
+		//{
+		const FTargetingResult BasicTarget = Targeting->ResolvePreferredBasicAttackTarget(GetOwner());
+		if (BasicTarget.bOk && BasicTarget.Targets.Num() > 0)
+		{
+
+			//const FCombatActionResult R = PresentationComp->TryPresentBasicAttack(Target);
+			//if (R.bOk)
+				// return;
+			if (AActor* Target = BasicTarget.Targets[0].Get())
+			{
+				const FCombatActionResult R = PresentationComp->TryPresentBasicAttack(Target);
+				if (R.bOk)
+					return;
+			}
 		}
 	}
 }

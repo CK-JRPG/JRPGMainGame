@@ -5,6 +5,7 @@
 
 class UProgressBar;
 class UTextBlock;
+class UImage;
 
 UCLASS()
 class JRPG_API UCombatActionPaletteWidget : public UUserWidget
@@ -12,8 +13,26 @@ class JRPG_API UCombatActionPaletteWidget : public UUserWidget
     GENERATED_BODY()
 public:
     void UpdateSPUI(float Percent, const FString& Text);
+    void UpdateHP(float Percent, const FString& Text);
+    void UpdateAP(float Percent);
+    void UpdateSkillList(const TArray<FString>& SkillNames);
 
 protected:
     UPROPERTY(meta = (BindWidget)) TObjectPtr<UProgressBar> PB_SPBar;
     UPROPERTY(meta = (BindWidget)) TObjectPtr<UTextBlock> Text_SP;
+
+    UPROPERTY(meta = (BindWidget)) TObjectPtr<UProgressBar> PB_HPBar;
+    UPROPERTY(meta = (BindWidget)) TObjectPtr<UTextBlock> Text_HP;
+
+    UPROPERTY(meta = (BindWidget)) TObjectPtr<UProgressBar>PB_APBar;
+
+    UPROPERTY(meta = (BindWidgetOptional)) TObjectPtr<UTextBlock> Text_Skill1;
+    UPROPERTY(meta = (BindWidgetOptional)) TObjectPtr<UTextBlock> Text_Skill2;
+    UPROPERTY(meta = (BindWidgetOptional)) TObjectPtr<UTextBlock> Text_Skill3;
+    UPROPERTY(meta = (BindWidgetOptional)) TObjectPtr<UTextBlock> Text_Skill4;
+
+    UPROPERTY(meta = (BindWidgetOptional)) TObjectPtr<UImage> Img_Key1;
+    UPROPERTY(meta = (BindWidgetOptional)) TObjectPtr<UImage> Img_Key2;
+    UPROPERTY(meta = (BindWidgetOptional)) TObjectPtr<UImage> Img_Key3;
+    UPROPERTY(meta = (BindWidgetOptional)) TObjectPtr<UImage> Img_Key4;
 };

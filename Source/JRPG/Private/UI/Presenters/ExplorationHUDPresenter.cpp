@@ -10,6 +10,7 @@
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Kismet/GameplayStatics.h"
+#include "Combat/Characters/CharacterRuntimeSubsystem.h"
 
 void UExplorationHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UExplorationUIWidget> WidgetClass)
 {
@@ -34,10 +35,8 @@ void UExplorationHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UExplorat
 		BattleSub->OnBattleEnded.AddUObject(this, &UExplorationHUDPresenter::OnBattleEnded);
 	}
 
-	// 3. 임시 통합 테스트용 퀘스트 데이터 로드 지시
+	// 임시 통합 테스트용 퀘스트 데이터 로드
 	ViewModel->LoadTempQuestData();
-
-	RefreshPartyStatusData();
 
 	if (UHubSubsystem* HubSub = InWorld->GetSubsystem<UHubSubsystem>())
 	{
@@ -71,7 +70,6 @@ void UExplorationHUDPresenter::TogglePartyInfo()
 {
 	bIsTabInfoOpen = !bIsTabInfoOpen;
 
-	// Tab을 눌러서 열면, 기존에 돌고 있던 회복 UI 타이머를 무시/취소합니다.
 	if (bIsTabInfoOpen && bIsPostCombatRegenActive)
 	{
 		if (UWorld* World = ExplorationWidget ? ExplorationWidget->GetWorld() : nullptr)
@@ -86,13 +84,17 @@ void UExplorationHUDPresenter::TogglePartyInfo()
 
 void UExplorationHUDPresenter::StartPostCombatRegenUI(float Duration)
 {
-	// Tab 창이 켜져있다면 회복 UI 연출을 띄울 필요가 없습니다.
-	if (bIsTabInfoOpen) return;
+	//UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::StartPostCombatRegenUI"));
+	if (bIsTabInfoOpen)
+	{
+		return;
+	}
+
 
 	bIsPostCombatRegenActive = true;
+	//UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::StartPostCombatRegenUI : Update Party Status UI"));
 	UpdatePartyStatusUI();
 
-	// N초 뒤에 UI를 끄는 타이머 설정
 	if (UWorld* World = ExplorationWidget ? ExplorationWidget->GetWorld() : nullptr)
 	{
 		World->GetTimerManager().SetTimer(
@@ -121,38 +123,50 @@ void UExplorationHUDPresenter::RefreshPartyStatusData()
 
 	UCombatPartyRosterWidget* RosterPanel = ExplorationWidget->GetPartyRoster();
 
-	// 1. 기존 UI 및 메모리 초기화
 	RosterPanel->ClearRoster();
 	for (auto& VM : PartyViewModels) { if (VM) VM->Unbind(); }
 	PartyViewModels.Empty();
 
-	// 2. 파티 명단(ID 리스트) 가져오기
 	TArray<FName> PartyIDs;
 	if (UPartySubsystem* PartySys = GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>())
 	{
-		PartyIDs = PartySys->GetPartyIds(); // 예: ["Party1", "Party2", "Party3"]
+		PartyIDs = PartySys->GetPartyIds();
 	}
 
-	// 3. 뷰모델 및 위젯 생성 & 바인딩
+
 	for (FName CharID : PartyIDs)
 	{
+		//if (UCharacterRuntimeSubsystem* CRSys = GetWorld()->GetGameInstance()->GetSubsystem<UCharacterRuntimeSubsystem>())
+		//{
+		//	if (CRSys->HasSnapshot(CharID))
+		//	{
+		//		const FCharacterResourceSnapshot* Snapshot = CRSys->GetSnapshot(CharID);
+		//		UE_LOG(LogTemp, Warning, TEXT("[SnapShot] %s, HP : %f, AP : %d, SP : %d"), *CharID.ToString(), Snapshot->HP, Snapshot->AP, Snapshot->SP);
+		//	}
+		//	else
+		//	{
+		//		UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter : %s Snapshot is Invaild"), *CharID.ToString());
+		//	}
+		//}
+		//else
+		//{
+		//	UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter : UCharacterRuntimeSubsystem is Invaild"));
+		//}
+		//UE_LOG(LogTemp, Warning, TEXT("PartyID : %s"), *CharID.ToString());
 		if (CharID.IsNone() || !RosterPanel->PartySlotClass) continue;
 
-		// 슬롯 위젯 생성
 		UCombatPartySlotWidget* SlotWidget = CreateWidget<UCombatPartySlotWidget>(GetWorld(), RosterPanel->PartySlotClass);
 
-		// 뷰모델 생성
 		UCombatPartySlotViewModel* SlotVM = NewObject<UCombatPartySlotViewModel>(this);
 
-		// 델리게이트 구독 
 		SlotVM->OnNameUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotNameUpdated, SlotWidget);
 		SlotVM->OnHPUIUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotHPUpdated, SlotWidget);
 		SlotVM->OnAPUIUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotAPUpdated, SlotWidget);
 
-		// 액터 대신 ID를 주입!
 		SlotVM->BindToCharacter(CharID);
 
-		// 패널에 추가
+		SlotVM->Refresh();
+
 		PartyViewModels.Add(SlotVM);
 		RosterPanel->AddPartySlot(SlotWidget);
 	}
@@ -192,7 +206,10 @@ void UExplorationHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Sna
 
 void UExplorationHUDPresenter::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason)
 {
-	ShowExplorationUI();
+	//UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::OnBattleEnded"));
+	//RefreshPartyStatusData();
+	//ShowExplorationUI();
+	//StartPostCombatRegenUI();
 }
 
 void UExplorationHUDPresenter::UpdatePartyStatusUI()
@@ -205,6 +222,7 @@ void UExplorationHUDPresenter::UpdatePartyStatusUI()
 	}
 	else if (bIsPostCombatRegenActive)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::UpdatePartyStatusUI : 전투 종료 후 파티 스탯 표시"));
 		ExplorationWidget->SetPartyStatusMode(1); // 회복 모드 (체력 위주 표시)
 	}
 	else
@@ -225,6 +243,7 @@ void UExplorationHUDPresenter::OnPartySlotNameUpdated(const FString& Name, UComb
 }
 void UExplorationHUDPresenter::OnPartySlotHPUpdated(float Percent, const FString& Text, UCombatPartySlotWidget* SlotWidget)
 {
+	//UE_LOG(LogTemp, Error, TEXT("UExplorationHUDPresenter::OnPartySlotHPUpdated"));
 	if (SlotWidget) SlotWidget->UpdateHP(Percent, Text);
 }
 void UExplorationHUDPresenter::OnPartySlotAPUpdated(float Percent, UCombatPartySlotWidget* SlotWidget)

@@ -210,7 +210,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 				SPSubSystem->ReportDamage(GetOwner(),T, DamageDone,bFromTacticalReservation, Skill.SkillId);
 			}
 			
-			//THP->ApplyDamage(DamageDone,GetOwner(), Skill.SkillId);
+			THP->ApplyDamage(DamageDone,GetOwner(), Skill.SkillId);
 
 			if (IsHostileTarget(T))
 			{

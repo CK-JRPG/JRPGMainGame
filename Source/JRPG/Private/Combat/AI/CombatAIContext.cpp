@@ -157,6 +157,27 @@ bool UCombatAIContext::TryReadSPFromWorld(UWorld *World, int32 &OutCurrent, int3
 	if (!World)
 		return false;
 
+
+	if (UObject* CachedProvider = CachedSPProviderObject.Get())
+	{
+		if (ICombatSynergyPointProvider* SP = Cast<ICombatSynergyPointProvider>(CachedProvider))
+		{
+			OutCurrent = SP->GetCurrentSP();
+			OutCap = SP->GetSPCap();
+			OutReady = SP->IsChainReady();
+			OutSettings = SP->GetSettingsView();
+			return true;
+		}
+		CachedSPProviderObject = nullptr;
+	}
+	
+	const double Now = FPlatformTime::Seconds();
+	if (Now < NextProviderRescanAt)
+	{
+		return false;
+	}
+	NextProviderRescanAt = Now + ProviderRescanIntervalSec;
+
 	// 실제 구현: World Subsystem(예: SynergyPointSubsystem)이 ICombatSynergyPointProvider 구현하도록 만들면 됨.
 	// 여기서는 훅만 제공.
 	for (TObjectIterator<UObject> It; It; ++It)
@@ -170,6 +191,7 @@ bool UCombatAIContext::TryReadSPFromWorld(UWorld *World, int32 &OutCurrent, int3
 			ICombatSynergyPointProvider *SP =Cast<ICombatSynergyPointProvider>(Obj);
 			if (SP)
 			{
+				CachedSPProviderObject = Obj;
 				OutCurrent = SP->GetCurrentSP();
 				OutCap = SP->GetSPCap();
 				OutReady = SP->IsChainReady();
@@ -181,22 +203,40 @@ bool UCombatAIContext::TryReadSPFromWorld(UWorld *World, int32 &OutCurrent, int3
 	return false;
 }
 
-bool UCombatAIContext::TryReadChainActiveFromWorld(UWorld *World, bool &bOutChainActive)
+bool UCombatAIContext::TryReadChainActiveFromWorld(UWorld* World, bool& bOutChainActive)
 {
 	if (!World)
 		return false;
 
+	if (UObject* CachedProvider = CachedChainProviderObject.Get())
+	{
+		if (ICombatChainFlowProvider* Chain = Cast<ICombatChainFlowProvider>(CachedProvider))
+		{
+			bOutChainActive = Chain->IsChainSequenceActive();
+			return true;
+		}
+		CachedChainProviderObject = nullptr;
+	}
+
+	const double Now = FPlatformTime::Seconds();
+	if (Now < NextProviderRescanAt)
+	{
+		return false;
+	}
+	NextProviderRescanAt = Now + ProviderRescanIntervalSec;
+
 	for (TObjectIterator<UObject> It; It; ++It)
 	{
-		UObject *Obj = *It;
+		UObject* Obj = *It;
 		if (!Obj || Obj->GetWorld() != World)
 			continue;
 
 		if (Obj->GetClass()->ImplementsInterface(UCombatChainFlowProvider::StaticClass()))
 		{
-			ICombatChainFlowProvider *Chain =Cast<ICombatChainFlowProvider>(Obj);
+			ICombatChainFlowProvider* Chain = Cast<ICombatChainFlowProvider>(Obj);
 			if (Chain)
 			{
+				CachedChainProviderObject = Obj;
 				bOutChainActive = Chain->IsChainSequenceActive();
 				return true;
 			}
