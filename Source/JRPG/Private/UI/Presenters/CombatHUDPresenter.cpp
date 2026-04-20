@@ -33,9 +33,9 @@ void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidge
 			CombatWidget->AddToViewport(0);
 			CombatWidget->SetVisibility(ESlateVisibility::Hidden);
 
-			// 공통 뷰모델 생성 (액션 팔레트, 타겟)
 			ActionPaletteVM = NewObject<UActionPaletteViewModel>(this);
 			ActionPaletteVM->OnSPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnActionPaletteSPUpdated);
+			ActionPaletteVM->OnSkillListUpdated.AddUObject(this, &UCombatHUDPresenter::OnActionPaletteSkillUpdated);
 
 			TargetVM = NewObject<UEnemyViewModel>(this);
 			TargetVM->OnTargetNameUpdated.AddUObject(this, &UCombatHUDPresenter::OnTargetNameUpdated);
@@ -225,7 +225,6 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 		if (ActionPaletteVM) ActionPaletteVM->BindToPlayer(PlayerPawn);
 	}
 
-	// 파티 UI (Roster & ActionPalette용) 뷰모델 및 위젯 생성
 	PartySlotWidgets.Empty();
 	for (auto& VM : PartyVMs) { if (VM) VM->Unbind(); }
 	PartyVMs.Empty();
@@ -234,12 +233,10 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 	{
 		for (FName CharID : PartySys->GetPartyIds())
 		{
-			// 뷰모델 생성 
 			UCombatPartySlotViewModel* SlotVM = NewObject<UCombatPartySlotViewModel>(this);
 			SlotVM->BindToCharacter(CharID);
 			PartyVMs.Add(SlotVM);
 
-			// 슬롯 위젯 생성 후 Map에 보관 (이전 코드에 있던 AddUObject 바인딩 줄들을 전부 지웁니다!)
 			if (CombatWidget->PartyRosterPanel && CombatWidget->PartyRosterPanel->PartySlotClass)
 			{
 				UCombatPartySlotWidget* SlotWidget = CreateWidget<UCombatPartySlotWidget>(GetWorld(), CombatWidget->PartyRosterPanel->PartySlotClass);
@@ -271,7 +268,7 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 		}
 	}
 
-	// 적군 세팅 (제노블레이드식 메인 타겟팅 & 머리 위 HP바 연동)
+	// 적군 세팅 (메인 타겟팅 & 머리 위 HP바 연동)
 	for (auto& VM : EnemyHPBarVMs) { if (VM) VM->Unbind(); }
 	EnemyHPBarVMs.Empty();
 
@@ -319,7 +316,6 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 		}
 	}
 
-	// 전투 시작 시 초기 세팅 명령
 	if (UCombatTransitionSubsystem* TransitionSub = GetWorld()->GetSubsystem<UCombatTransitionSubsystem>())
 	{
 		OnActiveCharacterChanged(TransitionSub->GetCurrentPlayerCharacterID());
@@ -373,6 +369,14 @@ void UCombatHUDPresenter::OnActionPaletteAPUpdated(float Percent)
 	    CombatWidget->ActionPalettePanel->UpdateAP(Percent);
 }
 
+void UCombatHUDPresenter::OnActionPaletteSkillUpdated(const TArray<FString>& SkillNames)
+{
+	if (CombatWidget && CombatWidget->ActionPalettePanel)
+	{
+		CombatWidget->ActionPalettePanel->UpdateSkillList(SkillNames);
+	}
+}
+
 void UCombatHUDPresenter::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
 {
 	if (TacticalWidget)
@@ -389,7 +393,6 @@ void UCombatHUDPresenter::OnTacticalModeExited(const FTacticalModeSnapshot& Snap
 	}
 }
 
-// 뷰모델 -> 뷰 토스 (중개 콜백 구현)
 void UCombatHUDPresenter::OnActionPaletteSPUpdated(float Percent, const FString& Text) {
 	//if (CombatWidget && CombatWidget->ActionPalettePanel) CombatWidget->ActionPalettePanel->UpdateSPUI(Percent, Text);
 }
@@ -469,4 +472,12 @@ UCombatPartySlotViewModel* UCombatHUDPresenter::GetPartySLotVM(FName CharID)
 		if (VM && VM->GetCharacterID() == CharID) return VM;
 	}
 	return nullptr;
+}
+
+void UCombatHUDPresenter::ShowSkillAnnouncer(const FString& SkillName)
+{
+	if (CombatWidget)
+	{
+		CombatWidget->PlaySkillAnnouncer(SkillName);
+	}
 }

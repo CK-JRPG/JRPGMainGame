@@ -20,7 +20,14 @@ public:
     UPROPERTY(meta = (BindWidget)) TObjectPtr<UCombatActionPaletteWidget> ActionPalettePanel;
     UCanvasPanel* GetDamageCanvas() const { return Canvas_Damage; }
 
+    void PlaySkillAnnouncer(const FString& SkillName);
+
 protected:
     UPROPERTY(meta = (BindWidget))
     TObjectPtr<UCanvasPanel> Canvas_Damage;
+
+    UPROPERTY(meta = (BindWidget))
+    class UTextBlock* Text_SkillAnnouncer;
+    UPROPERTY(Transient, meta = (BindWidgetAnim))
+    class UWidgetAnimation* Anim_SkillAnnouncer;
 };

@@ -35,7 +35,6 @@ void AJRPGHUD::BeginPlay()
 
 void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-    // 프레젠터 및 위젯 메모리 정리 (고아 위젯 방지)
     if (MainMenuPresenter) { MainMenuPresenter->Shutdown(); MainMenuPresenter = nullptr; }
     if (ExplorationPresenter) { ExplorationPresenter->Shutdown(); ExplorationPresenter = nullptr; }
     if (CombatPresenter) { CombatPresenter->Shutdown(); CombatPresenter = nullptr; }
@@ -54,7 +53,6 @@ void AJRPGHUD::ToggleMainMenu()
 
 void AJRPGHUD::TogglePartyInfo()
 {
-    // 프레젠터가 살아있다면 탭 변경을 지시합니다.
     if (ExplorationPresenter)
     {
         ExplorationPresenter->TogglePartyInfo();
@@ -62,9 +60,17 @@ void AJRPGHUD::TogglePartyInfo()
     else UE_LOG(LogTemp, Error, TEXT("JRPGHUD::TogglePartyInfo: ExplorationPresenter Invaild"));
 }
 
+void AJRPGHUD::ShowSkillAnnouncer(const FString& SkillName)
+{
+    if (CombatPresenter)
+    {
+        CombatPresenter->ShowSkillAnnouncer(SkillName);
+    }
+}
+
 void AJRPGHUD::OnMainMenuTabSelected(EMainMenuTab Tab)
 {
-    // 탭이 인벤토리(2번)로 바뀔 때만 데이터를 갱신합니다.
+    // 탭이 인벤토리(2번)로 바뀔 때만 데이터를 갱신
     if (Tab == EMainMenuTab::Inventory && InventoryPresenter)
     {
         InventoryPresenter->OpenInventory(GetOwningPawn());

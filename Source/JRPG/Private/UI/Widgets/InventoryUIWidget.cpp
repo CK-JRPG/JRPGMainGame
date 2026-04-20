@@ -24,7 +24,6 @@ void UInventoryUIWidget::OnInventoryListUpdated(const TArray<FItemInstance>& Ite
 
 	ListView_Inventory->ClearListItems();
 
-	// FItemInstance 구조체를 UItemWrapperObject로 감싸서 ListView에 전달
 	for (const FItemInstance& Item : Items)
 	{
 		UItemWrapperObject* Wrapper = NewObject<UItemWrapperObject>(this);
@@ -41,7 +40,6 @@ void UInventoryUIWidget::OnTabButtonClicked(EInventoryTab TabType)
 {
 	if (ViewModel)
 	{
-		// 뷰는 판단하지 않고, 뷰모델에게 필터 변경 명령만 내립니다.
 		ViewModel->FilterItems(TabType);
 	}
 }

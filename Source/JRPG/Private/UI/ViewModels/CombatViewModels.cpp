@@ -7,6 +7,8 @@
 #include "GameFramework/Actor.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Engine/AssetManager.h"
+#include "Combat/Skills/SkillComponent.h"
+#include "Combat/Skills/SkillDataAsset.h"
 
 // --- Party Slot ViewModel ---
 // 실시간 전투에서 사용
@@ -207,6 +209,7 @@ void UActionPaletteViewModel::BindToPlayer(AActor* PlayerActor) {
         SPComp->OnSPChanged.AddUObject(this, &UActionPaletteViewModel::HandleSPChanged);
         HandleSPChanged(SPComp->GetSP(), SPComp->GetSP(), NAME_None);
     }
+    RefreshSkills(PlayerActor);
 }
 void UActionPaletteViewModel::Unbind() {
     if (CachedSPComp.IsValid()) CachedSPComp->OnSPChanged.RemoveAll(this);
@@ -217,5 +220,25 @@ void UActionPaletteViewModel::HandleSPChanged(int32 OldSP, int32 NewSP, FName Re
         float Percent = MaxSP > 0 ? (float)NewSP / MaxSP : 0.f;
         FString Text = FString::Printf(TEXT("%d / %d"), NewSP, MaxSP);
         OnSPUIUpdated.Broadcast(Percent, Text);
+    }
+}
+
+void UActionPaletteViewModel::RefreshSkills(AActor* PlayerActor)
+{
+    if (USkillComponent* SkillComp = PlayerActor->FindComponentByClass<USkillComponent>())
+    {
+        TArray<FName> SkillIds;
+        SkillComp->GetOwnedSkillIds(SkillIds);
+
+        TArray<FString> SkillNames;
+        for (const FName& Id : SkillIds)
+        {
+            if (const USkillDataAsset* SkillDef = SkillComp->GetSkillDef(Id))
+            {
+                SkillNames.Add(SkillDef->DisplayName.ToString());
+            }
+        }
+
+        OnSkillListUpdated.Broadcast(SkillNames);
     }
 }

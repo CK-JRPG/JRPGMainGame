@@ -35,7 +35,7 @@ void UExplorationHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UExplorat
 		BattleSub->OnBattleEnded.AddUObject(this, &UExplorationHUDPresenter::OnBattleEnded);
 	}
 
-	// 3. 임시 통합 테스트용 퀘스트 데이터 로드 지시
+	// 임시 통합 테스트용 퀘스트 데이터 로드
 	ViewModel->LoadTempQuestData();
 
 	if (UHubSubsystem* HubSub = InWorld->GetSubsystem<UHubSubsystem>())
@@ -70,7 +70,6 @@ void UExplorationHUDPresenter::TogglePartyInfo()
 {
 	bIsTabInfoOpen = !bIsTabInfoOpen;
 
-	// Tab을 눌러서 열면, 기존에 돌고 있던 회복 UI 타이머를 무시/취소합니다.
 	if (bIsTabInfoOpen && bIsPostCombatRegenActive)
 	{
 		if (UWorld* World = ExplorationWidget ? ExplorationWidget->GetWorld() : nullptr)
@@ -96,7 +95,6 @@ void UExplorationHUDPresenter::StartPostCombatRegenUI(float Duration)
 	//UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::StartPostCombatRegenUI : Update Party Status UI"));
 	UpdatePartyStatusUI();
 
-	// N초 뒤에 UI를 끄는 타이머 설정
 	if (UWorld* World = ExplorationWidget ? ExplorationWidget->GetWorld() : nullptr)
 	{
 		World->GetTimerManager().SetTimer(
@@ -125,12 +123,10 @@ void UExplorationHUDPresenter::RefreshPartyStatusData()
 
 	UCombatPartyRosterWidget* RosterPanel = ExplorationWidget->GetPartyRoster();
 
-	// 1. 기존 UI 및 메모리 초기화
 	RosterPanel->ClearRoster();
 	for (auto& VM : PartyViewModels) { if (VM) VM->Unbind(); }
 	PartyViewModels.Empty();
 
-	// 2. 파티 명단(ID 리스트) 가져오기
 	TArray<FName> PartyIDs;
 	if (UPartySubsystem* PartySys = GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>())
 	{
@@ -138,7 +134,6 @@ void UExplorationHUDPresenter::RefreshPartyStatusData()
 	}
 
 
-	// 3. 뷰모델 및 위젯 생성 & 바인딩
 	for (FName CharID : PartyIDs)
 	{
 		//if (UCharacterRuntimeSubsystem* CRSys = GetWorld()->GetGameInstance()->GetSubsystem<UCharacterRuntimeSubsystem>())
@@ -160,13 +155,10 @@ void UExplorationHUDPresenter::RefreshPartyStatusData()
 		//UE_LOG(LogTemp, Warning, TEXT("PartyID : %s"), *CharID.ToString());
 		if (CharID.IsNone() || !RosterPanel->PartySlotClass) continue;
 
-		// 슬롯 위젯 생성
 		UCombatPartySlotWidget* SlotWidget = CreateWidget<UCombatPartySlotWidget>(GetWorld(), RosterPanel->PartySlotClass);
 
-		// 뷰모델 생성
 		UCombatPartySlotViewModel* SlotVM = NewObject<UCombatPartySlotViewModel>(this);
 
-		// 델리게이트 구독 
 		SlotVM->OnNameUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotNameUpdated, SlotWidget);
 		SlotVM->OnHPUIUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotHPUpdated, SlotWidget);
 		SlotVM->OnAPUIUpdated.AddUObject(this, &UExplorationHUDPresenter::OnPartySlotAPUpdated, SlotWidget);

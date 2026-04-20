@@ -19,17 +19,13 @@ public:
 	void Initialize(UWorld* InWorld, TSubclassOf<UExplorationUIWidget> WidgetClass);
 	void Shutdown();
 
-	// 컨트롤러/HUD에서 Tab 키 입력 시 호출
 	void TogglePartyInfo();
 
-	// 전투 서브시스템 종료 이벤트에서 호출 (N초 세팅)
 	void StartPostCombatRegenUI(float Duration = 5.0f);
 
-	// 전투 진입/종료 시 JRPGHUD가 호출해 줄 함수
 	void ShowExplorationUI();
 	void HideExplorationUI();
 
-	// 파티 데이터를 갱신하고 UI에 쏴주는 함수
 	void RefreshPartyStatusData();
 
 	// [콘솔 명령어용 함수]
