@@ -1,6 +1,7 @@
 ﻿#include "Graphics/FakeGIActor.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
 AFakeGIActor::AFakeGIActor()
@@ -13,6 +14,9 @@ AFakeGIActor::AFakeGIActor()
     GIMesh->SetCastShadow(false);
     GIMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     GIMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
+    GIMesh->SetHiddenInGame(true);
+    GIMesh->SetAffectIndirectLightingWhileHidden(true);
+
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
         TEXT("/Engine/BasicShapes/Sphere.Sphere"));
@@ -26,28 +30,58 @@ void AFakeGIActor::BeginPlay()
 {
     Super::BeginPlay();
 
-    if (UMaterialInterface* Mat = GIMesh->GetMaterial(0))
-    {
-        DynamicMaterial = UMaterialInstanceDynamic::Create(Mat, this);
-        GIMesh->SetMaterial(0, DynamicMaterial);
-    }
+    UpdateFakeGI();
+}
+
+void AFakeGIActor::OnConstruction(const FTransform& Transform)
+{
+    Super::OnConstruction(Transform);
 
     UpdateFakeGI();
 }
 
+#if WITH_EDITOR
+void AFakeGIActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+
+    UpdateFakeGI();
+}
+#endif
+
 void AFakeGIActor::UpdateFakeGI()
 {
     ApplyMeshType();
+    EnsureDynamicMaterial();
     ApplyAngle();
     ApplyRange();
     ApplyIntensity();
     ApplyEnabled();
 }
 
-UMaterialParameterCollectionInstance* AFakeGIActor::GetMPCInstance() const
+void AFakeGIActor::EnsureDynamicMaterial()
 {
-    if (!MPC_FakeGI || !GetWorld()) return nullptr;
-    return GetWorld()->GetParameterCollectionInstance(MPC_FakeGI);
+    if (!GIMesh)
+    {
+        return;
+    }
+
+    if (DynamicMaterial && GIMesh->GetMaterial(0) == DynamicMaterial)
+    {
+        return;
+    }
+
+    if (DynamicMaterial)
+    {
+        GIMesh->SetMaterial(0, DynamicMaterial);
+        return;
+    }
+
+    if (UMaterialInterface* Material = GIMesh->GetMaterial(0))
+    {
+        DynamicMaterial = UMaterialInstanceDynamic::Create(Material, this);
+        GIMesh->SetMaterial(0, DynamicMaterial);
+    }
 }
 
 void AFakeGIActor::ApplyMeshType()
@@ -98,13 +132,6 @@ void AFakeGIActor::ApplyRange()
 
 void AFakeGIActor::ApplyIntensity()
 {
-    if (auto* Inst = GetMPCInstance())
-    {
-        Inst->SetScalarParameterValue(FName("GI_Intensity"), GIIntensity);
-        Inst->SetVectorParameterValue(FName("GI_Color"), GIColor);
-    }
-
-    // Dynamic Material로도 전달 (개별 메시 제어)
     if (DynamicMaterial)
     {
         DynamicMaterial->SetScalarParameterValue(FName("GI_Intensity"), GIIntensity);

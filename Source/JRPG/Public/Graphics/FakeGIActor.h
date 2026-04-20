@@ -5,9 +5,9 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/StaticMeshComponent.h"
-#include "Materials/MaterialParameterCollection.h"
-#include "Materials/MaterialParameterCollectionInstance.h"
 #include "FakeGIActor.generated.h"
+
+class UMaterialInstanceDynamic;
 
 UENUM(BlueprintType)
 enum class EFakeGIMeshType : uint8
@@ -29,14 +29,15 @@ public:
 
 protected:
     virtual void BeginPlay() override;
+    virtual void OnConstruction(const FTransform& Transform) override;
+
+#if WITH_EDITOR
+    virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 public:
     UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Fake GI")
     TObjectPtr<UStaticMeshComponent> GIMesh;
-
-    //MPC
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI")
-    TObjectPtr<UMaterialParameterCollection> MPC_FakeGI;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Mesh")
     EFakeGIMeshType MeshType = EFakeGIMeshType::Sphere;
@@ -78,13 +79,12 @@ public:
     void SetFakeGIEnabled(bool bEnabled);
 
 private:
+    void EnsureDynamicMaterial();
     void ApplyMeshType();
     void ApplyAngle();
     void ApplyRange();
     void ApplyIntensity();
     void ApplyEnabled();
-
-    UMaterialParameterCollectionInstance* GetMPCInstance() const;
 
     // Dynamic Material Instance (Gradient Mask 파라미터 제어용)
     UPROPERTY()
