@@ -43,17 +43,6 @@ void UHPComponent::ApplyDamage(float Amount, AActor* Instigator, FName ReasonTag
 
 	OnHPChanged.Broadcast(Old, CurrentHP, ReasonTag);
 
-	if (APlayerController* PC = GetWorld()->GetFirstPlayerController())
-	{
-		if (AJRPGHUD* HUD = Cast<AJRPGHUD>(PC->GetHUD()))
-		{
-			if (UCombatHUDPresenter* Presenter = HUD->GetCombatPresenter())
-			{
-				Presenter->ShowDamageText(GetOwner(), Amount, false);
-			}
-		}
-	}
-
 	if (CurrentHP <= 0.f)
 	{
 		OnDeath.Broadcast(Instigator, ReasonTag);

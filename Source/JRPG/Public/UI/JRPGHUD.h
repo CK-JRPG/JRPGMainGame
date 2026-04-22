@@ -49,8 +49,10 @@ public:
 
 	void TogglePartyInfo();
 
+	void ShowSkillAnnouncer(const FString& SkillName);
+
 private:
-	// --- 프레젠터 (화면 흐름 및 데이터 중개자) ---
+	// --- 프레젠터  ---
 	UPROPERTY()
 	TObjectPtr<UExplorationHUDPresenter> ExplorationPresenter;
 

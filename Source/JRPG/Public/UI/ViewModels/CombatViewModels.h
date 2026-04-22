@@ -18,6 +18,7 @@ public:
     void BindToActor(AActor* MemberActor);
     void BindToCharacter(FName InCharacterID);
     void Unbind();
+    void Refresh();
 
     FOnNameUpdated OnNameUpdated;
     FOnHPUIUpdated OnHPUIUpdated;
@@ -28,14 +29,14 @@ public:
 private:
     FName BoundCharacterID;
 
-    void HandleHPChanged(FName CharID, float NewHP, float MaxHP);
-    void HandleAPChanged(FName CharID, int32 NewAP, int32 MaxAP);
+    void HandleSubsystemHPChanged(FName CharID, float NewHP, float MaxHP);
+    void HandleSubsystemAPChanged(FName CharID, int32 NewAP, int32 MaxAP);
 
     TWeakObjectPtr<class UHPComponent> CachedHPComp;
     TWeakObjectPtr<class UAPComponent> CachedAPComp;
 
-    void HandleHPChanged(float OldHP, float NewHP, FName Reason);
-    void HandleAPChanged(int32 OldAP, int32 NewAP, FName Reason);
+    void HandleActorHPChanged(float OldHP, float NewHP, FName Reason);
+    void HandleActorAPChanged(int32 OldAP, int32 NewAP, FName Reason);
 };
 
 // ---------------------------------------------------------
@@ -59,14 +60,15 @@ private:
     TWeakObjectPtr<class UHPComponent> CachedHPComp;
     TWeakObjectPtr<class UGroggyComponent> CachedGroggyComp;
 
-    void HandleHPChanged(float OldHP, float NewHP, FName Reason);
+    void HandleActorHPChanged(float OldHP, float NewHP, FName Reason);
     void HandleGroggyChanged(bool bGroggy);
 };
 
 // ---------------------------------------------------------
-// 3. 액션 팔레트 뷰모델 (SP 처리)
+// 3. 액션 팔레트 뷰모델 (HP, AP 처리)
 // ---------------------------------------------------------
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSPUIUpdated, float /*Percent*/, const FString& /*Text*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillListUpdated, const TArray<FString>& /*SkillNames*/);
 
 UCLASS()
 class JRPG_API UActionPaletteViewModel : public UObject
@@ -75,9 +77,12 @@ class JRPG_API UActionPaletteViewModel : public UObject
 public:
     void BindToPlayer(AActor* PlayerActor);
     void Unbind();
+
     FOnSPUIUpdated OnSPUIUpdated;
+    FOnSkillListUpdated OnSkillListUpdated;
 
 private:
     TWeakObjectPtr<class USPComponent> CachedSPComp;
     void HandleSPChanged(int32 OldSP, int32 NewSP, FName Reason);
+    void RefreshSkills(AActor* PlayerActor);
 };

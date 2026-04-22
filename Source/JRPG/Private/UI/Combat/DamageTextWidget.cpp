@@ -1,7 +1,8 @@
-#include "UI/Combat/DamageTextWidget.h"
+﻿#include "UI/Combat/DamageTextWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/CanvasPanelSlot.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
+#include "Styling/SlateColor.h"
 
 void UDamageTextWidget::NativeConstruct() {
 	Super::NativeConstruct();
@@ -12,14 +13,34 @@ void UDamageTextWidget::NativeConstruct() {
 	}
 }
 
-void UDamageTextWidget::InitializeDamage(AActor* InTarget, float DamageAmount, bool bIsCritical) {
+void UDamageTextWidget::InitializeDamage(AActor* InTarget, float DamageAmount, bool bIsCritical, EDamageTextType TextType) 
+{
 	TargetActor = InTarget;
 	WorldOffset = FVector(0.f, 0.f, 100.f);
-	if (Text_Damage) {
-		FString DmgStr = FString::FromInt(FMath::RoundToInt(DamageAmount));
-		Text_Damage->SetText(FText::FromString(bIsCritical ? TEXT("!") + DmgStr + TEXT("!") : DmgStr));
-		Text_Damage->SetColorAndOpacity(bIsCritical ? FLinearColor::Red : FLinearColor::White);
+	if (Text_Damage) 
+	{
+		int32 FinalValue = FMath::Abs(FMath::RoundToInt(DamageAmount));
+		Text_Damage->SetText(FText::AsNumber(FinalValue));
+
+		FSlateColor TextColor = FSlateColor(FLinearColor::White);
+
+		switch (TextType)
+		{
+		case EDamageTextType::EnemyDamage:
+			break;
+		case EDamageTextType::PlayerDamage:
+			TextColor = FSlateColor(FLinearColor::Red);
+			break;
+		case EDamageTextType::Heal:
+			TextColor = FSlateColor(FLinearColor::Green);
+			break;
+		default:
+			break;
+		}
+
+		Text_Damage->SetColorAndOpacity(TextColor);
 	}
+
 	if (Anim_FloatAndFade) PlayAnimation(Anim_FloatAndFade);
 }
 

@@ -12,6 +12,9 @@
 #include "JRPG/Public/Combat/SP/SPComponent.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 
+#include "GameFramework/Pawn.h"
+#include "GameFramework/Controller.h"
+
 UCombatAIActionSelectorComponent::UCombatAIActionSelectorComponent()
 {
 	PrimaryComponentTick.bCanEverTick =true;
@@ -271,14 +274,14 @@ void UCombatAIActionSelectorComponent::ThinkAndAct()
 {
 	UBattleSessionSubsystem* Battle = GetBattle();
 	UCombatTargetingSubsystem* Targeting = GetTargeting();
-	
-	if (!Battle || !Targeting || !PresentationComp.IsValid()) 
+
+	if (!Battle || !Targeting || !PresentationComp.IsValid())
 		return;
 
 	TArray<AActor*> HealTargets;
 	if (USkillDataAsset* HealSkill = PickBestHealSkill(HealTargets))
 	{
-		const FSkillCastResult R = PresentationComp->TryPresentSkill(HealSkill->SkillId,HealTargets,false);
+		const FSkillCastResult R = PresentationComp->TryPresentSkill(HealSkill->SkillId, HealTargets, false);
 		if (R.bOk)
 			return;
 	}
@@ -290,23 +293,41 @@ void UCombatAIActionSelectorComponent::ThinkAndAct()
 		if (R.bOk)
 			return;
 	}
-	
+
+	const bool bOwnerIsPlayerControlled = [](const AActor* OwnerActor)
+		{
+			const APawn* Pawn = Cast<APawn>(OwnerActor);
+			const AController* Controller = Pawn ? Pawn->GetController() : nullptr;
+			return Controller && Controller->IsPlayerController();
+		}(GetOwner());
+
 	TArray<AActor*> OffensiveTargets;
 	if (USkillDataAsset* OffensiveSkill = PickBestOffensiveSkill(OffensiveTargets))
 	{
-		const FSkillCastResult R =PresentationComp->TryPresentSkill(OffensiveSkill->SkillId,OffensiveTargets,false);
-		if (R.bOk) 
+		const FSkillCastResult R = PresentationComp->TryPresentSkill(OffensiveSkill->SkillId, OffensiveTargets, false);
+		if (R.bOk)
 			return;
 	}
 
-	const FTargetingResult BasicTarget = Targeting->ResolvePreferredBasicAttackTarget(GetOwner());
-	if (BasicTarget.bOk && BasicTarget.Targets.Num() > 0)
+	//const FTargetingResult BasicTarget = Targeting->ResolvePreferredBasicAttackTarget(GetOwner());
+//	if (BasicTarget.bOk && BasicTarget.Targets.Num() > 0)
+	if (!bOwnerIsPlayerControlled)
 	{
-		if (AActor* Target = BasicTarget.Targets[0].Get())
+		//if (AActor* Target = BasicTarget.Targets[0].Get())
+		//{
+		const FTargetingResult BasicTarget = Targeting->ResolvePreferredBasicAttackTarget(GetOwner());
+		if (BasicTarget.bOk && BasicTarget.Targets.Num() > 0)
 		{
-			const FCombatActionResult R = PresentationComp->TryPresentBasicAttack(Target);
-			if (R.bOk)
-				return;
+
+			//const FCombatActionResult R = PresentationComp->TryPresentBasicAttack(Target);
+			//if (R.bOk)
+				// return;
+			if (AActor* Target = BasicTarget.Targets[0].Get())
+			{
+				const FCombatActionResult R = PresentationComp->TryPresentBasicAttack(Target);
+				if (R.bOk)
+					return;
+			}
 		}
 	}
 }

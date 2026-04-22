@@ -86,7 +86,7 @@ void UInventoryViewModel::RefreshItemList()
 			break;
 		}
 
-		// 이름 검색 로직 유지
+		// 이름 검색
 		if (bMatch && !CurrentKeyword.IsEmpty())
 		{
 			bMatch = ItemDef->DisplayName.ToString().Contains(CurrentKeyword);
@@ -95,7 +95,7 @@ void UInventoryViewModel::RefreshItemList()
 		if (bMatch) FilteredItems.Add(Item);
 	}
 
-	// 2. 장비 탭인 경우 O(N) 버킷 정렬 수행
+	// 장비 탭 버킷 정렬
 	if (CurrentTab == EInventoryTab::Equipment && CurrentCharacter.IsValid())
 	{
 		SortEquipmentBucket(FilteredItems);
@@ -108,10 +108,6 @@ int32 UInventoryViewModel::GetRoleScore(const UItemDataAsset* ItemDef, AActor* T
 {
 	if (!ItemDef) return 0;
 	if (ItemDef->RoleRestrictionMask == 0) return 1; // 공용 아이템
-
-	// TODO: 캐릭터 직업(Role) 검사 연동 부분 (TargetChar->GetRole() 사용)
-	// 예시: if (ItemDef->IsRoleAllowed(CharRole)) return 2; 
-
 	return 0; // 타 직업 아이템
 }
 
@@ -149,17 +145,7 @@ void UInventoryViewModel::HoverItemForPreview(const FItemInstance& ItemInfo)
 {
 	if (!PresentationSubsystem.IsValid() || !CurrentCharacter.IsValid() || !InvSubsystem.IsValid()) return;
 
-	// 실제 스탯 컴포넌트와 아이템 DB를 가져와서 프리뷰 계산
-	/*
-	UCombatStatsComponent* StatsComp = CurrentCharacter->FindComponentByClass<UCombatStatsComponent>();
-	const UItemDataAsset* ItemDef = InvSubsystem->FindDef(ItemInfo.ItemId);
-	if (StatsComp && ItemDef && ItemDef->IsAugment())
-	{
-		FAugmentModifierSet CandidateMods;
-		FStatsPreviewDelta Delta = PresentationSubsystem->PreviewAugmentDelta(StatsComp, CandidateMods);
-		OnEquipPreviewUpdated.Broadcast(Delta);
-	}
-	*/
+	// TODO : 실제 스탯 컴포넌트와 아이템 DB를 가져와서 프리뷰 계산
 }
 void UInventoryViewModel::ClearPreview() { OnEquipPreviewUpdated.Broadcast(FStatsPreviewDelta()); }
 void UInventoryViewModel::RequestEquipAugment(FGuid InstanceId, EAugmentEquipSlot Slot) { if (CurrentAugmentComp.IsValid() && InvSubsystem.IsValid()) CurrentAugmentComp->TryEquipFromInventory(InvSubsystem.Get(), InstanceId, Slot); }
@@ -168,12 +154,7 @@ void UInventoryViewModel::RequestEquipWeapon(FGuid InstanceId) { if (CurrentWeap
 void UInventoryViewModel::RefreshStatsBreakdown() 
 {
 	if (!CurrentCharacter.IsValid()) return;
-	// 캐릭터에서 FStatsBreakdownSnapshot 추출 로직 연동
-	//if (UCombatStatsComponent* StatsComp = CurrentCharacter->FindComponentByClass<UCombatStatsComponent>())
-	//{
-	//	FStatsBreakdownSnapshot Snapshot = StatsComp->GetStatsBreakdownSnapshot();
-	//	OnStatsBreakdownUpdated.Broadcast(Snapshot);
-	//}
+	// TODO : FStatsBreakdownSnapshot 추출 로직 연동
 }
 
 void UInventoryViewModel::HandleInventoryChanged(EInventoryChangeType ChangeType, FGuid InstanceId, int32 Delta, FName ReasonTag) { RefreshItemList(); }
