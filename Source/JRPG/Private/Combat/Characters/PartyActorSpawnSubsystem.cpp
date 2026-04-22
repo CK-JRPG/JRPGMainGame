@@ -142,7 +142,10 @@ void UPartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions(
 			SpawnedActors.Add(SpawnedActor);
 
 			if (CharacterRuntime)
-				CharacterRuntime->RestoreSnapshot(ID, SpawnedActor);
+			{
+				// 새 인카운터의 스폰 위치는 FieldTransforms를 우선한다.
+				CharacterRuntime->RestoreSnapshot(ID, SpawnedActor, false);
+			}
 
 			UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem : 필드 위치 기반 스폰 성공 - %s"), *ID.ToString());
 		}

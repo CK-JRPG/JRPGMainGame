@@ -188,7 +188,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 
 	if (const AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(PlayerActor))
 	{
-		FieldTransforms.Add(LeaderCharID, GetOwner()->GetActorTransform());
+		FieldTransforms.Add(LeaderCharID, PlayerPawn->GetActorTransform());
 	}
 
 	// 나머지 파티원들도 

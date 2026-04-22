@@ -37,7 +37,7 @@ void UCharacterRuntimeSubsystem::SaveSnapshot(const FName& CharacterID, ACombatC
 		*CharacterID.ToString(), Snap.HP, Snap.MaxHP, Snap.AP, Snap.MaxAP, Snap.SP, Snap.MaxSP);
 }
 
-void UCharacterRuntimeSubsystem::RestoreSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor)
+void UCharacterRuntimeSubsystem::RestoreSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor, bool bRestoreTransform)
 {
 	if (!Actor) return;
 
@@ -48,7 +48,7 @@ void UCharacterRuntimeSubsystem::RestoreSnapshot(const FName& CharacterID, AComb
 		return;
 	}
 	
-	if (Snap->bHasTransformSnapshot)
+	if (bRestoreTransform && Snap->bHasTransformSnapshot)
 	{
 		Actor->SetActorLocationAndRotation(Snap->WorldLocation, Snap->WorldRotation);
 	}
