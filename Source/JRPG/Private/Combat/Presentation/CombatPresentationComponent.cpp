@@ -485,6 +485,16 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 			if (UBasicCombatSubsystem *Basic = GetWorld()->GetSubsystem<UBasicCombatSubsystem>())
 			{
 				Basic->ExecuteBasicAttack(Req);
+				if (UBattleSessionSubsystem* BattleAfterExecute = GetBattle())
+				{
+					UE_LOG(LogTemp, Warning,
+						TEXT("CombatPresentationComponent::ResolveActivePresentation : basic attack executed | Owner=%s OwnerValid=%s TargetValid=%s BattleActive=%s Phase=%d"),
+						*GetNameSafe(GetOwner()),
+						IsValid(GetOwner()) ? TEXT("true") : TEXT("false"),
+						IsValid(Target) ? TEXT("true") : TEXT("false"),
+						BattleAfterExecute->IsBattleActive() ? TEXT("true") : TEXT("false"),
+						(int32)BattleAfterExecute->GetPhase());
+				}
 			}
 			Active.bResolved = true;
 			break;
