@@ -35,6 +35,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "JRPG|Companion")
 	void SetPartyIndex(int32 InIndex);
 
+	UFUNCTION(BlueprintPure, Category = "JRPG|Companion")
+	int32 GetPartyIndex() const { return PartyIndex; }
+
 	UFUNCTION(BlueprintCallable, Category = "JRPG|Companion")
 	void SetAdventureState(ECompanionAdventureState NewState);
 

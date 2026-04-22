@@ -39,6 +39,9 @@ protected:
 
 	TObjectPtr<UCombatZoneSettingDataAsset> ZoneSetting;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Encounter")
+	float MaxEncounterCompanionDistance = 1200.0f;
+
 	// 런타임에 생성된 존을 기억해두기 위한 포인터 (전투 종료 시 파괴하기 위함)
 	UPROPERTY(Transient)
 	ACombatZoneActor* SpawnedZone;
@@ -47,6 +50,7 @@ protected:
 
 private:
 
+	FTransform CompanionFallbackTransform(const AActor* LeaderActor, const class AJRPGCompanionPawn* Companion, int32 CompanionOrder) const;
 	void SearchCombatCharactersInRadius(const AActor* OverlapActor);
 	void ReadyforBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx);
 	void OnPlayerApproach();

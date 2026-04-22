@@ -32,6 +32,7 @@ private:
 		bool bFromSweep, const FHitResult& SweepResult);
 
     FEncounterContext BuildEncounterContext(const AActor* InTriggerActor);
+	FTransform CompanionFallbackTransform(const AActor* LeaderActor, const class AJRPGCompanionPawn* Companion, int32 CompanionOrder) const;
 	void SearchCombatEnemyCharactersInRadius(const AActor* PlayerActor);
 	void ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx);
 
@@ -42,6 +43,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Encounter")
 	float EnemySearchRadius = 1000.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Encounter")
+	float MaxEncounterCompanionDistance = 1200.0f;
 
 	UPROPERTY(EditAnywhere, Category = "Encounter|Zone")
 	TObjectPtr<UCombatZoneSettingDataAsset> ZoneSetting;

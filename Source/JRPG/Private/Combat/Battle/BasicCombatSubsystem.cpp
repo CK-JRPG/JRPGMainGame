@@ -8,6 +8,7 @@
 #include "Combat/Stats/APComponent.h"
 #include "Combat/SP/SPComponent.h"
 #include "Combat/SP/SynergyPointSubsystem.h"
+#include "Combat/Battle/BattleSessionSubsystem.h"
 
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Groggy/GroggyComponent.h"
@@ -123,7 +124,31 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 		{
 			AttackerSP->AddSP(Req.SPGainOnKill, "Combat.KillSP");
 		}
+
+		if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("BasicCombatSubsystem::ExecuteBasicAttack : lethal hit before defeat broadcast | BattleActive=%s Phase=%d Attacker=%s Target=%s Reason=%s"),
+				Battle->IsBattleActive() ? TEXT("true") : TEXT("false"),
+				(int32)Battle->GetPhase(),
+				*GetNameSafe(Attacker),
+				*GetNameSafe(Target),
+				*Req.ReasonTag.ToString());
+		}
+
 		OnCombatantDefeated.Broadcast(Target, Attacker);
+	}
+
+	if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+	{
+		UE_LOG(LogTemp, Warning,
+			TEXT("BasicCombatSubsystem::ExecuteBasicAttack : before resolved broadcast | BattleActive=%s Phase=%d AttackerValid=%s TargetValid=%s TargetDied=%s Reason=%s"),
+			Battle->IsBattleActive() ? TEXT("true") : TEXT("false"),
+			(int32)Battle->GetPhase(),
+			IsValid(Attacker) ? TEXT("true") : TEXT("false"),
+			IsValid(Target) ? TEXT("true") : TEXT("false"),
+			Out.bTargetDied ? TEXT("true") : TEXT("false"),
+			*Req.ReasonTag.ToString());
 	}
 
 	OnBasicAttackResolved.Broadcast(Out);

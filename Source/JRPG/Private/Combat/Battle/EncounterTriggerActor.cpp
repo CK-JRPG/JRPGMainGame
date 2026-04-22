@@ -11,6 +11,7 @@
 #include "Components/BoxComponent.h"
 #include "Engine/OverlapResult.h"
 #include "Game/JRPGPlayerPawn.h"
+#include "Game/Companion/CompanionPawnController.h"
 #include "Game/Companion/FieldCompanionSubsystem.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
 
@@ -42,6 +43,31 @@ void AEncounterTriggerActor::BeginPlay()
 	{
 		TriggerVolume->OnComponentBeginOverlap.AddDynamic(this, &AEncounterTriggerActor::OnOverlapBegin);
 	}
+}
+
+FTransform AEncounterTriggerActor::CompanionFallbackTransform(const AActor* LeaderActor, const AJRPGCompanionPawn* Companion, int32 CompanionOrder) const
+{
+	if (!IsValid(LeaderActor))
+	{
+		return Companion ? Companion->GetActorTransform() : FTransform::Identity;
+	}
+
+	int32 PartyIndex = CompanionOrder + 1;
+	if (const ACompanionPawnController* CompanionController = Companion ? Cast<ACompanionPawnController>(Companion->GetController()) : nullptr)
+	{
+		PartyIndex = FMath::Max(1, CompanionController->GetPartyIndex());
+	}
+
+	const FVector LeaderLocation = LeaderActor->GetActorLocation();
+	const FVector LeaderForward = LeaderActor->GetActorForwardVector();
+	const FRotator LeaderRotation = LeaderActor->GetActorRotation();
+
+	float AngleOffset = (PartyIndex % 2 != 0) ? -45.0f : 45.0f;
+	AngleOffset *= FMath::CeilToFloat(PartyIndex / 2.0f);
+
+	const FVector Direction = LeaderForward.RotateAngleAxis(AngleOffset, FVector::UpVector);
+	const FVector SpawnLocation = LeaderLocation - (Direction * 200.0f);
+	return FTransform(LeaderRotation, SpawnLocation);
 }
 
 
@@ -165,10 +191,21 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 	if (CompanionSub)
 		Companions = CompanionSub->GetSpawnedCompanions();
 
+	int32 CompanionOrder = 0;
 	for (AJRPGCompanionPawn* Companion : Companions)
 	{
 		if (!IsValid(Companion)) continue;
-		FieldTransforms.Add(Companion->CurrentCharacterId, Companion->GetActorTransform());
+
+		FTransform CompanionTransform = Companion->GetActorTransform();
+		const float DistanceToLeaderSq = FVector::DistSquared2D(CompanionTransform.GetLocation(), OverlapActor->GetActorLocation());
+		if (DistanceToLeaderSq > FMath::Square(MaxEncounterCompanionDistance))
+		{
+			CompanionTransform = CompanionFallbackTransform(OverlapActor, Companion, CompanionOrder);
+			UE_LOG(LogTemp, Warning, TEXT("EncounterTrigger : 멀어진 컴패니언 %s 전투 스폰 위치를 리더 근처로 보정함."), *Companion->GetName());
+		}
+
+		FieldTransforms.Add(Companion->CurrentCharacterId, CompanionTransform);
+		++CompanionOrder;
 	}
 
 	// FEncounterContext 생성 (플레이어 위치 기준)
