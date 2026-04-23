@@ -1,6 +1,4 @@
-﻿
-
-#include "Combat/Battle/EnemyEncounterComponent.h"
+﻿#include "Combat/Battle/EnemyEncounterComponent.h"
 
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
@@ -11,6 +9,7 @@
 #include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Components/SphereComponent.h"
+#include "EngineUtils.h"
 #include "Engine/OverlapResult.h"
 #include "Game/JRPGPlayerPawn.h"
 #include "Game/Companion/CompanionPawnController.h"
@@ -95,7 +94,7 @@ void UEnemyEncounterComponent::BeginPlay()
 	TriggerSphere->SetSphereRadius(DetectionRadius);
 	TriggerSphere->SetCollisionProfileName(TEXT("Trigger"));
 	TriggerSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
-	TriggerSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	TriggerSphere->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Overlap);
 
 	TriggerSphere->OnComponentBeginOverlap.AddDynamic(this, &UEnemyEncounterComponent::OnTriggerOverlap);
 }
@@ -111,7 +110,7 @@ void UEnemyEncounterComponent::OnTriggerOverlap(UPrimitiveComponent* OverlappedC
 		if (BattleSub->IsBattleActive()) return;
 	}
 
-	// 전투 → 필드 전환 중이면 무시 (전환 직후 인카운터 재발동 방지)
+	// 전투 -> 필드 전환 중이면 무시 (전환 직후 인카운터 재발동 방지)
 	if (UCombatTransitionSubsystem* TransSub = GetWorld()->GetSubsystem<UCombatTransitionSubsystem>())
 	{
 		if (TransSub->IsTransitioning()) return;
@@ -119,6 +118,13 @@ void UEnemyEncounterComponent::OnTriggerOverlap(UPrimitiveComponent* OverlappedC
 
 	AJRPGPlayerPawn* PlayerPawn = Cast<AJRPGPlayerPawn>(OtherActor);
 	if (!PlayerPawn) return;
+
+	UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EnemyEncounterComponent] Triggered by %s on %s at %s (DetectionRadius=%.1f, SearchRadius=%.1f)"),
+		*GetNameSafe(OtherActor),
+		*GetNameSafe(GetOwner()),
+		*GetOwner()->GetActorLocation().ToString(),
+		DetectionRadius,
+		EnemySearchRadius);
 
 	bHasTriggered = true;
 	SearchCombatEnemyCharactersInRadius(OtherActor);
@@ -163,28 +169,71 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 	}
 
 	const FVector TriggerLocation = GetOwner()->GetActorLocation();
-	FCollisionShape Sphere = FCollisionShape::MakeSphere(EnemySearchRadius);
-	FCollisionObjectQueryParams QueryParams;
-	QueryParams.AddObjectTypesToQuery(ECC_Pawn);
+	const float SearchRadiusSq = FMath::Square(EnemySearchRadius);
+	int32 RawCandidateCount = 0;
 
-	TArray<FOverlapResult> OverlapResults;
-	World->OverlapMultiByObjectType(OverlapResults, TriggerLocation, FQuat::Identity, QueryParams, Sphere);
+	UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EnemyEncounterComponent] Search center=%s radius=%.1f owner=%s"),
+		*TriggerLocation.ToString(),
+		EnemySearchRadius,
+		*GetNameSafe(Owner));
 
-	for (const FOverlapResult& Result : OverlapResults)
+	for (TActorIterator<ACombatCharacterActor> It(World); It; ++It)
 	{
-		AActor* Candidate = Result.GetActor();
-		if (!IsValid(Candidate) || AddedActors.Contains(Candidate))
+		ACombatCharacterActor* Candidate = *It;
+		if (!IsValid(Candidate))
+		{
 			continue;
+		}
+
+		const float Dist2DSq = FVector::DistSquared2D(TriggerLocation, Candidate->GetActorLocation());
+		if (Dist2DSq > SearchRadiusSq)
+		{
+			continue;
+		}
+
+		++RawCandidateCount;
+
+		if (!IsValid(Candidate) || AddedActors.Contains(Candidate))
+		{
+			if (IsValid(Candidate))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EnemyEncounterComponent] Skip candidate=%s reason=%s"),
+					*GetNameSafe(Candidate),
+					AddedActors.Contains(Candidate) ? TEXT("AlreadyAdded") : TEXT("Invalid"));
+			}
+			continue;
+		}
+
+		const float Dist2D = FMath::Sqrt(Dist2DSq);
 
 		if (ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(Candidate))
 		{
-			if (Participant->GetCombatTeam() == ECombatTeam::Enemy && Participant->GetHP() && !Participant->GetHP()->IsDead())
+			const bool bIsEnemyTeam = Participant->GetCombatTeam() == ECombatTeam::Enemy;
+			const bool bAlive = Participant->GetHP() && !Participant->GetHP()->IsDead();
+			UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EnemyEncounterComponent] Candidate=%s dist2D=%.1f team=%d alive=%s"),
+				*GetNameSafe(Candidate),
+				Dist2D,
+				static_cast<int32>(Participant->GetCombatTeam()),
+				bAlive ? TEXT("true") : TEXT("false"));
+
+			if (bIsEnemyTeam && bAlive)
 			{
 				BattleConfig.EnemySide.Add(Candidate);
 				AddedActors.Add(Candidate);
+				UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EnemyEncounterComponent] Added enemy=%s"), *GetNameSafe(Candidate));
 			}
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EnemyEncounterComponent] Candidate=%s dist2D=%.1f does not implement ICombatParticipantInterface"),
+				*GetNameSafe(Candidate),
+				Dist2D);
+		}
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EnemyEncounterComponent] Raw candidates in radius=%d"), RawCandidateCount);
+
+	UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EnemyEncounterComponent] Final enemy count=%d"), BattleConfig.EnemySide.Num());
 
 	if (BattleConfig.EnemySide.Num() == 0)
 	{

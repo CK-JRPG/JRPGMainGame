@@ -9,6 +9,7 @@
 #include "Combat/Session/CombatZoneActor.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Components/BoxComponent.h"
+#include "EngineUtils.h"
 #include "Engine/OverlapResult.h"
 #include "Game/JRPGPlayerPawn.h"
 #include "Game/Companion/CompanionPawnController.h"
@@ -26,7 +27,7 @@ AEncounterTriggerActor::AEncounterTriggerActor()
 	TriggerVolume->SetCollisionProfileName(TEXT("Trigger"));
 	TriggerVolume->SetCollisionObjectType(ECC_WorldStatic);
 	TriggerVolume->SetCollisionResponseToAllChannels(ECR_Ignore);
-	TriggerVolume->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	TriggerVolume->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Overlap);
 
 	TriggerVolume->SetBoxExtent(FVector(150.0f, 150.0f, 100.0f));
 
@@ -92,6 +93,11 @@ void AEncounterTriggerActor::OnOverlapBegin(UPrimitiveComponent* OverlappedComp,
 	if (!PlayerPawn)
 		return;
 
+	UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EncounterTriggerActor] Triggered by %s on trigger=%s at %s"),
+		*GetNameSafe(OtherActor),
+		*GetNameSafe(this),
+		*GetActorLocation().ToString());
+
 	bHasTriggered = true;
 	SearchCombatCharactersInRadius(OtherActor);
 }
@@ -128,30 +134,71 @@ void AEncounterTriggerActor::SearchCombatCharactersInRadius(const AActor* Overla
 	const FVector TriggerLocation = GetActorLocation();
 	const float SearchRadius = 1000.f;
 
-	FCollisionShape Sphere = FCollisionShape::MakeSphere(SearchRadius);
-	FCollisionObjectQueryParams QueryParams;
-	QueryParams.AddObjectTypesToQuery(ECC_Pawn);
+	const float SearchRadiusSq = FMath::Square(SearchRadius);
+	int32 RawCandidateCount = 0;
 
-	TArray<FOverlapResult> OverlapResults;
-	World->OverlapMultiByObjectType(OverlapResults, TriggerLocation, FQuat::Identity, QueryParams, Sphere);
+	UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EncounterTriggerActor] Search center=%s radius=%.1f"),
+		*TriggerLocation.ToString(),
+		SearchRadius);
 
-	for (const FOverlapResult& Result : OverlapResults)
+	for (TActorIterator<ACombatCharacterActor> It(World); It; ++It)
 	{
-		AActor* Candidate = Result.GetActor();
-		if (!IsValid(Candidate) || AddedActors.Contains(Candidate))
+		ACombatCharacterActor* Candidate = *It;
+		if (!IsValid(Candidate))
+		{
 			continue;
+		}
+
+		const float Dist2DSq = FVector::DistSquared2D(TriggerLocation, Candidate->GetActorLocation());
+		if (Dist2DSq > SearchRadiusSq)
+		{
+			continue;
+		}
+
+		++RawCandidateCount;
+
+		if (!IsValid(Candidate) || AddedActors.Contains(Candidate))
+		{
+			if (IsValid(Candidate))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EncounterTriggerActor] Skip candidate=%s reason=%s"),
+					*GetNameSafe(Candidate),
+					AddedActors.Contains(Candidate) ? TEXT("AlreadyAdded") : TEXT("Invalid"));
+			}
+			continue;
+		}
+
+		const float Dist2D = FMath::Sqrt(Dist2DSq);
 
 		// ICombatParticipantInterface을 부모로 가지고 있는 액터 중 Enemy이면서 살아있는 캐릭터만 추가
 		if (ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(Candidate))
 		{
-			if (Participant->GetCombatTeam() == ECombatTeam::Enemy && Participant->GetHP() && !Participant->GetHP()->IsDead())
+			const bool bIsEnemyTeam = Participant->GetCombatTeam() == ECombatTeam::Enemy;
+			const bool bAlive = Participant->GetHP() && !Participant->GetHP()->IsDead();
+			UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EncounterTriggerActor] Candidate=%s dist2D=%.1f team=%d alive=%s"),
+				*GetNameSafe(Candidate),
+				Dist2D,
+				static_cast<int32>(Participant->GetCombatTeam()),
+				bAlive ? TEXT("true") : TEXT("false"));
+
+			if (bIsEnemyTeam && bAlive)
 			{
 				BattleConfig.EnemySide.Add(Candidate);
 				AddedActors.Add(Candidate);
-				UE_LOG(LogTemp, Log, TEXT("EncounterTrigger : 적 캐릭터 %s 추가"), *Candidate->GetName());
+				UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EncounterTriggerActor] Added enemy=%s"), *GetNameSafe(Candidate));
 			}
 		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EncounterTriggerActor] Candidate=%s dist2D=%.1f does not implement ICombatParticipantInterface"),
+				*GetNameSafe(Candidate),
+				Dist2D);
+		}
 	}
+
+	UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EncounterTriggerActor] Raw candidates in radius=%d"), RawCandidateCount);
+
+	UE_LOG(LogTemp, Warning, TEXT("[EncounterDebug][EncounterTriggerActor] Final enemy count=%d"), BattleConfig.EnemySide.Num());
 
 	if (BattleConfig.EnemySide.Num() == 0)
 	{
