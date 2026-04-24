@@ -33,7 +33,7 @@ void UPartySubsystem::Initialize(FSubsystemCollectionBase &Collection)
 	Super::Initialize(Collection);
 	LoadFromSave();
 	
-	if (PartyIds.Num() == 3)
+	if (!PartyIds.IsEmpty())
 	{
 		PushPartyToBond();
 		PushPartyLevelToShop();
@@ -47,7 +47,25 @@ void UPartySubsystem::LoadFromSave()
 		SaveSys->LoadOrCreate();
 		if (UPartySaveGame *S = SaveSys->GetSave())
 		{
-			if (S->PartyIds.Num() == 3)PartyIds = S->PartyIds;
+			if (S->PartyIds.Num() > 0 && S->PartyIds.Num() <= MaxPartySize)
+			{
+				TSet<FName> UniqueIds;
+				bool bValid = true;
+				for (const FName& Id : S->PartyIds)
+				{
+					if (Id.IsNone() || UniqueIds.Contains(Id))
+					{
+						bValid = false;
+						break;
+					}
+					UniqueIds.Add(Id);
+				}
+
+				if (bValid)
+				{
+					PartyIds = S->PartyIds;
+				}
+			}
 			CurrentRestockKey = S->RestockKey;
 		}
 	}
@@ -66,28 +84,79 @@ void UPartySubsystem::FlushToSave()
 	}
 }
 
-bool UPartySubsystem::SetPartyIds(const TArray<FName> &Party3, FName)
+bool UPartySubsystem::SetPartyIds(const TArray<FName>& InPartyIds, FName)
 {
-	if (Party3.Num()!=3)
+	if (InPartyIds.Num() < 1 || InPartyIds.Num() > MaxPartySize)
 		return false;
 
 	TSet<FName> S;
 	
-	for (const FName &Id : Party3)
+	for (const FName &Id : InPartyIds)
 	{
 		if (Id.IsNone())
 			return false;
 		S.Add(Id);
 	}
 	
-	if (S.Num() != 3)
+	if (S.Num() != InPartyIds.Num())
 		return false;
 
-	PartyIds = Party3;
+	PartyIds = InPartyIds;
 	PushPartyToBond();
 	PushPartyLevelToShop();
 	FlushToSave();
 	return true;
+}
+
+bool UPartySubsystem::AddPartyMember(FName CharacterId, FName ReasonTag)
+{
+	if (CharacterId.IsNone())
+	{
+		return false;
+	}
+
+	TArray<FName> NextPartyIds = PartyIds;
+	if (NextPartyIds.Contains(CharacterId))
+	{
+		return true;
+	}
+
+	if (NextPartyIds.Num() >= MaxPartySize)
+	{
+		return false;
+	}
+
+	NextPartyIds.Add(CharacterId);
+	return SetPartyIds(NextPartyIds, ReasonTag);
+}
+
+bool UPartySubsystem::RemovePartyMember(FName CharacterId, FName ReasonTag)
+{
+	if (CharacterId.IsNone())
+	{
+		return false;
+	}
+
+	TArray<FName> NextPartyIds = PartyIds;
+	if (!NextPartyIds.RemoveSingle(CharacterId))
+	{
+		return false;
+	}
+
+	if (NextPartyIds.IsEmpty())
+	{
+		return false;
+	}
+
+	return SetPartyIds(NextPartyIds, ReasonTag);
+}
+
+void UPartySubsystem::ClearParty(FName)
+{
+	PartyIds.Reset();
+	PushPartyToBond();
+	PushPartyLevelToShop();
+	FlushToSave();
 }
 
 void UPartySubsystem::GetPartyMembers(TArray<AActor*>&OutMembers)const

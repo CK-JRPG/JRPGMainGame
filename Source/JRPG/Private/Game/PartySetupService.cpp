@@ -78,6 +78,7 @@ void UPartySetupService::InitializeCombatBridge(UDataTable* CharacterTable,
 	{
 		if (PlayerPawn)
 		{
+			CompanionSub->DespawnFieldCompanions();
 			CompanionSub->SpawnFieldCompanions(PlayerPawn->GetActorLocation(), LeaderId, SpawnSub->GetSpawnEntryMap());
 		}
 	}

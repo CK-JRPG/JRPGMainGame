@@ -84,37 +84,59 @@ void AJRPGPlayerController::EnsureDefaultPartyFromTable()
 	if (!PartySys)
 		return;
 	
-	if (PartySys->GetPartyIds().Num() == 3)
+	if (!PartySys->GetPartyIds().IsEmpty())
 	{
 		UE_LOG(LogTemp, Log, TEXT("Bridge : 이미 파티 데이터가 존재하기 때문에 자동으로 초기화하지 않음."));
 		return;
 	}
 	
 	TArray<FName> AllRowNames = CharacterTable->GetRowNames();
-	if (AllRowNames.Num() < 3)
+	if (AllRowNames.Num() < 1)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Bridge: CharacterTable에 Row가 %d개밖에 없음. 최소 3개 필요."), AllRowNames.Num());
+		UE_LOG(LogTemp, Warning, TEXT("Bridge: CharacterTable에 Row가 없음."));
 		return;
 	}
 
-	// DefaultPartyIds가 에디터에서 지정되어 있으면 그걸 사용하고 없으면 테이블 첫 3개 가져와서 사용해야함.
+	// DefaultPartyIds가 에디터에서 지정되어 있으면 그걸 사용하고 없으면 테이블 첫 Row를 리더로 사용.
 	TArray<FName> PartyToSet;
-	if (DefaultPartyIds.Num() == 3)
+	for (const FName& CharacterId : DefaultPartyIds)
 	{
-		PartyToSet = DefaultPartyIds;
-		UE_LOG(LogTemp, Log, TEXT("Bridge: DefaultPartyIds 사용."));
+		if (CharacterId.IsNone() || PartyToSet.Contains(CharacterId))
+		{
+			continue;
+		}
+
+		PartyToSet.Add(CharacterId);
+		if (PartyToSet.Num() >= UPartySubsystem::MaxPartySize)
+		{
+			break;
+		}
+	}
+
+	if (!PartyToSet.IsEmpty())
+	{
+		UE_LOG(LogTemp, Log, TEXT("Bridge: DefaultPartyIds 사용. Count=%d"), PartyToSet.Num());
 	}
 	else
 	{
-		PartyToSet = { AllRowNames[0], AllRowNames[1], AllRowNames[2] };
-		UE_LOG(LogTemp, Log, TEXT("Bridge: CharacterTable 첫 3개 Row를 기본 파티로 사용."));
+		PartyToSet = { AllRowNames[0] };
+		UE_LOG(LogTemp, Log, TEXT("Bridge: CharacterTable 첫 Row를 기본 파티(1인)로 사용."));
 	}
 
 	const bool bOk = PartySys->SetPartyIds(PartyToSet, "Init.DefaultParty");
 	if (bOk)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Bridge: 기본 파티 설정 완료 [%s, %s, %s]"),
-			*PartyToSet[0].ToString(), *PartyToSet[1].ToString(), *PartyToSet[2].ToString());
+		FString PartySummary;
+		for (int32 Idx = 0; Idx < PartyToSet.Num(); ++Idx)
+		{
+			if (Idx > 0)
+			{
+				PartySummary += TEXT(", ");
+			}
+			PartySummary += PartyToSet[Idx].ToString();
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("Bridge: 기본 파티 설정 완료 [%s]"), *PartySummary);
 	}
 	else
 	{
