@@ -10,11 +10,12 @@ ACombatZoneActor::ACombatZoneActor()
 	ZoneBounds = CreateDefaultSubobject<UBoxComponent>(TEXT("ZoneBounds"));
 	SetRootComponent(ZoneBounds);
 
-	// Overlap: Pawn만(존 추적용)
+	// 존 추적은 파티/적 커스텀 채널 모두를 받아야 한다.
 	ZoneBounds->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	ZoneBounds->SetCollisionObjectType(ECC_WorldDynamic);
 	ZoneBounds->SetCollisionResponseToAllChannels(ECR_Ignore);
-	ZoneBounds->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	ZoneBounds->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Overlap);
+	ZoneBounds->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Overlap);
 	ZoneBounds->SetGenerateOverlapEvents(true);
 
 	ZoneBounds->SetBoxExtent(FVector(1200.f, 1200.f, 300.f));
