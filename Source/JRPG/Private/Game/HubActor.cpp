@@ -20,7 +20,7 @@ AHubActor::AHubActor()
 	TriggerSphere->SetupAttachment(RootComponent);
 	TriggerSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
 	TriggerSphere->SetCollisionResponseToAllChannels(ECR_Ignore);
-	TriggerSphere->SetCollisionResponseToChannel(ECC_Pawn, ECR_Overlap);
+	TriggerSphere->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Overlap);
 	TriggerSphere->SetGenerateOverlapEvents(true);
 }
 
