@@ -79,46 +79,52 @@ void AJRPGPlayerController::EnsureDefaultPartyFromTable()
 		UE_LOG(LogTemp, Warning, TEXT("Bridge : CharacterTable이 설정되지 않음. DefaultPartyIds도 무시됨."));
 		return;
 	}
-	
+
 	UPartySubsystem* PartySys = GetGameInstance()->GetSubsystem<UPartySubsystem>();
 	if (!PartySys)
 		return;
-	
-	if (PartySys->GetPartyIds().Num() == 3)
+
+	if (PartySys->GetPartyIds().Num() > 0)
 	{
 		UE_LOG(LogTemp, Log, TEXT("Bridge : 이미 파티 데이터가 존재하기 때문에 자동으로 초기화하지 않음."));
 		return;
 	}
-	
+
 	TArray<FName> AllRowNames = CharacterTable->GetRowNames();
-	if (AllRowNames.Num() < 3)
+	if (AllRowNames.Num() <= 0)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Bridge: CharacterTable에 Row가 %d개밖에 없음. 최소 3개 필요."), AllRowNames.Num());
+		UE_LOG(LogTemp, Warning, TEXT("Bridge: CharacterTable에 Row가 없음. 기본 파티를 구성할 수 없음."));
 		return;
 	}
 
-	// DefaultPartyIds가 에디터에서 지정되어 있으면 그걸 사용하고 없으면 테이블 첫 3개 가져와서 사용해야함.
+	// DefaultPartyIds가 에디터에서 지정되어 있으면 그걸 사용하고 없으면 튜토리얼 시작(1인)으로 초기화함.
 	TArray<FName> PartyToSet;
-	if (DefaultPartyIds.Num() == 3)
+	if (DefaultPartyIds.Num() > 0 && DefaultPartyIds.Num() <= 3)
 	{
 		PartyToSet = DefaultPartyIds;
-		UE_LOG(LogTemp, Log, TEXT("Bridge: DefaultPartyIds 사용."));
+		UE_LOG(LogTemp, Log, TEXT("Bridge: DefaultPartyIds 사용. Size=%d"), PartyToSet.Num());
 	}
 	else
 	{
-		PartyToSet = { AllRowNames[0], AllRowNames[1], AllRowNames[2] };
-		UE_LOG(LogTemp, Log, TEXT("Bridge: CharacterTable 첫 3개 Row를 기본 파티로 사용."));
+		PartyToSet = { AllRowNames[0] };
+		UE_LOG(LogTemp, Log, TEXT("Bridge: CharacterTable 첫 Row 1개를 기본 파티(튜토리얼 시작)로 사용."));
 	}
 
 	const bool bOk = PartySys->SetPartyIds(PartyToSet, "Init.DefaultParty");
 	if (bOk)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Bridge: 기본 파티 설정 완료 [%s, %s, %s]"),
-			*PartyToSet[0].ToString(), *PartyToSet[1].ToString(), *PartyToSet[2].ToString());
+		FString PartyLog;
+		for (int32 i = 0; i < PartyToSet.Num(); ++i)
+		{
+			if (i > 0) PartyLog += TEXT(", ");
+			PartyLog += PartyToSet[i].ToString();
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("Bridge: 기본 파티 설정 완료 [%s]"), *PartyLog);
 	}
 	else
 	{
-		UE_LOG(LogTemp, Error, TEXT("Bridge: 기본 파티 설정 실패."));
+		UE_LOG(LogTemp, Error, TEXT("Bridge: 기본 파티 설정 실패. DefaultPartyIds 수를 1~3으로 맞춰주세요."));
 	}
 }
 

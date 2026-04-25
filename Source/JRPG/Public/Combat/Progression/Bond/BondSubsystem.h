@@ -62,8 +62,8 @@ public:
 	int32 GetTrioBondLevelForCurrentParty() const;
 	float GetExpBonusMultiplierForCurrentParty() const;
 
-	// 파티(3인 고정) 세팅
-	FBondOp SetCurrentParty(const TArray<FName>& Party3);
+	// 현재 파티(1~3인) 세팅
+	FBondOp SetCurrentParty(const TArray<FName>&PartyIds);
 
 	// 유의미 진행(전투/상호작용/지역 변화 등) 알림 → Walk BP 감쇠 해제 :contentReference[oaicite:31]{index=31}
 	void NotifySignificantProgress(FName EventTag);
@@ -88,7 +88,7 @@ private:
 	UPROPERTY() TSet<FName> UnlockedDialogueNodes;
 	UPROPERTY() TSet<FName> CompletedDialogueNodes;
 	
-	UPROPERTY() TArray<FName> CurrentPartyIds; // size=3
+	UPROPERTY() TArray<FName> CurrentPartyIds; // size=1~3
 
 	UPROPERTY()
 	double LastSignificantProgressReal = 0.0;

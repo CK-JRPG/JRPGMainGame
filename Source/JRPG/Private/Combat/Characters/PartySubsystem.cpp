@@ -33,7 +33,7 @@ void UPartySubsystem::Initialize(FSubsystemCollectionBase &Collection)
 	Super::Initialize(Collection);
 	LoadFromSave();
 	
-	if (PartyIds.Num() == 3)
+	if (PartyIds.Num() > 0)
 	{
 		PushPartyToBond();
 		PushPartyLevelToShop();
@@ -47,7 +47,7 @@ void UPartySubsystem::LoadFromSave()
 		SaveSys->LoadOrCreate();
 		if (UPartySaveGame *S = SaveSys->GetSave())
 		{
-			if (S->PartyIds.Num() == 3)PartyIds = S->PartyIds;
+			if (S->PartyIds.Num() > 0 && S->PartyIds.Num() <= 3) PartyIds = S->PartyIds;
 			CurrentRestockKey = S->RestockKey;
 		}
 	}
@@ -66,28 +66,44 @@ void UPartySubsystem::FlushToSave()
 	}
 }
 
-bool UPartySubsystem::SetPartyIds(const TArray<FName> &Party3, FName)
+bool UPartySubsystem::SetPartyIds(const TArray<FName> &InPartyIds, FName)
 {
-	if (Party3.Num()!=3)
+	if (InPartyIds.Num() <= 0 || InPartyIds.Num() > 3)
 		return false;
 
-	TSet<FName> S;
-	
-	for (const FName &Id : Party3)
+	TSet<FName> UniqueIds;
+	for (const FName& Id : InPartyIds)
 	{
 		if (Id.IsNone())
 			return false;
-		S.Add(Id);
+	
+		UniqueIds.Add(Id);
 	}
 	
-	if (S.Num() != 3)
+	if (UniqueIds.Num() != InPartyIds.Num())
 		return false;
 
-	PartyIds = Party3;
+	PartyIds = InPartyIds;
 	PushPartyToBond();
 	PushPartyLevelToShop();
 	FlushToSave();
 	return true;
+}
+
+bool UPartySubsystem::AddPartyMember(FName PartyId, FName ReasonTag)
+{
+	if (PartyId.IsNone())
+		return false;
+
+	if (PartyIds.Contains(PartyId))
+		return true;
+
+	if (PartyIds.Num() >= 3)
+		return false;
+
+	TArray<FName> NewPartyIds = PartyIds;
+	NewPartyIds.Add(PartyId);
+	return SetPartyIds(NewPartyIds, ReasonTag);
 }
 
 void UPartySubsystem::GetPartyMembers(TArray<AActor*>&OutMembers)const

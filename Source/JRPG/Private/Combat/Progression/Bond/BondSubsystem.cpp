@@ -149,20 +149,20 @@ FBondState UBondSubsystem::GetBondState_Trio(const FBondTrioId& BondId) const
 	return FBondState::Default();
 }
 
-FBondOp UBondSubsystem::SetCurrentParty(const TArray<FName>& Party3)
+FBondOp UBondSubsystem::SetCurrentParty(const TArray<FName>& PartyIds)
 {
-	if (Party3.Num() != 3)
+	if (PartyIds.Num() <= 0 || PartyIds.Num() > 3)
 		return FBondOp::Fail("Reject.InvalidParticipants");
 
 	TSet<FName> S;
-	for (const FName& P : Party3)
+	for (const FName& P : PartyIds)
 	{
 		if (P.IsNone())return FBondOp::Fail("Reject.InvalidParticipants");
 		S.Add(P);
 	}
-	if (S.Num() != 3)return FBondOp::Fail("Reject.InvalidParticipants");
+	if (S.Num() != PartyIds.Num())return FBondOp::Fail("Reject.InvalidParticipants");
 
-	CurrentPartyIds = Party3;
+	CurrentPartyIds = PartyIds;
 
 	RecomputePartyTrioLevelAndBonus(true);
 	EvaluateDialogueUnlocks();
