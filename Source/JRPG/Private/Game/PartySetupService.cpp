@@ -42,6 +42,7 @@ void UPartySetupService::InitializeCombatBridge(UDataTable* CharacterTable,
 
 	const TArray<FName>& CharIds = PartySubsystem->GetPartyIds();
 	FName LeaderId = CharIds.Num() > 0 ? CharIds[0] : NAME_None;
+	TMap<FName, FCharacterSpawnEntry> ActiveSpawnEntryMap;
 
 	for (const FName& CharId : CharIds)
 	{
@@ -64,6 +65,7 @@ void UPartySetupService::InitializeCombatBridge(UDataTable* CharacterTable,
 		Entry.SpawnOffset  = Row->SpawnOffset;
 		Entry.FieldPawnClass = Row->FieldPawnClass;
 		SpawnSub->RegisterSpawnEntry(Entry);
+		ActiveSpawnEntryMap.Add(CharId, Entry);
 
 		// 스냅샷 초기화로 데이터 에셋에서 스탯들 수치 직접 읽어옴
 		const FCharacterBaseParams& P = Row->CharacterAsset->BaseParams;
@@ -78,14 +80,15 @@ void UPartySetupService::InitializeCombatBridge(UDataTable* CharacterTable,
 	{
 		if (PlayerPawn)
 		{
-			CompanionSub->SpawnFieldCompanions(PlayerPawn->GetActorLocation(), LeaderId, SpawnSub->GetSpawnEntryMap());
+			CompanionSub->DespawnFieldCompanions();
+			CompanionSub->SpawnFieldCompanions(PlayerPawn->GetActorLocation(), LeaderId, ActiveSpawnEntryMap);
 		}
 	}
 
 	// PlayerPawn에 리드 캐릭터 ID 연결
 	if (AJRPGPlayerPawn* JRPGPawn = Cast<AJRPGPlayerPawn>(PlayerPawn))
 	{
-		if (CharIds.Num() > 0 && JRPGPawn->CurrentCharacterId.IsNone())
+		if (CharIds.Num() > 0 && JRPGPawn->CurrentCharacterId != CharIds[0])
 		{
 			JRPGPawn->UpdateCharacter(CharIds[0]);
 			UE_LOG(LogTemp, Log, TEXT("PartySetupService : PlayerPawn 리드 캐릭터 → %s"), *CharIds[0].ToString());

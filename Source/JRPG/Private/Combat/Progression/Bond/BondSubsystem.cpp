@@ -1,4 +1,4 @@
-// Source/JRPGCombat/Private/Combat/Progression/Bond/BondSubsystem.cpp
+﻿// Source/JRPGCombat/Private/Combat/Progression/Bond/BondSubsystem.cpp
 #include "Combat/Progression/Bond/BondSubsystem.h"
 #include "Combat/Progression/Bond/BondSaveGameSubsystem.h"
 #include "Combat/Progression/Leveling/LevelingSubsystem.h"
@@ -151,7 +151,7 @@ FBondState UBondSubsystem::GetBondState_Trio(const FBondTrioId& BondId) const
 
 FBondOp UBondSubsystem::SetCurrentParty(const TArray<FName>& Party3)
 {
-	if (Party3.Num() != 3)
+	if (Party3.Num() < 1 || Party3.Num() > 3)
 		return FBondOp::Fail("Reject.InvalidParticipants");
 
 	TSet<FName> S;
@@ -160,7 +160,7 @@ FBondOp UBondSubsystem::SetCurrentParty(const TArray<FName>& Party3)
 		if (P.IsNone())return FBondOp::Fail("Reject.InvalidParticipants");
 		S.Add(P);
 	}
-	if (S.Num() != 3)return FBondOp::Fail("Reject.InvalidParticipants");
+	if (S.Num() != Party3.Num())return FBondOp::Fail("Reject.InvalidParticipants");
 
 	CurrentPartyIds = Party3;
 

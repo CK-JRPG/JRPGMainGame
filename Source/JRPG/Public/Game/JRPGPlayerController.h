@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/Core/RoleTypes.h"
 #include "GameFramework/PlayerController.h"
 #include "JRPGPlayerController.generated.h"
 
@@ -74,6 +75,16 @@ protected:
 	// 상호작용 키 - E
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Interact;
+
+	// 필드 파티 디버그 프리셋 - IMC_Default에서 1/2/3 키에 매핑
+	UPROPERTY(EditDefaultsOnly, Category = "Input|Debug")
+	TObjectPtr<UInputAction> IA_DebugPartyOne;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input|Debug")
+	TObjectPtr<UInputAction> IA_DebugPartyTwo;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Input|Debug")
+	TObjectPtr<UInputAction> IA_DebugPartyThree;
 	
 	// 카메라 설정
 	UPROPERTY(EditDefaultsOnly, Category = "JRPG|Camera")
@@ -108,9 +119,17 @@ private:
 	void InitallizeCombatBridge();
 	UCombatCharacterDataAsset* FindCharacterDefById(FName CharId) const;
 	FCharacterMappingRow*      FindMappingRowById(FName CharId) const;
+	bool IsValidPartyCharacterId(FName CharacterId) const;
+	bool FindPartyCharacterIdByRole(EJRPGPartyRole PartyRole, FName& OutCharacterId) const;
+	bool BuildDebugPartyPreset(int32 TargetSize, TArray<FName>& OutPartyIds) const;
+	void ApplyDebugPartyPreset(int32 TargetSize);
+	void RefreshExplorationPartyUI() const;
 
 	void OnToggleMainMenu();
 	void OnTogglePartyStatus();
+	void OnDebugPartyOne();
+	void OnDebugPartyTwo();
+	void OnDebugPartyThree();
 
 public:
 	// 인벤토리 테스트를 위한 디버그/치트 명령어

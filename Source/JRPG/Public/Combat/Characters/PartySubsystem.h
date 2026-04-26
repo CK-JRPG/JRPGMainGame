@@ -15,7 +15,16 @@ class JRPG_API UPartySubsystem : public UGameInstanceSubsystem, public IPartyPro
 public:
 	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 
-	bool SetPartyIds(const TArray<FName>&Party3,FName ReasonTag);
+	static constexpr int32 MaxPartySize = 3;
+
+	UFUNCTION(BlueprintCallable, Category="JRPG|Party")
+	bool SetPartyIds(const TArray<FName>& InPartyIds, FName ReasonTag);
+	UFUNCTION(BlueprintCallable, Category="JRPG|Party")
+	bool AddPartyMember(FName CharacterId, FName ReasonTag);
+	UFUNCTION(BlueprintCallable, Category="JRPG|Party")
+	bool RemovePartyMember(FName CharacterId, FName ReasonTag);
+	UFUNCTION(BlueprintCallable, Category="JRPG|Party")
+	void ClearParty(FName ReasonTag);
 	const TArray<FName> &GetPartyIds() const { return PartyIds; }
 
 	virtual void GetPartyMembers(TArray<AActor*>&OutMembers) const override;

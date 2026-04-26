@@ -56,6 +56,7 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_ToggleMainMenu;
 	
+	// 사용 중단: 기본 공격은 CombatPartyAIComponent에서 자동으로 처리한다.
 	UPROPERTY(EditDefaultsOnly, Category = "Input")
 	TObjectPtr<UInputAction> IA_Attack;
 	
@@ -74,6 +75,5 @@ private:
 	void UpdateCameraTargetForPawn(APawn* InPawn) const;
 	void OnTacticalModePressed(const FInputActionValue& Value);
 	void OnToggleMainMenu(const FInputActionValue& Value);
-	void OnBasicAttackMouseClick(const FInputActionValue& Value);
 	void OnSkill1(const FInputActionValue& Value);
 };

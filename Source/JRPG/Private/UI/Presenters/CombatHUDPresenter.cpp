@@ -153,14 +153,16 @@ void UCombatHUDPresenter::OnActiveCharacterChanged(FName NewActiveID)
 
 	const TArray<FName>& PartyIds = PartySys->GetPartyIds();
 	int32 TotalCount = PartyIds.Num();
-	if (TotalCount < 2) return;
 
 	int32 CurrentIdx = PartyIds.IndexOfByKey(NewActiveID);
 	if (CurrentIdx == INDEX_NONE) return;
 
-	FName LeftID = PartyIds[(CurrentIdx - 1 + TotalCount) % TotalCount];
-	FName RightID = (TotalCount > 2) ? PartyIds[(CurrentIdx + 1) % TotalCount] : NAME_None;
-	CombatWidget->TagSwapPanel->UpdateSwapUI(GetPartySLotVM(LeftID), GetPartySLotVM(RightID));
+	if (TotalCount >= 2 && CombatWidget->TagSwapPanel)
+	{
+		FName LeftID = PartyIds[(CurrentIdx - 1 + TotalCount) % TotalCount];
+		FName RightID = (TotalCount > 2) ? PartyIds[(CurrentIdx + 1) % TotalCount] : NAME_None;
+		CombatWidget->TagSwapPanel->UpdateSwapUI(GetPartySLotVM(LeftID), GetPartySLotVM(RightID));
+	}
 
 	if (CurrentActivePartyVM.IsValid()) {
 		CurrentActivePartyVM->OnHPUIUpdated.RemoveAll(this);
@@ -190,14 +192,17 @@ void UCombatHUDPresenter::OnActiveCharacterChanged(FName NewActiveID)
 			else
 			{
 				// [대기 멤버] 로스터 슬롯과 연결
-				if (auto* FoundWidget = PartySlotWidgets.Find(CharID))
+				if (TotalCount >= 2)
 				{
-					UCombatPartySlotWidget* SlotWidget = *FoundWidget;
-					VM->OnNameUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotNameUpdated, SlotWidget);
-					VM->OnHPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotHPUpdated, SlotWidget);
-					VM->OnAPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotAPUpdated, SlotWidget);
+					if (auto* FoundWidget = PartySlotWidgets.Find(CharID))
+					{
+						UCombatPartySlotWidget* SlotWidget = *FoundWidget;
+						VM->OnNameUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotNameUpdated, SlotWidget);
+						VM->OnHPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotHPUpdated, SlotWidget);
+						VM->OnAPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotAPUpdated, SlotWidget);
 
-					CombatWidget->PartyRosterPanel->AddPartySlot(SlotWidget);
+						CombatWidget->PartyRosterPanel->AddPartySlot(SlotWidget);
+					}
 				}
 			}
 
@@ -243,9 +248,11 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 	for (auto& VM : PartyVMs) { if (VM) VM->Unbind(); }
 	PartyVMs.Empty();
 
+	TArray<FName> PartyIdsForUI;
 	if (UPartySubsystem* PartySys = GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>())
 	{
-		for (FName CharID : PartySys->GetPartyIds())
+		PartyIdsForUI = PartySys->GetPartyIds();
+		for (FName CharID : PartyIdsForUI)
 		{
 			UCombatPartySlotViewModel* SlotVM = NewObject<UCombatPartySlotViewModel>(this);
 			SlotVM->BindToCharacter(CharID);
@@ -263,11 +270,9 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 
 	if (UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
 	{
-		TArray<ACombatCharacterActor*> SpawnedActors = SpawnSub->GetSpawnedActors();
-
-		for (int32 i = 0; i < SpawnedActors.Num(); ++i)
+		for (int32 i = 0; i < PartyIdsForUI.Num(); ++i)
 		{
-			ACombatCharacterActor* Actor = SpawnedActors[i];
+			ACombatCharacterActor* Actor = SpawnSub->FindActorByCharacterID(PartyIdsForUI[i]);
 			if (!Actor) continue;
 
 			if (PartyVMs.IsValidIndex(i))

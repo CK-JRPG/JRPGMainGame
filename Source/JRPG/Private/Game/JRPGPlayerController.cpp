@@ -4,7 +4,9 @@
 #include "EnhancedInputSubsystems.h"
 #include "InputActionValue.h"
 
+#include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Camera/CameraSubsystem.h"
+#include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Game/PartySetupService.h"
 
@@ -13,6 +15,7 @@
 #include "UI/Presenters/InventoryPresenter.h"
 #include "Combat/Items/InventorySubsystem.h"
 #include "UI/JRPGHUD.h"
+#include "UI/Presenters/ExplorationHUDPresenter.h"
 #include "Game/HubSubsystem.h"
 #include "Game/Companion/FieldCompanionSubsystem.h"
 
@@ -84,37 +87,81 @@ void AJRPGPlayerController::EnsureDefaultPartyFromTable()
 	if (!PartySys)
 		return;
 	
-	if (PartySys->GetPartyIds().Num() == 3)
+	const TArray<FName>& ExistingPartyIds = PartySys->GetPartyIds();
+	if (!ExistingPartyIds.IsEmpty())
 	{
-		UE_LOG(LogTemp, Log, TEXT("Bridge : 이미 파티 데이터가 존재하기 때문에 자동으로 초기화하지 않음."));
-		return;
+		bool bExistingPartyIsValid = true;
+		for (const FName& CharacterId : ExistingPartyIds)
+		{
+			if (!IsValidPartyCharacterId(CharacterId))
+			{
+				UE_LOG(LogTemp, Warning, TEXT("Bridge : 저장된 파티 ID가 CharacterTable에 없음. 기본 파티로 재설정합니다. InvalidId=%s"),
+					*CharacterId.ToString());
+				bExistingPartyIsValid = false;
+				break;
+			}
+		}
+
+		if (bExistingPartyIsValid)
+		{
+			UE_LOG(LogTemp, Log, TEXT("Bridge : 이미 파티 데이터가 존재하기 때문에 자동으로 초기화하지 않음."));
+			return;
+		}
 	}
 	
 	TArray<FName> AllRowNames = CharacterTable->GetRowNames();
-	if (AllRowNames.Num() < 3)
+	if (AllRowNames.Num() < 1)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("Bridge: CharacterTable에 Row가 %d개밖에 없음. 최소 3개 필요."), AllRowNames.Num());
+		UE_LOG(LogTemp, Warning, TEXT("Bridge: CharacterTable에 Row가 없음."));
 		return;
 	}
 
-	// DefaultPartyIds가 에디터에서 지정되어 있으면 그걸 사용하고 없으면 테이블 첫 3개 가져와서 사용해야함.
+	// DefaultPartyIds가 에디터에서 지정되어 있으면 그걸 사용하고 없으면 테이블 첫 Row를 리더로 사용.
 	TArray<FName> PartyToSet;
-	if (DefaultPartyIds.Num() == 3)
+	for (const FName& CharacterId : DefaultPartyIds)
 	{
-		PartyToSet = DefaultPartyIds;
-		UE_LOG(LogTemp, Log, TEXT("Bridge: DefaultPartyIds 사용."));
+		if (CharacterId.IsNone() || PartyToSet.Contains(CharacterId))
+		{
+			continue;
+		}
+
+		if (!IsValidPartyCharacterId(CharacterId))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Bridge: DefaultPartyIds의 ID가 CharacterTable에 없음. 스킵 - %s"), *CharacterId.ToString());
+			continue;
+		}
+
+		PartyToSet.Add(CharacterId);
+		if (PartyToSet.Num() >= UPartySubsystem::MaxPartySize)
+		{
+			break;
+		}
+	}
+
+	if (!PartyToSet.IsEmpty())
+	{
+		UE_LOG(LogTemp, Log, TEXT("Bridge: DefaultPartyIds 사용. Count=%d"), PartyToSet.Num());
 	}
 	else
 	{
-		PartyToSet = { AllRowNames[0], AllRowNames[1], AllRowNames[2] };
-		UE_LOG(LogTemp, Log, TEXT("Bridge: CharacterTable 첫 3개 Row를 기본 파티로 사용."));
+		PartyToSet = { AllRowNames[0] };
+		UE_LOG(LogTemp, Log, TEXT("Bridge: CharacterTable 첫 Row를 기본 파티(1인)로 사용."));
 	}
 
 	const bool bOk = PartySys->SetPartyIds(PartyToSet, "Init.DefaultParty");
 	if (bOk)
 	{
-		UE_LOG(LogTemp, Log, TEXT("Bridge: 기본 파티 설정 완료 [%s, %s, %s]"),
-			*PartyToSet[0].ToString(), *PartyToSet[1].ToString(), *PartyToSet[2].ToString());
+		FString PartySummary;
+		for (int32 Idx = 0; Idx < PartyToSet.Num(); ++Idx)
+		{
+			if (Idx > 0)
+			{
+				PartySummary += TEXT(", ");
+			}
+			PartySummary += PartyToSet[Idx].ToString();
+		}
+
+		UE_LOG(LogTemp, Log, TEXT("Bridge: 기본 파티 설정 완료 [%s]"), *PartySummary);
 	}
 	else
 	{
@@ -138,6 +185,162 @@ FCharacterMappingRow* AJRPGPlayerController::FindMappingRowById(FName CharId) co
 {
 	if (!IsValid(CharacterTable)) return nullptr;
 	return CharacterTable->FindRow<FCharacterMappingRow>(CharId, TEXT("FindMappingRowById"));
+}
+
+bool AJRPGPlayerController::IsValidPartyCharacterId(FName CharacterId) const
+{
+	if (CharacterId.IsNone())
+	{
+		return false;
+	}
+
+	const FCharacterMappingRow* Row = FindMappingRowById(CharacterId);
+	return Row && Row->CharacterAsset && !Row->CombatActorClass.IsNull();
+}
+
+bool AJRPGPlayerController::FindPartyCharacterIdByRole(EJRPGPartyRole PartyRole, FName& OutCharacterId) const
+{
+	OutCharacterId = NAME_None;
+
+	if (!IsValid(CharacterTable))
+	{
+		return false;
+	}
+
+	const TArray<FName> RowNames = CharacterTable->GetRowNames();
+	for (const FName& RowName : RowNames)
+	{
+		const FCharacterMappingRow* Row = CharacterTable->FindRow<FCharacterMappingRow>(RowName, TEXT("FindPartyCharacterIdByRole"));
+		if (!Row || !Row->CharacterAsset || Row->CombatActorClass.IsNull())
+		{
+			continue;
+		}
+
+		if (Row->CharacterAsset->DefaultRole == PartyRole)
+		{
+			OutCharacterId = RowName;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool AJRPGPlayerController::BuildDebugPartyPreset(int32 TargetSize, TArray<FName>& OutPartyIds) const
+{
+	OutPartyIds.Reset();
+
+	if (TargetSize < 1 || TargetSize > UPartySubsystem::MaxPartySize)
+	{
+		return false;
+	}
+
+	auto AddRequiredRole = [this, &OutPartyIds](EJRPGPartyRole PartyRole, const TCHAR* RoleLabel) -> bool
+	{
+		FName CharacterId = NAME_None;
+		if (!FindPartyCharacterIdByRole(PartyRole, CharacterId))
+		{
+			UE_LOG(LogTemp, Error, TEXT("DebugPartyPreset : CharacterTable에서 역할 [%s] 파티원을 찾지 못했습니다."),
+				RoleLabel);
+			return false;
+		}
+
+		if (!IsValidPartyCharacterId(CharacterId))
+		{
+			UE_LOG(LogTemp, Error, TEXT("DebugPartyPreset : 유효하지 않은 파티 ID입니다. CharacterTable/RowName 확인 필요 - %s"),
+				*CharacterId.ToString());
+			return false;
+		}
+
+		if (OutPartyIds.Contains(CharacterId))
+		{
+			UE_LOG(LogTemp, Error, TEXT("DebugPartyPreset : 중복 파티 ID입니다 - %s"), *CharacterId.ToString());
+			return false;
+		}
+
+		OutPartyIds.Add(CharacterId);
+		return true;
+	};
+
+	if (!AddRequiredRole(EJRPGPartyRole::Attacker, TEXT("Attacker")))
+	{
+		return false;
+	}
+
+	if (TargetSize >= 2 && !AddRequiredRole(EJRPGPartyRole::Defender, TEXT("Defender")))
+	{
+		return false;
+	}
+
+	if (TargetSize >= 3 && !AddRequiredRole(EJRPGPartyRole::Supporter, TEXT("Supporter")))
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void AJRPGPlayerController::ApplyDebugPartyPreset(int32 TargetSize)
+{
+	if (!Cast<AJRPGPlayerPawn>(GetPawn()))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("DebugPartyPreset : 필드 PlayerPawn 상태에서만 파티 프리셋을 적용할 수 있습니다."));
+		return;
+	}
+
+	if (UBattleSessionSubsystem* BattleSub = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+	{
+		if (BattleSub->IsBattleActive())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("DebugPartyPreset : 전투 중에는 필드 파티 프리셋을 변경하지 않습니다."));
+			return;
+		}
+	}
+
+	UPartySubsystem* PartySys = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartySubsystem>() : nullptr;
+	if (!PartySys)
+	{
+		UE_LOG(LogTemp, Error, TEXT("DebugPartyPreset : PartySubsystem이 없습니다."));
+		return;
+	}
+
+	TArray<FName> PartyToSet;
+	if (!BuildDebugPartyPreset(TargetSize, PartyToSet))
+	{
+		return;
+	}
+
+	if (!PartySys->SetPartyIds(PartyToSet, FName(TEXT("Debug.FieldPartyPreset"))))
+	{
+		UE_LOG(LogTemp, Error, TEXT("DebugPartyPreset : PartySubsystem::SetPartyIds 실패. Count=%d"), PartyToSet.Num());
+		return;
+	}
+
+	InitallizeCombatBridge();
+	RefreshExplorationPartyUI();
+
+	FString PartySummary;
+	for (int32 Idx = 0; Idx < PartyToSet.Num(); ++Idx)
+	{
+		if (Idx > 0)
+		{
+			PartySummary += TEXT(", ");
+		}
+		PartySummary += PartyToSet[Idx].ToString();
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("DebugPartyPreset : 필드 파티 프리셋 적용 완료 [%s]"), *PartySummary);
+}
+
+void AJRPGPlayerController::RefreshExplorationPartyUI() const
+{
+	if (AJRPGHUD* HUD = Cast<AJRPGHUD>(GetHUD()))
+	{
+		if (UExplorationHUDPresenter* Presenter = HUD->GetExplorationPresenter())
+		{
+			Presenter->RefreshPartyStatusData();
+		}
+	}
 }
 
 
@@ -191,6 +394,21 @@ void AJRPGPlayerController::SetupInputComponent()
 	if (IA_TogglePartyStatus)
 	{
 		EIC->BindAction(IA_TogglePartyStatus, ETriggerEvent::Started, this, &AJRPGPlayerController::OnTogglePartyStatus);
+	}
+
+	if (IA_DebugPartyOne)
+	{
+		EIC->BindAction(IA_DebugPartyOne, ETriggerEvent::Started, this, &AJRPGPlayerController::OnDebugPartyOne);
+	}
+
+	if (IA_DebugPartyTwo)
+	{
+		EIC->BindAction(IA_DebugPartyTwo, ETriggerEvent::Started, this, &AJRPGPlayerController::OnDebugPartyTwo);
+	}
+
+	if (IA_DebugPartyThree)
+	{
+		EIC->BindAction(IA_DebugPartyThree, ETriggerEvent::Started, this, &AJRPGPlayerController::OnDebugPartyThree);
 	}
 }
 
@@ -349,6 +567,21 @@ void AJRPGPlayerController::OnTogglePartyStatus()
 		UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController::OnToggleMainMenu: HUD가 존재하지 않음"));
 	}
 
+}
+
+void AJRPGPlayerController::OnDebugPartyOne()
+{
+	ApplyDebugPartyPreset(1);
+}
+
+void AJRPGPlayerController::OnDebugPartyTwo()
+{
+	ApplyDebugPartyPreset(2);
+}
+
+void AJRPGPlayerController::OnDebugPartyThree()
+{
+	ApplyDebugPartyPreset(3);
 }
 
 AActor* AJRPGPlayerController::GetCheatTargetActor(FName CharacterId) const
