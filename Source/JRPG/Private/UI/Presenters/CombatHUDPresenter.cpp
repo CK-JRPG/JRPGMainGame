@@ -243,9 +243,11 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 	for (auto& VM : PartyVMs) { if (VM) VM->Unbind(); }
 	PartyVMs.Empty();
 
+	TArray<FName> PartyIdsForUI;
 	if (UPartySubsystem* PartySys = GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>())
 	{
-		for (FName CharID : PartySys->GetPartyIds())
+		PartyIdsForUI = PartySys->GetPartyIds();
+		for (FName CharID : PartyIdsForUI)
 		{
 			UCombatPartySlotViewModel* SlotVM = NewObject<UCombatPartySlotViewModel>(this);
 			SlotVM->BindToCharacter(CharID);
@@ -263,11 +265,9 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 
 	if (UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
 	{
-		TArray<ACombatCharacterActor*> SpawnedActors = SpawnSub->GetSpawnedActors();
-
-		for (int32 i = 0; i < SpawnedActors.Num(); ++i)
+		for (int32 i = 0; i < PartyIdsForUI.Num(); ++i)
 		{
-			ACombatCharacterActor* Actor = SpawnedActors[i];
+			ACombatCharacterActor* Actor = SpawnSub->FindActorByCharacterID(PartyIdsForUI[i]);
 			if (!Actor) continue;
 
 			if (PartyVMs.IsValidIndex(i))

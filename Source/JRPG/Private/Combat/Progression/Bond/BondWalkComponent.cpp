@@ -1,4 +1,3 @@
-
 #include "Combat/Progression/Bond/BondWalkComponent.h"
 
 #include "Combat/Progression/Bond/BondSubsystem.h"
@@ -72,7 +71,8 @@ void UBondWalkComponent::Sample()
 	if (!S || !Bond || !PartyIdsPtr) return;
 
 	const TArray<FName>& PartyIds = *PartyIdsPtr;
-	if (PartyIds.Num() != 3) return;
+	if (PartyIds.Num() < 2 || PartyIds.Num() > 3)
+		return;
 
 	const FVector Cur = GetOwner()->GetActorLocation();
 	const float Dist = FVector::Distance(Cur, LastLoc);

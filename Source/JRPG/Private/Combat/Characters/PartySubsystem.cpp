@@ -198,8 +198,11 @@ void UPartySubsystem::SetRestockKey(FName RestockKey)
 void UPartySubsystem::PushPartyToBond()
 {
 #if JRPG_HAS_BOND
-	if (UBondSubsystem *Bond = GetGameInstance()->GetSubsystem<UBondSubsystem>())
-		Bond->SetCurrentParty(PartyIds);
+	if (UBondSubsystem* Bond = GetGameInstance()->GetSubsystem<UBondSubsystem>())
+	{
+		if (PartyIds.Num() >= 1 && PartyIds.Num() <= MaxPartySize)
+			Bond->SetCurrentParty(PartyIds);
+	}
 #endif
 }
 

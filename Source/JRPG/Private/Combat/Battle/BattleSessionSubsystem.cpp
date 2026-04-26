@@ -714,7 +714,7 @@ void UBattleSessionSubsystem::GrantVictoryRewards()
 					PartyIds = Party->GetPartyIds();
 				}
 
-				if (PartyIds.Num() == 3)
+				if (PartyIds.Num() >= 2 && PartyIds.Num() <= 3)
 				{
 					FBondAddRequest Req;
 					Req.Source = EBondSource::CombatWin;

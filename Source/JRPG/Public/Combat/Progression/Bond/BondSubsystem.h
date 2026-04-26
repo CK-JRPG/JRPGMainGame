@@ -62,7 +62,7 @@ public:
 	int32 GetTrioBondLevelForCurrentParty() const;
 	float GetExpBonusMultiplierForCurrentParty() const;
 
-	// 파티(3인 고정) 세팅
+	// 현재 파티(1~3인) 세팅. 1~2인은 트리오 보너스 없이 기본 배율을 사용한다.
 	FBondOp SetCurrentParty(const TArray<FName>& Party3);
 
 	// 유의미 진행(전투/상호작용/지역 변화 등) 알림 → Walk BP 감쇠 해제 :contentReference[oaicite:31]{index=31}
