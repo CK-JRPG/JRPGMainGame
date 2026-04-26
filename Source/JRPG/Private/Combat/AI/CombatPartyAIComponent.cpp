@@ -92,13 +92,15 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		return;
 	}
 
-	// 플레이어 조작 우선
+	bool bPlayerControlled = false;
 	if (APawn* P = Cast<APawn>(GetOwner()))
 	{
 		if (AController* C = P->GetController())
 		{
 			if (C->IsPlayerController())
-				return;
+			{
+				bPlayerControlled = true;
+			}
 		}
 	}
 
@@ -116,13 +118,38 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	if (DecisionAccum < Interval)
 	{
 		// 결정 주기 사이에도 이동은 계속
-		TickMovementAndAction(DeltaTime);
+		if (!bPlayerControlled)
+		{
+			TickMovementAndAction(DeltaTime);
+		}
 		return;
 	}
 	DecisionAccum = 0.f;
 
 	// 타겟 갱신
 	RefreshTarget();
+
+	if (bPlayerControlled)
+	{
+		if (!CurrentTarget.IsValid())
+		{
+			State = EPartyAIState::Follow;
+			return;
+		}
+
+		const float Dist = GetDistanceToTarget();
+		if (Dist <= AttackRange)
+		{
+			State = EPartyAIState::Attack;
+			FaceTarget(CurrentTarget.Get());
+			ExecuteAction(FJRPGCombatAIAction::MakeBasicAttack(CurrentTarget, 0.5f));
+		}
+		else
+		{
+			State = EPartyAIState::Chase;
+		}
+		return;
+	}
 
 	// FSM 업데이트
 	UpdateStateMachine();
