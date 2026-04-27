@@ -38,7 +38,7 @@ private:
     FEncounterContext BuildEncounterContext(const AActor* InTriggerActor);
 	FTransform CompanionFallbackTransform(const AActor* LeaderActor, const class AJRPGCompanionPawn* Companion, int32 CompanionOrder) const;
 	void SearchCombatEnemyCharactersInRadius(const AActor* PlayerActor);
-	void ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx);
+	bool ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx);
 
 protected:
 	void HandleBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);

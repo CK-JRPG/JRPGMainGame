@@ -41,8 +41,8 @@ public:
 	void SaveSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor);
 	void RestoreSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor, bool bRestoreTransform = true);
 	void InitializeSnapshotIfAbsent(const FName& CharacterID, float MaxHP, int32 MaxAP, int32 MaxSP);
-	void RecoverPartyFromWipe(float HPRecoverRatio = 0.2f, float APRecoverRatio = 0.3f);
-	bool RecoverPartyAfterVictory(float HPRecoverRatio = 0.05f);
+	void RecoverPartyFromWipe(const TArray<FName>& ActivePartyIds, float HPRecoverRatio = 0.2f, float APRecoverRatio = 0.3f);
+	bool RecoverPartyAfterVictory(const TArray<FName>& ActivePartyIds, float HPRecoverRatio = 0.05f);
 
 	void ModifyHP(const FName& CharacterID, float Delta);
 	void ModifyAP(const FName& CharacterID, int32 Delta);

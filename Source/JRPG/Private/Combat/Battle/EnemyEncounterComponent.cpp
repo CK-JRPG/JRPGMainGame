@@ -339,18 +339,39 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 			}
 
 
-			//배틀세션 진입 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
+			if (!Self->ReadyForBattleSession(BattleConfig, EncounterCtx))
+			{
+				return;
+			}
+
+			// 배틀세션 시작 성공 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
+			bool bEnteredCombat = false;
 			APlayerController* PC = WeakPC.Get();
 			if (PC)
 			{
 				if (UCombatTransitionSubsystem* TransitionSub = Self->GetWorld()->GetSubsystem<UCombatTransitionSubsystem>())
 				{
-					TransitionSub->EnterCombatMode(PC, LeaderCharID);
+					bEnteredCombat = TransitionSub->EnterCombatMode(PC, LeaderCharID);
 				}
 			}
 
-			// 배틀 세션 시작(Zone 생성은 BattleSession이 담당)
-			Self->ReadyForBattleSession(BattleConfig, EncounterCtx);
+			if (!bEnteredCombat)
+			{
+				UE_LOG(LogTemp, Error, TEXT("EncounterComponent : 전투 전환 실패. BattleSession을 중단합니다."));
+				if (UBattleSessionSubsystem* BattleSession = Self->GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+				{
+					BattleSession->AbortBattle("Encounter.EnterCombatFailed");
+				}
+				if (UPartyActorSpawnSubsystem* SpawnSub = Self->GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
+				{
+					TArray<ACombatCharacterActor*> Actors = SpawnSub->GetSpawnedActors();
+					if (Actors.Num() > 0)
+					{
+						SpawnSub->DespawnCombatActors(Actors);
+					}
+				}
+				Self->bHasTriggered = false;
+			}
 		});
 }
 
@@ -358,7 +379,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 
 
 
-void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx) 
+bool UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx) 
 {
 	UBattleSessionSubsystem* BattleSession = GetWorld()->GetSubsystem<UBattleSessionSubsystem>();
 
@@ -366,7 +387,7 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 	{
 		UE_LOG(LogTemp, Error, TEXT("EncounterComponent : BattleSessionSubsystem이 존재하지 않음."));
 		bHasTriggered = false;
-		return;
+		return false;
 	}
 
 	FGuid SessionID;
@@ -380,6 +401,7 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 		{
 			TriggerSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		}
+		return true;
 	}
 	else
 	{
@@ -395,6 +417,7 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 				SpawnSub->DespawnCombatActors(Actors);
 			}
 		}
+		return false;
 	}
 }
 

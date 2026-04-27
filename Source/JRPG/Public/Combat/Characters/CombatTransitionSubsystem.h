@@ -26,7 +26,7 @@ public:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
 	
 	// 전투 모드 시작시 진입함 - 필드 폰 숨기고 CombatCharacterActor에 빙의 
-	void EnterCombatMode(APlayerController* PC, const FName& LeaderCharacterID);
+	bool EnterCombatMode(APlayerController* PC, const FName& LeaderCharacterID);
 
 	//전투 종료 시 필드 모드 복원 
 	void OnBattleEnded(EBattleEndReason Reason);
@@ -56,6 +56,7 @@ private:
 	// 승리 후 점진적 HP 회복
 	void StartPostBattleRecovery();
 	void TickPostBattleRecovery();
+	void StopPostBattleRecovery(FName ReasonTag);
 
 	// 공통 전환 서브 함수
 	void PerformTransition(bool bUseLeaderPosition);
@@ -71,6 +72,7 @@ private:
 	void SyncMovementStateToFieldPawn(ACombatCharacterActor* LeaderActor, APawn* FieldPawn);
 
 	// 배틀세션 델리게이트 핸들러
+	void HandleBattleStarted(const FBattleSessionSnapshot& Snapshot);
 	void HandleBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);
 
 private:
@@ -101,6 +103,8 @@ private:
 	
 	// 승리 후 회복용 타이머
 	FTimerHandle PostBattleRecoveryTimerHandle;
+	UPROPERTY()
+	TArray<FName> PostBattleRecoveryPartyIds;
 	static constexpr float PostBattleRecoveryInterval = 1.0f;
 	static constexpr float PostBattleRecoveryRatio = 0.05f;
 	

@@ -6,9 +6,12 @@
 #include "Combat/Characters/CharacterRuntimeSubsystem.h"
 #include "Combat/Characters/CombatPlayerController.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
+#include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Movement/LocomotionComponent.h"
+#include "Combat/Stats/HPComponent.h"
 #include "Game/Companion/FieldCompanionSubsystem.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
+#include "Game/JRPGPlayerPawn.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
@@ -24,6 +27,7 @@ void UCombatTransitionSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 	Super::OnWorldBeginPlay(InWorld);
 	if (UBattleSessionSubsystem* BattleSub = InWorld.GetSubsystem<UBattleSessionSubsystem>())
 	{
+		BattleSub->OnBattleStarted.AddUObject(this, &UCombatTransitionSubsystem::HandleBattleStarted);
 		BattleSub->OnBattleEnded.AddUObject(this, &UCombatTransitionSubsystem::HandleBattleEnded);
 	}
 
@@ -46,34 +50,80 @@ void UCombatTransitionSubsystem::SetCombatControllerClass(TSubclassOf<APlayerCon
 
 // ==== 전투 모드 진입 ====
 
-void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FName& LeaderCharacterID)
+bool UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FName& LeaderCharacterID)
 {
 	if (!PC)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CombatTransitionSubsystem::EnterCombatMode : PlayerController가 없음."));
-		return;
+		return false;
 	}
 
 	UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>();
 	if (!SpawnSub)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CombatTransitionSubsystem::EnterCombatMode : PartyActorSpawnSubsystem 없음."));
-		return;
+		return false;
 	}
 
-	ACombatCharacterActor* LeaderActor = SpawnSub->FindActorByCharacterID(LeaderCharacterID);
-	if (!LeaderActor)
+	auto IsAliveCombatActor = [](const ACombatCharacterActor* Actor) -> bool
 	{
-		UE_LOG(LogTemp, Error, TEXT("CombatTransitionSubsystem::EnterCombatMode : 리더 CombatCharacterActor를 찾을 수 없음 - %s"), *LeaderCharacterID.ToString());
-		return;
+		return IsValid(Actor) && Actor->HPComp && !Actor->HPComp->IsDead();
+	};
+
+	ACombatCharacterActor* LeaderActor = SpawnSub->FindActorByCharacterID(LeaderCharacterID);
+	FName EffectiveLeaderID = LeaderCharacterID;
+	if (!IsAliveCombatActor(LeaderActor))
+	{
+		if (LeaderActor)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("CombatTransitionSubsystem::EnterCombatMode : 요청 리더가 사망 상태라 생존 파티원으로 대체 시도 - %s"), *LeaderCharacterID.ToString());
+		}
+		else
+		{
+			UE_LOG(LogTemp, Warning, TEXT("CombatTransitionSubsystem::EnterCombatMode : 요청 리더 Actor 없음. 생존 파티원으로 대체 시도 - %s"), *LeaderCharacterID.ToString());
+		}
+
+		if (UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
+		{
+			if (UPartySubsystem* PartySub = GI->GetSubsystem<UPartySubsystem>())
+			{
+				for (const FName& CandidateID : PartySub->GetPartyIds())
+				{
+					ACombatCharacterActor* CandidateActor = SpawnSub->FindActorByCharacterID(CandidateID);
+					if (IsAliveCombatActor(CandidateActor))
+					{
+						LeaderActor = CandidateActor;
+						EffectiveLeaderID = CandidateID;
+						break;
+					}
+				}
+			}
+		}
+
+		if (!IsAliveCombatActor(LeaderActor))
+		{
+			UE_LOG(LogTemp, Error, TEXT("CombatTransitionSubsystem::EnterCombatMode : 빙의 가능한 생존 파티원이 없음."));
+			return false;
+		}
+
+		UE_LOG(LogTemp, Warning, TEXT("CombatTransitionSubsystem::EnterCombatMode : 전투 리더 자동 전환 %s -> %s"),
+			*LeaderCharacterID.ToString(), *EffectiveLeaderID.ToString());
 	}
 
 	// 상태 저장
 	const FRotator FieldControlRotation = PC->GetControlRotation();
 	CombatPlayerController = PC;
-	SetOriginalPlayerCharacterID(LeaderCharacterID);
+	SetOriginalPlayerCharacterID(EffectiveLeaderID);
 	CachedFieldPawn = PC->GetPawn();
 	CachedFieldController = PC;
+
+	if (EffectiveLeaderID != LeaderCharacterID)
+	{
+		if (AJRPGPlayerPawn* FieldPawn = Cast<AJRPGPlayerPawn>(CachedFieldPawn.Get()))
+		{
+			FieldPawn->UpdateCharacter(EffectiveLeaderID);
+		}
+	}
 
 	/*// 카메라 스냅샷 저장 (전투 종료 후 복원용)
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
@@ -137,8 +187,10 @@ void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 			// 필드 폰 → 전투 액터 이동 속도/입력 동기화
 			SyncMovementStateToLeader(CachedFieldPawn.Get(), LeaderActor);
 
-			UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem::EnterCombatMode : CombatPlayerController 스왑 완료 → %s"), *LeaderCharacterID.ToString());
-			return;
+			OnPartyMemberChangedDelegate.Broadcast(EffectiveLeaderID);
+
+			UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem::EnterCombatMode : CombatPlayerController 스왑 완료 → %s"), *EffectiveLeaderID.ToString());
+			return true;
 		}
 		else
 		{
@@ -153,8 +205,10 @@ void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 
 	// 폴백 경로에서도 필드 폰 → 전투 액터 이동 속도/입력 동기화
 	SyncMovementStateToLeader(CachedFieldPawn.Get(), LeaderActor);
+	OnPartyMemberChangedDelegate.Broadcast(EffectiveLeaderID);
 
-	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem::EnterCombatMode : 전투 모드 진입 완료 (필드 PC 폴백) -> %s"), *LeaderCharacterID.ToString());
+	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem::EnterCombatMode : 전투 모드 진입 완료 (필드 PC 폴백) -> %s"), *EffectiveLeaderID.ToString());
+	return true;
 }
 
 // ==== 이동 상태 동기화 ====
@@ -233,6 +287,12 @@ void UCombatTransitionSubsystem::OnPartyMemberChanged(const FName& NewCharacterI
 	if (!TargetActor)
 	{
 		UE_LOG(LogTemp, Error, TEXT("CombatTransitionSubsystem : 전환 대상 Actor 없음 - %s"), *NewCharacterID.ToString());
+		return;
+	}
+
+	if (!TargetActor->HPComp || TargetActor->HPComp->IsDead())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CombatTransitionSubsystem : 사망한 파티원으로 전환 불가 - %s"), *NewCharacterID.ToString());
 		return;
 	}
 
@@ -481,6 +541,23 @@ void UCombatTransitionSubsystem::OnDefeatFadeInComplete()
 // ==== 승리 후 점진적 HP 회복 ====
 void UCombatTransitionSubsystem::StartPostBattleRecovery()
 {
+	StopPostBattleRecovery("PostBattleRecovery.Restart");
+
+	PostBattleRecoveryPartyIds.Reset();
+	if (UGameInstance* GI = GetWorld() ? GetWorld()->GetGameInstance() : nullptr)
+	{
+		if (UPartySubsystem* PartySub = GI->GetSubsystem<UPartySubsystem>())
+		{
+			PostBattleRecoveryPartyIds = PartySub->GetPartyIds();
+		}
+	}
+
+	if (PostBattleRecoveryPartyIds.IsEmpty())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CombatTransitionSubsystem : 승리 후 회복 대상 파티가 없어 회복을 시작하지 않음."));
+		return;
+	}
+
 	if (UWorld* World = GetWorld())
 	{
 		World->GetTimerManager().SetTimer(
@@ -510,19 +587,42 @@ void UCombatTransitionSubsystem::TickPostBattleRecovery()
 	UWorld* World = GetWorld();
 	if (!World) return;
 
+	if (UBattleSessionSubsystem* BattleSub = World->GetSubsystem<UBattleSessionSubsystem>())
+	{
+		if (BattleSub->IsBattleActive())
+		{
+			StopPostBattleRecovery("PostBattleRecovery.BattleStarted");
+			return;
+		}
+	}
+
 	UGameInstance* GI = World->GetGameInstance();
 	if (!GI) return;
 
 	UCharacterRuntimeSubsystem* CharRuntime = GI->GetSubsystem<UCharacterRuntimeSubsystem>();
 	if (!CharRuntime) return;
 
-	const bool bStillRecovering = CharRuntime->RecoverPartyAfterVictory(PostBattleRecoveryRatio);
+	const bool bStillRecovering = CharRuntime->RecoverPartyAfterVictory(PostBattleRecoveryPartyIds, PostBattleRecoveryRatio);
 
 	if (!bStillRecovering)
 	{
-		World->GetTimerManager().ClearTimer(PostBattleRecoveryTimerHandle);
+		StopPostBattleRecovery("PostBattleRecovery.Completed");
 		UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 승리 후 HP 회복 완료."));
 	}
+}
+
+void UCombatTransitionSubsystem::StopPostBattleRecovery(FName ReasonTag)
+{
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PostBattleRecoveryTimerHandle);
+	}
+
+	if (!PostBattleRecoveryPartyIds.IsEmpty())
+	{
+		UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 승리 후 HP 회복 중지 (Reason=%s)."), *ReasonTag.ToString());
+	}
+	PostBattleRecoveryPartyIds.Reset();
 }
 
 // ==== 공통 전환 로직 (승리) ====
@@ -670,7 +770,12 @@ void UCombatTransitionSubsystem::HandleDefeatRecovery()
 		{
 			if (UCharacterRuntimeSubsystem* CharacterRuntime = GI->GetSubsystem<UCharacterRuntimeSubsystem>())
 			{
-				CharacterRuntime->RecoverPartyFromWipe(1.0f, 1.0f);
+				TArray<FName> ActivePartyIds;
+				if (UPartySubsystem* PartySub = GI->GetSubsystem<UPartySubsystem>())
+				{
+					ActivePartyIds = PartySub->GetPartyIds();
+				}
+				CharacterRuntime->RecoverPartyFromWipe(ActivePartyIds, 1.0f, 1.0f);
 			}
 		}
 	}
@@ -823,6 +928,11 @@ void UCombatTransitionSubsystem::ResetTransitionState()
 	{
 		bIsTransitioning = false;
 	}
+}
+
+void UCombatTransitionSubsystem::HandleBattleStarted(const FBattleSessionSnapshot& /*Snapshot*/)
+{
+	StopPostBattleRecovery("Battle.Started");
 }
 
 void UCombatTransitionSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason Reason)

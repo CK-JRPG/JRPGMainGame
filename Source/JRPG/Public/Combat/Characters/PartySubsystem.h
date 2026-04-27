@@ -7,6 +7,8 @@
 
 class UCombatCharacterRegistrySubsystem;
 
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPartyIdsChanged, const TArray<FName>& /*PartyIds*/, FName /*ReasonTag*/);
+
 UCLASS()
 class JRPG_API UPartySubsystem : public UGameInstanceSubsystem, public IPartyProvider, public IJRPGCombatLevelProvider
 {
@@ -16,6 +18,8 @@ public:
 	virtual void Initialize(FSubsystemCollectionBase &Collection) override;
 
 	static constexpr int32 MaxPartySize = 3;
+
+	FOnPartyIdsChanged OnPartyIdsChanged;
 
 	UFUNCTION(BlueprintCallable, Category="JRPG|Party")
 	bool SetPartyIds(const TArray<FName>& InPartyIds, FName ReasonTag);
@@ -43,6 +47,8 @@ private:
 
 	void LoadFromSave();
 	void FlushToSave();
+	bool CanMutateParty(FName ReasonTag) const;
+	void BroadcastPartyChanged(FName ReasonTag);
 
 	void PushPartyToBond();
 	void PushPartyLevelToShop();
