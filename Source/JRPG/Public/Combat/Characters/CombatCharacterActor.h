@@ -68,6 +68,7 @@ public:
 	virtual USPComponent* GetSP() const override { return SPComp; }
 
 	virtual UActorComponent* GetOptionalComponentByClass(TSubclassOf<UActorComponent> CompClass) const override;
+	void ResetEnemyRuntimeForRematch(FName ReasonTag);
 
 	
 	virtual FVector  GetCameraTargetLocation()  const override;

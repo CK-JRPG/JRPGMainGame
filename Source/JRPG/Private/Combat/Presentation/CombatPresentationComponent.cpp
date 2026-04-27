@@ -457,6 +457,7 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 	if (!Battle || !Battle->CanActorResolvePresentedAction(GetOwner()))
 		return;
 
+
 	EmitCue(Active.HitCueTag);
 
 	switch (Active.Type)
@@ -466,7 +467,10 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 			if (!CharacterComp.IsValid()||!CharacterComp->CharacterDef)break;
 			if (Active.Targets.Num()<=0)break;
 
-			AActor*Target =Active.Targets[0].Get();
+			const EPresentedCombatActionType ResolvingType = Active.Type;
+			const FName ResolvingActionId = Active.ActionId;
+			const TWeakObjectPtr<AActor> ResolvingTarget = Active.Targets[0];
+			AActor* Target = ResolvingTarget.Get();
 			if (!Target)break;
 
 			FBasicAttackRequest Req;
@@ -484,7 +488,7 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 
 			if (UBasicCombatSubsystem *Basic = GetWorld()->GetSubsystem<UBasicCombatSubsystem>())
 			{
-				Basic->ExecuteBasicAttack(Req);
+				const FCombatActionResult Result = Basic->ExecuteBasicAttack(Req);
 				if (UBattleSessionSubsystem* BattleAfterExecute = GetBattle())
 				{
 					UE_LOG(LogTemp, Warning,
@@ -495,8 +499,16 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 						BattleAfterExecute->IsBattleActive() ? TEXT("true") : TEXT("false"),
 						(int32)BattleAfterExecute->GetPhase());
 				}
+
+				if (HasActivePresentation()
+					&& Active.Type == ResolvingType
+					&& Active.ActionId == ResolvingActionId
+					&& Active.Targets.Num() > 0
+					&& Active.Targets[0] == ResolvingTarget)
+				{
+					Active.bResolved = Result.bOk;
+				}
 			}
-			Active.bResolved = true;
 			break;
 		}
 

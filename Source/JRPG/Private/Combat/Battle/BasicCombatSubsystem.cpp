@@ -31,6 +31,7 @@ bool UBasicCombatSubsystem::IsFriendlyTarget(AActor* Attacker, AActor* Target) c
 
 FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttackRequest& Req)
 {
+
 	AActor* Attacker = Req.Attacker.Get();
 	AActor* Target = Req.Target.Get();
 
@@ -124,19 +125,6 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 		{
 			AttackerSP->AddSP(Req.SPGainOnKill, "Combat.KillSP");
 		}
-
-		if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
-		{
-			UE_LOG(LogTemp, Warning,
-				TEXT("BasicCombatSubsystem::ExecuteBasicAttack : lethal hit before defeat broadcast | BattleActive=%s Phase=%d Attacker=%s Target=%s Reason=%s"),
-				Battle->IsBattleActive() ? TEXT("true") : TEXT("false"),
-				(int32)Battle->GetPhase(),
-				*GetNameSafe(Attacker),
-				*GetNameSafe(Target),
-				*Req.ReasonTag.ToString());
-		}
-
-		OnCombatantDefeated.Broadcast(Target, Attacker);
 	}
 
 	if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
@@ -152,5 +140,22 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 	}
 
 	OnBasicAttackResolved.Broadcast(Out);
+
+	if (Out.bTargetDied)
+	{
+		if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+		{
+			UE_LOG(LogTemp, Warning,
+				TEXT("BasicCombatSubsystem::ExecuteBasicAttack : lethal hit before defeat broadcast | BattleActive=%s Phase=%d Attacker=%s Target=%s Reason=%s"),
+				Battle->IsBattleActive() ? TEXT("true") : TEXT("false"),
+				(int32)Battle->GetPhase(),
+				*GetNameSafe(Attacker),
+				*GetNameSafe(Target),
+				*Req.ReasonTag.ToString());
+		}
+
+		OnCombatantDefeated.Broadcast(Target, Attacker);
+	}
+
 	return Out;
 }

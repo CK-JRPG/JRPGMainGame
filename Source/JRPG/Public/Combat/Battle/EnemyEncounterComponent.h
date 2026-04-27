@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 #include "Combat/Battle/EncounterTypes.h"
+#include "Combat/Battle/BattleSessionTypes.h"
 #include "EnemyEncounterComponent.generated.h"
 
 class UCombatZoneSettingDataAsset;
@@ -11,6 +12,7 @@ class USphereComponent;
 class UPartySubsystem;
 class UPartyActorSpawnSubsystem;
 struct FBattleSessionConfig;
+struct FBattleSessionSnapshot;
 
 
 
@@ -24,6 +26,8 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 
 private:
 	UFUNCTION()
@@ -35,6 +39,11 @@ private:
 	FTransform CompanionFallbackTransform(const AActor* LeaderActor, const class AJRPGCompanionPawn* Companion, int32 CompanionOrder) const;
 	void SearchCombatEnemyCharactersInRadius(const AActor* PlayerActor);
 	void ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx);
+
+protected:
+	void HandleBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);
+	void ResetEncounterForRematch();
+
 
 public:
 
@@ -53,6 +62,9 @@ public:
 private:
 	UPROPERTY()
 	TObjectPtr<USphereComponent> TriggerSphere;
+
+	UPROPERTY()
+	TArray<TWeakObjectPtr<AActor>> ActiveEncounterEnemies;
 
 
 	bool bHasTriggered = false;
