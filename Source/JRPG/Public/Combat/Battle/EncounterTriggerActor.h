@@ -52,7 +52,7 @@ private:
 
 	FTransform CompanionFallbackTransform(const AActor* LeaderActor, const class AJRPGCompanionPawn* Companion, int32 CompanionOrder) const;
 	void SearchCombatCharactersInRadius(const AActor* OverlapActor);
-	void ReadyforBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx);
+	bool ReadyforBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx);
 	void OnPlayerApproach();
 
 };

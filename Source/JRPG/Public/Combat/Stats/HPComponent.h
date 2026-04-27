@@ -23,6 +23,7 @@ public:
 
 	void InitializeHP(float InMaxHP, bool bFillToMax = true);
 	void SetMaxHP(float InMaxHP,bool bKeepRatio);
+	void RestoreFull(FName ReasonTag);
 
 	float GetMaxHP() const {return MaxHP;}
 	float GetHP() const {return CurrentHP;}

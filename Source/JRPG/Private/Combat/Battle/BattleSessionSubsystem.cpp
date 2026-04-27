@@ -153,8 +153,10 @@ bool UBattleSessionSubsystem::BuildParticipants(const FBattleSessionConfig &Conf
 	}
 
 	TSet<AActor*> Dedup;
+	int32 AlivePlayerCount = 0;
+	int32 AliveEnemyCount = 0;
 
-	auto AddSide = [this, &Dedup](const TArray<AActor*> &InActors)
+	auto AddSide = [this, &Dedup, &AlivePlayerCount, &AliveEnemyCount](const TArray<AActor*> &InActors)
 	{
 		for (AActor *A : InActors)
 		{
@@ -164,7 +166,11 @@ bool UBattleSessionSubsystem::BuildParticipants(const FBattleSessionConfig &Conf
 			if (!P) continue;
 
 			UHPComponent* HP = P->GetHP();
-			if (!HP||HP->IsDead()) continue;
+			if (!HP||HP->IsDead())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("BattleSessionSub::BuildParticipants : 사망/HP 없음으로 참가자 제외 - %s"), *GetNameSafe(A));
+				continue;
+			}
 
 			FBattleParticipantSlot Slot;
 			Slot.Actor = A;
@@ -173,6 +179,15 @@ bool UBattleSessionSubsystem::BuildParticipants(const FBattleSessionConfig &Conf
 			Slot.NextActionAllowedReal = 0.0;
 			Participants.Add(Slot);
 
+			if (Slot.Team == ECombatTeam::Player)
+			{
+				++AlivePlayerCount;
+			}
+			else if (Slot.Team == ECombatTeam::Enemy)
+			{
+				++AliveEnemyCount;
+			}
+
 			Dedup.Add(A);
 		}
 	};
@@ -180,7 +195,15 @@ bool UBattleSessionSubsystem::BuildParticipants(const FBattleSessionConfig &Conf
 	AddSide(PlayerActors);
 	AddSide(EnemyActors);
 
-	return Participants.Num()>=2;
+	if (AlivePlayerCount <= 0 || AliveEnemyCount <= 0)
+	{
+		UE_LOG(LogTemp, Error,
+			TEXT("BattleSessionSub::BuildParticipants : 생존 참가자 부족. AlivePlayers=%d AliveEnemies=%d TotalParticipants=%d"),
+			AlivePlayerCount, AliveEnemyCount, Participants.Num());
+		return false;
+	}
+
+	return true;
 }
 
 bool UBattleSessionSubsystem::StartBattle(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx, FGuid& OutSessionId)

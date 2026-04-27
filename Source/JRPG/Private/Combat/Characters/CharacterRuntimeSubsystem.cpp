@@ -105,24 +105,32 @@ void UCharacterRuntimeSubsystem::InitializeSnapshotIfAbsent(const FName& Charact
 		*CharacterID.ToString(), MaxHP, MaxAP, MaxSP);
 }
 
-void UCharacterRuntimeSubsystem::RecoverPartyFromWipe(float HPRecoverRatio, float APRecoverRatio)
+void UCharacterRuntimeSubsystem::RecoverPartyFromWipe(const TArray<FName>& ActivePartyIds, float HPRecoverRatio, float APRecoverRatio)
 {
-	if (SnapshotMap.IsEmpty())
+	if (SnapshotMap.IsEmpty() || ActivePartyIds.IsEmpty())
 	{
 		return;
 	}
 	
 	bool bHasAliveMember = false;
-	for (const TPair<FName, FCharacterResourceSnapshot>& Pair : SnapshotMap)
+	bool bHasValidSnapshot = false;
+	for (const FName& CharacterID : ActivePartyIds)
 	{
-		if (Pair.Value.IsValid() && Pair.Value.HP > 0.f)
+		const FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
+		if (!Snap || !Snap->IsValid())
+		{
+			continue;
+		}
+
+		bHasValidSnapshot = true;
+		if (Snap->HP > 0.f)
 		{
 			bHasAliveMember = true;
 			break;
 		}
 	}
 	
-	if (bHasAliveMember)
+	if (!bHasValidSnapshot || bHasAliveMember)
 	{
 		return;
 	}
@@ -130,29 +138,34 @@ void UCharacterRuntimeSubsystem::RecoverPartyFromWipe(float HPRecoverRatio, floa
 	const float ClampedHPRatio = FMath::Clamp(HPRecoverRatio, 0.f, 1.f);
 	const float ClampedAPRatio = FMath::Clamp(APRecoverRatio, 0.f, 1.f);
 	
-	for (TPair<FName, FCharacterResourceSnapshot>& Pair : SnapshotMap)
+	int32 RecoveredCount = 0;
+	for (const FName& CharacterID : ActivePartyIds)
 	{
-		FCharacterResourceSnapshot& Snap = Pair.Value;
-		if (!Snap.IsValid())
+		FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
+		if (!Snap || !Snap->IsValid())
 		{
 			continue;
 		}
 			
-		const float RecoveredHP = FMath::Max(1.f, Snap.MaxHP * ClampedHPRatio);
-		Snap.HP = FMath::Clamp(RecoveredHP, 1.f, Snap.MaxHP);
+		const float RecoveredHP = FMath::Max(1.f, Snap->MaxHP * ClampedHPRatio);
+		Snap->HP = FMath::Clamp(RecoveredHP, 1.f, Snap->MaxHP);
 
 		//반올림
-		Snap.AP = FMath::Clamp(FMath::RoundToInt((float)Snap.MaxAP * ClampedAPRatio), 0, Snap.MaxAP);
+		Snap->AP = FMath::Clamp(FMath::RoundToInt((float)Snap->MaxAP * ClampedAPRatio), 0, Snap->MaxAP);
+
+		OnHPChanged.Broadcast(CharacterID, Snap->HP, Snap->MaxHP);
+		OnAPChanged.Broadcast(CharacterID, Snap->AP, Snap->MaxAP);
+		++RecoveredCount;
 	}
 	
 	UE_LOG(LogTemp, Warning,
-		TEXT("CharacterRuntimeSubsystem : 파티 전멸 감지. 필드 복귀용 리커버리 적용 (HP %.0f%% / AP %.0f%%)"),
-		ClampedHPRatio * 100.f, ClampedAPRatio * 100.f);
+		TEXT("CharacterRuntimeSubsystem : 현재 파티 전멸 감지. 필드 복귀용 리커버리 적용 Count=%d (HP %.0f%% / AP %.0f%%)"),
+		RecoveredCount, ClampedHPRatio * 100.f, ClampedAPRatio * 100.f);
 }
 
-bool UCharacterRuntimeSubsystem::RecoverPartyAfterVictory(float HPRecoverRatio)
+bool UCharacterRuntimeSubsystem::RecoverPartyAfterVictory(const TArray<FName>& ActivePartyIds, float HPRecoverRatio)
 {
-	if (SnapshotMap.IsEmpty())
+	if (SnapshotMap.IsEmpty() || ActivePartyIds.IsEmpty())
 	{
 		return false;
 	}
@@ -160,19 +173,19 @@ bool UCharacterRuntimeSubsystem::RecoverPartyAfterVictory(float HPRecoverRatio)
 	const float ClampedRatio = FMath::Clamp(HPRecoverRatio, 0.f, 1.f);
 	bool bStillRecovering = false;
 	
-	for (TPair<FName, FCharacterResourceSnapshot>& Pair : SnapshotMap)
+	for (const FName& CharacterID : ActivePartyIds)
 	{
-		FCharacterResourceSnapshot& Snap = Pair.Value;
-		if (!Snap.IsValid()) continue;
+		FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
+		if (!Snap || !Snap->IsValid()) continue;
 
-		if (Snap.HP < Snap.MaxHP)
+		if (Snap->HP < Snap->MaxHP)
 		{
-			const float RecoveryAmount = Snap.MaxHP * ClampedRatio;
-			Snap.HP = FMath::Min(Snap.HP + RecoveryAmount, Snap.MaxHP);
+			const float RecoveryAmount = Snap->MaxHP * ClampedRatio;
+			Snap->HP = FMath::Min(Snap->HP + RecoveryAmount, Snap->MaxHP);
 			
-			OnHPChanged.Broadcast(Pair.Key, Snap.HP, Snap.MaxHP);
+			OnHPChanged.Broadcast(CharacterID, Snap->HP, Snap->MaxHP);
 
-			if (Snap.HP < Snap.MaxHP)
+			if (Snap->HP < Snap->MaxHP)
 			{
 				bStillRecovering = true;
 			}

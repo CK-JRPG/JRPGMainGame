@@ -124,6 +124,7 @@ private:
 	bool BuildDebugPartyPreset(int32 TargetSize, TArray<FName>& OutPartyIds) const;
 	void ApplyDebugPartyPreset(int32 TargetSize);
 	void RefreshExplorationPartyUI() const;
+	void HandlePartyIdsChanged(const TArray<FName>& NewPartyIds, FName ReasonTag);
 
 	void OnToggleMainMenu();
 	void OnTogglePartyStatus();

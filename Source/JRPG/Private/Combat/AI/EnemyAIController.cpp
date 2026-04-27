@@ -104,6 +104,16 @@ void AEnemyAIController::Tick(float DeltaSeconds)
 	}
 }
 
+void AEnemyAIController::ResetForNewBattle()
+{
+	StopMovement();
+	CurrentTarget = nullptr;
+	CachedChainProviderObject = nullptr;
+	NextChainProviderRescanAt = 0.0f;
+	TargetLockUntilReal = 0.0f;
+	State = EEnemyCombatState::Engage;
+}
+
 void AEnemyAIController::RefreshStateFromGroggyAndChain()
 {
 	if (IsChainSequenceActive())

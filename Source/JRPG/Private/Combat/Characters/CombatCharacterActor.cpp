@@ -232,6 +232,83 @@ UActorComponent* ACombatCharacterActor::GetOptionalComponentByClass(TSubclassOf<
 	return CompClass ? GetComponentByClass(CompClass) : nullptr;
 }
 
+void ACombatCharacterActor::ResetEnemyRuntimeForRematch(FName ReasonTag)
+{
+	if (!CharacterComp || CharacterComp->GetTeam() != ECombatTeam::Enemy)
+		return;
+	
+	if (PresentationComp)
+	{
+		PresentationComp->CancelActivePresentation(ReasonTag, true);
+	}
+
+	if (MotionComp && MotionComp->IsMotionActive())
+	{
+		MotionComp->CancelCombatMotion(MotionComp->GetMotionState().ActiveHandle, ReasonTag);
+	}
+
+	if (LocomotionComp)
+	{
+		if (DeathInputLockHandle.IsValid())
+		{
+			LocomotionComp->ReleaseInputLock(DeathInputLockHandle);
+			DeathInputLockHandle = FJRPGHandle();
+		}
+		LocomotionComp->SetMoveInput(FVector2D::ZeroVector);
+		LocomotionComp->SetSprint(false);
+		LocomotionComp->SetMovementEnabled(true);
+	}
+
+	if (UCharacterMovementComponent* MoveComp = GetCharacterMovement())
+	{
+		MoveComp->StopMovementImmediately();
+	}
+
+	if (HPComp)
+	{
+		HPComp->RestoreFull(ReasonTag);
+	}
+
+	if (ThreatComp)
+	{
+		ThreatComp->ClearAll();
+	}
+
+	if (GroggyComp)
+	{
+		GroggyComp->ResetGauge(ReasonTag);
+	}
+
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		MeshComp->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+	}
+
+	AEnemyAIController* EnemyAI = Cast<AEnemyAIController>(GetController());
+	if (!EnemyAI)
+	{
+		if (AController* ExistingController = GetController())
+		{
+			ExistingController->UnPossess();
+			ExistingController->Destroy();
+		}
+
+		if (UWorld* World = GetWorld())
+		{
+			EnemyAI = World->SpawnActor<AEnemyAIController>();
+			if (EnemyAI)
+			{
+				EnemyAI->Possess(this);
+			}
+		}
+	}
+
+	if (EnemyAI)
+	{
+		EnemyAI->ResetForNewBattle();
+	}
+}
+
 
 //-----ICameraTargetInterface
 FVector ACombatCharacterActor::GetCameraTargetLocation() const

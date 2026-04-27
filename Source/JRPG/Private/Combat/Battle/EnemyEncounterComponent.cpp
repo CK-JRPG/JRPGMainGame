@@ -15,6 +15,7 @@
 #include "Game/Companion/CompanionPawnController.h"
 #include "Game/Companion/FieldCompanionSubsystem.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
+#include "TimerManager.h"
 
 UEnemyEncounterComponent::UEnemyEncounterComponent()
 {
@@ -97,6 +98,26 @@ void UEnemyEncounterComponent::BeginPlay()
 	TriggerSphere->SetCollisionResponseToChannel(ECC_GameTraceChannel2, ECR_Overlap);
 
 	TriggerSphere->OnComponentBeginOverlap.AddDynamic(this, &UEnemyEncounterComponent::OnTriggerOverlap);
+
+	if (UBattleSessionSubsystem* BattleSub = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+	{
+		BattleSub->OnBattleEnded.AddUObject(this, &UEnemyEncounterComponent::HandleBattleEnded);
+	}
+}
+
+
+
+void UEnemyEncounterComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (UBattleSessionSubsystem* BattleSub = World->GetSubsystem<UBattleSessionSubsystem>())
+		{
+			BattleSub->OnBattleEnded.RemoveAll(this);
+		}
+	}
+
+	Super::EndPlay(EndPlayReason);
 }
 
 void UEnemyEncounterComponent::OnTriggerOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor,
@@ -133,7 +154,11 @@ void UEnemyEncounterComponent::OnTriggerOverlap(UPrimitiveComponent* OverlappedC
 void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor* PlayerActor)
 {
 	if (!IsValid(PlayerActor))
+	{
+		bHasTriggered = false;
 		return;
+	}
+		
 
 	UWorld* World = GetWorld();
 	UGameInstance* GI = GetOwner()->GetGameInstance();
@@ -314,18 +339,39 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 			}
 
 
-			//배틀세션 진입 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
+			if (!Self->ReadyForBattleSession(BattleConfig, EncounterCtx))
+			{
+				return;
+			}
+
+			// 배틀세션 시작 성공 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
+			bool bEnteredCombat = false;
 			APlayerController* PC = WeakPC.Get();
 			if (PC)
 			{
 				if (UCombatTransitionSubsystem* TransitionSub = Self->GetWorld()->GetSubsystem<UCombatTransitionSubsystem>())
 				{
-					TransitionSub->EnterCombatMode(PC, LeaderCharID);
+					bEnteredCombat = TransitionSub->EnterCombatMode(PC, LeaderCharID);
 				}
 			}
 
-			// 배틀 세션 시작(Zone 생성은 BattleSession이 담당)
-			Self->ReadyForBattleSession(BattleConfig, EncounterCtx);
+			if (!bEnteredCombat)
+			{
+				UE_LOG(LogTemp, Error, TEXT("EncounterComponent : 전투 전환 실패. BattleSession을 중단합니다."));
+				if (UBattleSessionSubsystem* BattleSession = Self->GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+				{
+					BattleSession->AbortBattle("Encounter.EnterCombatFailed");
+				}
+				if (UPartyActorSpawnSubsystem* SpawnSub = Self->GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
+				{
+					TArray<ACombatCharacterActor*> Actors = SpawnSub->GetSpawnedActors();
+					if (Actors.Num() > 0)
+					{
+						SpawnSub->DespawnCombatActors(Actors);
+					}
+				}
+				Self->bHasTriggered = false;
+			}
 		});
 }
 
@@ -333,7 +379,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 
 
 
-void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx) 
+bool UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx) 
 {
 	UBattleSessionSubsystem* BattleSession = GetWorld()->GetSubsystem<UBattleSessionSubsystem>();
 
@@ -341,7 +387,7 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 	{
 		UE_LOG(LogTemp, Error, TEXT("EncounterComponent : BattleSessionSubsystem이 존재하지 않음."));
 		bHasTriggered = false;
-		return;
+		return false;
 	}
 
 	FGuid SessionID;
@@ -350,7 +396,12 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 	if (bSucessed)
 	{
 		UE_LOG(LogTemp, Log, TEXT("EncounterComponent : BattleSession 시작. SessionID = %s"), *SessionID.ToString());
-		TriggerSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		ActiveEncounterEnemies = Config.EnemySide;
+		if (TriggerSphere)
+		{
+			TriggerSphere->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		}
+		return true;
 	}
 	else
 	{
@@ -366,6 +417,61 @@ void UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 				SpawnSub->DespawnCombatActors(Actors);
 			}
 		}
+		return false;
+	}
+}
+
+void UEnemyEncounterComponent::HandleBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason)
+{
+	if (!bHasTriggered && ActiveEncounterEnemies.IsEmpty())
+	{
+		return;
+	}
+	if (Reason == EBattleEndReason::Defeat || Reason == EBattleEndReason::Aborted)
+	{
+		if (UWorld* World = GetWorld())
+		{
+			World->GetTimerManager().SetTimerForNextTick(
+				FTimerDelegate::CreateWeakLambda(this, [this]()
+				{
+					ResetEncounterForRematch();
+				}));
+		}
+		else
+		{
+			ResetEncounterForRematch();
+		}
+		return;
+	}
+
+	ActiveEncounterEnemies.Reset();
+}
+
+void UEnemyEncounterComponent::ResetEncounterForRematch()
+{
+	for (const TWeakObjectPtr<AActor>& EnemyPtr : ActiveEncounterEnemies)
+	{
+		if (ACombatCharacterActor* Enemy = Cast<ACombatCharacterActor>(EnemyPtr.Get()))
+		{
+			Enemy->ResetEnemyRuntimeForRematch("Battle.DefeatRematchReset");
+		}
+		else if (ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(EnemyPtr.Get()))
+		{
+			if (UHPComponent* HP = Participant->GetHP())
+			{
+				HP->RestoreFull("Battle.DefeatRematchReset");
+			}
+		}
+	}
+
+	ActiveEncounterEnemies.Reset();
+	bHasTriggered = false;
+
+	if (TriggerSphere)
+	{
+		TriggerSphere->SetCollisionEnabled(ECollisionEnabled::QueryOnly);
+		TriggerSphere->SetGenerateOverlapEvents(true);
+		TriggerSphere->UpdateOverlaps();
 	}
 }
 

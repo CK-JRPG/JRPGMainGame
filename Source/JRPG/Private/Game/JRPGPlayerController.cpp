@@ -25,6 +25,13 @@ void AJRPGPlayerController::BeginPlay()
 
 	UpdateCameraTargetForPawn(GetPawn());
 	EnsureDefaultPartyFromTable();
+
+	if (UPartySubsystem* PartySys = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartySubsystem>() : nullptr)
+	{
+		PartySys->OnPartyIdsChanged.RemoveAll(this);
+		PartySys->OnPartyIdsChanged.AddUObject(this, &AJRPGPlayerController::HandlePartyIdsChanged);
+	}
+
 	InitallizeCombatBridge();
 
 
@@ -316,9 +323,6 @@ void AJRPGPlayerController::ApplyDebugPartyPreset(int32 TargetSize)
 		return;
 	}
 
-	InitallizeCombatBridge();
-	RefreshExplorationPartyUI();
-
 	FString PartySummary;
 	for (int32 Idx = 0; Idx < PartyToSet.Num(); ++Idx)
 	{
@@ -341,6 +345,29 @@ void AJRPGPlayerController::RefreshExplorationPartyUI() const
 			Presenter->RefreshPartyStatusData();
 		}
 	}
+}
+
+void AJRPGPlayerController::HandlePartyIdsChanged(const TArray<FName>& NewPartyIds, FName ReasonTag)
+{
+	if (UBattleSessionSubsystem* BattleSub = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+	{
+		if (BattleSub->IsBattleActive())
+		{
+			UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController : 전투 중 파티 변경 이벤트 무시 (Reason=%s)"), *ReasonTag.ToString());
+			return;
+		}
+	}
+
+	if (!Cast<AJRPGPlayerPawn>(GetPawn()))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("JRPGPlayerController : 필드 Pawn 상태가 아니라 파티 변경 후 브릿지 갱신을 보류 (Reason=%s)"), *ReasonTag.ToString());
+		return;
+	}
+
+	InitallizeCombatBridge();
+	RefreshExplorationPartyUI();
+
+	UE_LOG(LogTemp, Log, TEXT("JRPGPlayerController : 파티 변경 반영 완료 Count=%d Reason=%s"), NewPartyIds.Num(), *ReasonTag.ToString());
 }
 
 

@@ -1,4 +1,5 @@
 ﻿#include "Combat/Characters/PartySubsystem.h"
+#include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatCharacterRegistrySubsystem.h"
 #include "Combat/Characters/PartySaveGameSubsystem.h"
 
@@ -84,8 +85,11 @@ void UPartySubsystem::FlushToSave()
 	}
 }
 
-bool UPartySubsystem::SetPartyIds(const TArray<FName>& InPartyIds, FName)
+bool UPartySubsystem::SetPartyIds(const TArray<FName>& InPartyIds, FName ReasonTag)
 {
+	if (!CanMutateParty(ReasonTag))
+		return false;
+
 	if (InPartyIds.Num() < 1 || InPartyIds.Num() > MaxPartySize)
 		return false;
 
@@ -105,6 +109,7 @@ bool UPartySubsystem::SetPartyIds(const TArray<FName>& InPartyIds, FName)
 	PushPartyToBond();
 	PushPartyLevelToShop();
 	FlushToSave();
+	BroadcastPartyChanged(ReasonTag);
 	return true;
 }
 
@@ -151,12 +156,16 @@ bool UPartySubsystem::RemovePartyMember(FName CharacterId, FName ReasonTag)
 	return SetPartyIds(NextPartyIds, ReasonTag);
 }
 
-void UPartySubsystem::ClearParty(FName)
+void UPartySubsystem::ClearParty(FName ReasonTag)
 {
+	if (!CanMutateParty(ReasonTag))
+		return;
+
 	PartyIds.Reset();
 	PushPartyToBond();
 	PushPartyLevelToShop();
 	FlushToSave();
+	BroadcastPartyChanged(ReasonTag);
 }
 
 void UPartySubsystem::GetPartyMembers(TArray<AActor*>&OutMembers)const
@@ -193,6 +202,28 @@ void UPartySubsystem::SetRestockKey(FName RestockKey)
 	
 #endif
 	FlushToSave();
+}
+
+bool UPartySubsystem::CanMutateParty(FName ReasonTag) const
+{
+	if (UWorld* World = GetWorld())
+	{
+		if (UBattleSessionSubsystem* BattleSub = World->GetSubsystem<UBattleSessionSubsystem>())
+		{
+			if (BattleSub->IsBattleActive())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("PartySubsystem : 전투 중 파티 변경 차단 (Reason=%s)"), *ReasonTag.ToString());
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void UPartySubsystem::BroadcastPartyChanged(FName ReasonTag)
+{
+	OnPartyIdsChanged.Broadcast(PartyIds, ReasonTag);
 }
 
 void UPartySubsystem::PushPartyToBond()

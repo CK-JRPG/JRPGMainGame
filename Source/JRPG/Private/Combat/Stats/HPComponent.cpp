@@ -34,6 +34,13 @@ void UHPComponent::SetMaxHP(float InMaxHP, bool bKeepRatio)
 	OnHPChanged.Broadcast(Old, CurrentHP, "HP.SetMax");
 }
 
+void UHPComponent::RestoreFull(FName ReasonTag)
+{
+	const float Old = CurrentHP;
+	CurrentHP = MaxHP;
+	OnHPChanged.Broadcast(Old, CurrentHP, ReasonTag);
+}
+
 void UHPComponent::ApplyDamage(float Amount, AActor* Instigator, FName ReasonTag)
 {
 	if (Amount <= 0.f || IsDead()) return;
