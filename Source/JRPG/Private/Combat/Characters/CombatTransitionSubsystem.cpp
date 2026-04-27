@@ -8,6 +8,7 @@
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Game/Companion/FieldCompanionSubsystem.h"
+#include "Game/Companion/JRPGCompanionPawn.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/GameModeBase.h"
 #include "GameFramework/HUD.h"
@@ -74,11 +75,11 @@ void UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 	CachedFieldPawn = PC->GetPawn();
 	CachedFieldController = PC;
 
-	// 카메라 스냅샷 저장 (전투 종료 후 복원용)
+	/*// 카메라 스냅샷 저장 (전투 종료 후 복원용)
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
 	{
 		CamSub->SaveFieldSnapshot();
-	}
+	}*/
 
 	// JRPGPlayerPawn HiddenInGame으로 변경하고 콜리전 false
 	if (APawn* FieldPawn = CachedFieldPawn.Get())
@@ -554,6 +555,19 @@ void UCombatTransitionSubsystem::PerformTransition(bool bUseLeaderPosition)
 	UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>();
 	if (SpawnSub)
 	{
+		// 파괴 전 파티원 CompanionPawn 위치를 전투 종료 시점(B) 위치로 갱신
+		if (UFieldCompanionSubsystem* CompanionSub = GetWorld()->GetSubsystem<UFieldCompanionSubsystem>())
+		{
+			for (AJRPGCompanionPawn* Companion : CompanionSub->GetSpawnedCompanions())
+			{
+				if (!IsValid(Companion)) continue;
+				if (ACombatCharacterActor* CombatActor = SpawnSub->FindActorByCharacterID(Companion->CurrentCharacterId))
+				{
+					Companion->SetActorLocationAndRotation(CombatActor->GetActorLocation(), CombatActor->GetActorRotation());
+				}
+			}
+		}
+
 		TArray<ACombatCharacterActor*> CurrentActors = SpawnSub->GetSpawnedActors();
 		SpawnSub->DespawnCombatActors(CurrentActors);
 	}
