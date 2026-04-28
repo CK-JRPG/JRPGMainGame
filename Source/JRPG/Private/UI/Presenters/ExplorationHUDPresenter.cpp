@@ -201,9 +201,7 @@ void UExplorationHUDPresenter::OnRegionChanged(const FString& RegionName)
 
 void UExplorationHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot)
 {
-	if (ExplorationWidget) ExplorationWidget->SetVisibility(ESlateVisibility::Collapsed);
-
-	UE_LOG(LogTemp, Warning, TEXT("HideExplorationUI"));
+	UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::OnBattleStarted"));
 	HideExplorationUI();
 }
 

@@ -163,6 +163,10 @@ void UCombatHUDPresenter::OnActiveCharacterChanged(FName NewActiveID)
 		FName RightID = (TotalCount > 2) ? PartyIds[(CurrentIdx + 1) % TotalCount] : NAME_None;
 		CombatWidget->TagSwapPanel->UpdateSwapUI(GetPartySLotVM(LeftID), GetPartySLotVM(RightID));
 	}
+	else
+	{
+		CombatWidget->TagSwapPanel->InitailizeSwapUI();
+	}
 
 	if (CurrentActivePartyVM.IsValid()) {
 		CurrentActivePartyVM->OnHPUIUpdated.RemoveAll(this);
@@ -239,6 +243,7 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 {
 	if (!CombatWidget) return;
 	CombatWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	UE_LOG(LogTemp, Warning, TEXT("UCombatHUDPresenter::OnBattleStarted"));
 
 	if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0)) {
 		if (ActionPaletteVM) ActionPaletteVM->BindToPlayer(PlayerPawn);

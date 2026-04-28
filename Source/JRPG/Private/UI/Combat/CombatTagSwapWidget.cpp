@@ -24,3 +24,9 @@ void UCombatTagSwapWidget::UpdateSwapUI(UCombatPartySlotViewModel* LeftVM, UComb
 		Slot_E->SetVisibility(ESlateVisibility::Collapsed);
 	}
 }
+
+void UCombatTagSwapWidget::InitailizeSwapUI()
+{
+	Slot_Q->SetVisibility(ESlateVisibility::Collapsed);
+	Slot_E->SetVisibility(ESlateVisibility::Collapsed);
+}
