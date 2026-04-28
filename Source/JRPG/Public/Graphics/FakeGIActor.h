@@ -76,7 +76,7 @@ public:
         meta = (ClampMin = "0.0", ClampMax = "100.0"))
     float GIIntensity = 1.f;
 
-    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Intensity")
+    UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Fake GI|Intensity")
     FLinearColor GIColor = FLinearColor(1.f, 0.9f, 0.7f, 1.f);
 
     UFUNCTION(BlueprintCallable, Category = "Fake GI")
@@ -94,6 +94,6 @@ private:
     void ApplyIntensity();
     void ApplyEnabled();
 
-    UPROPERTY()
-    TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
+    UPROPERTY(Transient, DuplicateTransient)
+    TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial = nullptr;
 };
