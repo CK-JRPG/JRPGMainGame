@@ -1,6 +1,7 @@
 ﻿#include "Graphics/FakeGIActor.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInterface.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -29,6 +30,7 @@ AFakeGIActor::AFakeGIActor()
     {
         GIMesh->SetStaticMesh(SphereMesh.Object);
     }
+
 }
 
 void AFakeGIActor::BeginPlay()
@@ -72,22 +74,50 @@ void AFakeGIActor::EnsureDynamicMaterial()
         return;
     }
 
-    if (DynamicMaterial && GIMesh->GetMaterial(0) == DynamicMaterial)
+    UMaterialInterface* SourceMaterial = ResolveSourceMaterial();
+    if (!SourceMaterial)
     {
         return;
     }
 
-    if (DynamicMaterial)
+    const bool bIsTemplateActor = HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject) || GIMesh->IsTemplate();
+    if (bIsTemplateActor)
     {
-        GIMesh->SetMaterial(0, DynamicMaterial);
+        DynamicMaterial = nullptr;
+        if (GIMesh->GetMaterial(0) != SourceMaterial)
+        {
+            GIMesh->SetMaterial(0, SourceMaterial);
+        }
         return;
     }
 
-    if (UMaterialInterface* Material = GIMesh->GetMaterial(0))
+    UMaterialInstanceDynamic* CurrentMID = Cast<UMaterialInstanceDynamic>(GIMesh->GetMaterial(0));
+    const bool bHasOwnedMID = CurrentMID && CurrentMID == DynamicMaterial && CurrentMID->GetOuter() == this;
+    const bool bUsesCurrentSource = bHasOwnedMID && CurrentMID->Parent == SourceMaterial;
+    if (bUsesCurrentSource)
     {
-        DynamicMaterial = UMaterialInstanceDynamic::Create(Material, this);
-        GIMesh->SetMaterial(0, DynamicMaterial);
+        return;
     }
+
+    DynamicMaterial = UMaterialInstanceDynamic::Create(SourceMaterial, this);
+    DynamicMaterial->SetFlags(RF_Transient);
+    GIMesh->SetMaterial(0, DynamicMaterial);
+}
+
+UMaterialInterface* AFakeGIActor::ResolveSourceMaterial() const
+{
+    if (FakeGIMaterial)
+    {
+        return FakeGIMaterial;
+    }
+
+    UMaterialInterface* CurrentMaterial = GIMesh ? GIMesh->GetMaterial(0) : nullptr;
+    if (UMaterialInstanceDynamic* CurrentMID = Cast<UMaterialInstanceDynamic>(CurrentMaterial))
+    {
+        return CurrentMID->Parent ? CurrentMID->Parent.Get() : CurrentMaterial;
+    }
+
+    return CurrentMaterial;
 }
 
 void AFakeGIActor::ApplyMeshType()

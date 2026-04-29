@@ -8,6 +8,7 @@
 #include "FakeGIActor.generated.h"
 
 class UMaterialInstanceDynamic;
+class UMaterialInterface;
 
 UENUM(BlueprintType)
 enum class EFakeGIMeshType : uint8
@@ -50,6 +51,9 @@ public:
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI")
     bool bFakeGIEnabled = true;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Material")
+    TObjectPtr<UMaterialInterface> FakeGIMaterial;
+
 
     //각도
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Angle",
@@ -87,6 +91,7 @@ public:
 
 private:
     void EnsureDynamicMaterial();
+    UMaterialInterface* ResolveSourceMaterial() const;
     void ApplyMeshType();
     void ApplyAngle();
     void ApplyRange();
@@ -94,6 +99,6 @@ private:
     void ApplyIntensity();
     void ApplyEnabled();
 
-    UPROPERTY(Transient, DuplicateTransient)
+    UPROPERTY(Transient, DuplicateTransient, TextExportTransient)
     TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial = nullptr;
 };
