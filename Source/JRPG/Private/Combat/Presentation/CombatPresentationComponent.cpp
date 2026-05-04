@@ -464,14 +464,26 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 	{
 	case EPresentedCombatActionType::BasicAttack:
 		{
-			if (!CharacterComp.IsValid()||!CharacterComp->CharacterDef)break;
-			if (Active.Targets.Num()<=0)break;
+			if (!CharacterComp.IsValid()||!CharacterComp->CharacterDef)
+			{
+				CancelActivePresentation("Reject.NoCharacterDef", false);
+				return;
+			}
+			if (Active.Targets.Num()<=0)
+			{
+				CancelActivePresentation("Reject.InvalidTarget", false);
+				return;
+			}
 
 			const EPresentedCombatActionType ResolvingType = Active.Type;
 			const FName ResolvingActionId = Active.ActionId;
 			const TWeakObjectPtr<AActor> ResolvingTarget = Active.Targets[0];
 			AActor* Target = ResolvingTarget.Get();
-			if (!Target)break;
+			if (!IsValid(Target))
+			{
+				CancelActivePresentation("Reject.InvalidTarget", false);
+				return;
+			}
 
 			FBasicAttackRequest Req;
 			Req.Attacker =GetOwner();
@@ -489,6 +501,11 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 			if (UBasicCombatSubsystem *Basic = GetWorld()->GetSubsystem<UBasicCombatSubsystem>())
 			{
 				const FCombatActionResult Result = Basic->ExecuteBasicAttack(Req);
+				if (!IsValid(this) || !IsValid(GetOwner()))
+				{
+					return;
+				}
+
 				if (UBattleSessionSubsystem* BattleAfterExecute = GetBattle())
 				{
 					UE_LOG(LogTemp, Warning,
@@ -506,6 +523,12 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 					&& Active.Targets.Num() > 0
 					&& Active.Targets[0] == ResolvingTarget)
 				{
+					if (!Result.bOk)
+					{
+						CancelActivePresentation(Result.ReasonTag.IsNone() ? "Reject.ResolveFailed" : Result.ReasonTag, false);
+						return;
+					}
+
 					Active.bResolved = Result.bOk;
 				}
 			}
@@ -517,7 +540,23 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 			if (SkillComp.IsValid())
 			{
 				const FSkillCastResult R = SkillComp->ResolvePreparedSkillCast();
+				if (!IsValid(this) || !IsValid(GetOwner()))
+				{
+					return;
+				}
+
+				if (!R.bOk)
+				{
+					CancelActivePresentation(R.ReasonTag.IsNone() ? "Reject.ResolveFailed" : R.ReasonTag, false);
+					return;
+				}
+
 				Active.bResolved = R.bOk;
+			}
+			else
+			{
+				CancelActivePresentation("Reject.NoSkillComponent", false);
+				return;
 			}
 			break;
 		}
