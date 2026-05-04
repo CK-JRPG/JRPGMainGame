@@ -182,6 +182,10 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 		USynergyPointSubsystem* SPSubSystem = GetWorld() ? GetWorld()->GetSubsystem<USynergyPointSubsystem>() : nullptr;
 		
 		float DamageDone = 0.f;
+		float HealDone = 0.f;
+		bool bCritical = false;
+		bool bStatusApplied = false;
+		int32 StatusRemovedCount = 0;
 
 		if (THP && (Skill.BasePower > 0.f || Skill.AttackScale > 0.f))
 		{
@@ -204,6 +208,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 						);
 
 			DamageDone = B.FinalDamage;
+			bCritical = B.bCritical;
 			
 			if (SPSubSystem && DamageDone>0.f)
 			{
@@ -239,6 +244,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 			const float BeforeHP = THP->GetHP();
 			THP->Heal(Skill.HealPower,GetOwner(), Skill.SkillId);
 			const float Healed = FMath::Max(0.f,THP->GetHP() - BeforeHP);
+			HealDone = Healed;
 
 			if (Healed > 0.f)
 			{
@@ -250,6 +256,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 		if (TStatus && Skill.ApplyStatus && FMath::FRand() <= FMath::Clamp(Skill.StatusChance,0.f,1.f))
 		{
 			TStatus->ApplyStatus(Skill.ApplyStatus,GetOwner(), Skill.StatusStacks, Skill.SkillId);
+			bStatusApplied = true;
 			
 			if (SPSubSystem)
 			{
@@ -273,6 +280,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 					Skill.DispelRemoveCount,
 					GetOwner(),
 					Skill.SkillId);
+				StatusRemovedCount = Removed;
 
 				if (SPSubSystem && Removed > 0)
 				{
@@ -290,6 +298,18 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 				}
 			}
 		}
+
+		FSkillTargetResolvedEvent Event;
+		Event.SkillId = Skill.SkillId;
+		Event.Caster = GetOwner();
+		Event.Target = T;
+		Event.FinalDamage = DamageDone;
+		Event.HealAmount = HealDone;
+		Event.bCritical = bCritical;
+		Event.bStatusApplied = bStatusApplied;
+		Event.StatusRemovedCount = StatusRemovedCount;
+		Event.bFromTacticalReservation = bFromTacticalReservation;
+		OnSkillTargetResolved.Broadcast(Event);
 			
 		
 		/*

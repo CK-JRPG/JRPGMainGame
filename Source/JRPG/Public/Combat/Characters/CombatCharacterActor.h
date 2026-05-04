@@ -18,6 +18,7 @@ class UThreatComponent;
 class UCombatAIActionSelectorComponent;
 class UCombatItemComponent;
 class UCombatPresentationComponent;
+class UCombatVFXComponent;
 class UCombatMotionComponent;
 class ULocomotionComponent;
 class UEnemyEncounterComponent;
@@ -48,6 +49,7 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatItemComponent> ItemComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPartyAIComponent> CombatPartyAIComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPresentationComponent> PresentationComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatVFXComponent> VFXComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatMotionComponent> MotionComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<ULocomotionComponent> LocomotionComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatZoneTrackerComponent> ZoneTrackerComp;
