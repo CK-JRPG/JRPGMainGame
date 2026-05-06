@@ -55,7 +55,12 @@ protected:
 	TObjectPtr<UTextBlock> Text_RegionName;
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "UI|Animation")
-	void PlayRegionNameAnimation();
+	void PlayRegionNameAnimation(EUMGSequencePlayMode::Type PlayMode);
+	UPROPERTY(BlueprintReadOnly ,Transient, meta = (BindWidgetAnim))
+	class UWidgetAnimation* Anim_RegionShow;
+
+	UPROPERTY(Transient, meta = (BindWidgetAnim))
+	class UWidgetAnimation* Anim_RegionShowOuttro;
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UVerticalBox> VBox_PartyChat;
