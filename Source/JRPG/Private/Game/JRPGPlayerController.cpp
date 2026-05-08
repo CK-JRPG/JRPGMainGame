@@ -421,6 +421,7 @@ void AJRPGPlayerController::SetupInputComponent()
 	if (IA_TogglePartyStatus)
 	{
 		EIC->BindAction(IA_TogglePartyStatus, ETriggerEvent::Started, this, &AJRPGPlayerController::OnTogglePartyStatus);
+		EIC->BindAction(IA_TogglePartyStatus, ETriggerEvent::Completed, this, &AJRPGPlayerController::OnTogglePartyStatus);
 	}
 
 	if (IA_DebugPartyOne)

@@ -30,6 +30,7 @@ class JRPG_API UCombatCharacterDataAsset : public UPrimaryDataAsset
 public:
 	UPROPERTY(EditAnywhere) FName CharacterId = NAME_None;
 	UPROPERTY(EditAnywhere) FText DisplayName;
+	UPROPERTY(EditAnywhere) UTexture2D* Portrait;
 
 	UPROPERTY(EditAnywhere) ECombatTeam DefaultTeam = ECombatTeam::Player;
 	UPROPERTY(EditAnywhere) EJRPGPartyRole DefaultRole = EJRPGPartyRole::Attacker;

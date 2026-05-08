@@ -210,6 +210,12 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 			Anim->Montage_Play(DeathMontage);
 		}
 	}
+
+	// HP Widget Component 제거
+	if (HPBarWidgetComponent)
+	{
+		HPBarWidgetComponent->SetVisibility(false);
+	}
 }
 
 FName ACombatCharacterActor::GetCombatantId() const

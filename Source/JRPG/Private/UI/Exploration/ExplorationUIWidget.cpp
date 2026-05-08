@@ -141,8 +141,13 @@ void UExplorationUIWidget::SetPartyStatusMode(int32 Mode)
 	if (Mode == 0) // 숨김
 	{
 		PlayPartyStatusAnim(false);
-		//Widget_PartyStatus->SetVisibility(ESlateVisibility::Hidden);
-		// (필요 시 지역명도 숨김 처리)
+
+		if (IsAnimationPlaying(Anim_RegionShow))
+		{
+			StopAnimation(Anim_RegionShow);
+		}
+
+			PlayAnimation(Anim_RegionShowOuttro);
 	}
 	else if (Mode == 1) // 전투 후 회복 모드 (Tab 텍스트 등은 가리고 체력바만 보여주는 연출)
 	{
@@ -154,7 +159,7 @@ void UExplorationUIWidget::SetPartyStatusMode(int32 Mode)
 	{
 		Widget_PartyStatus->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 		PlayPartyStatusAnim(true);
-		PlayRegionNameAnimation();
+		PlayRegionNameAnimation(EUMGSequencePlayMode::Forward);
 	}
 }
 
@@ -182,7 +187,7 @@ void UExplorationUIWidget::ShowRegionName(const FString& RegionName)
 	if (Text_RegionName)
 	{
 		Text_RegionName->SetText(FText::FromString(RegionName));
-		PlayRegionNameAnimation(); // BP 애니메이션 킥
+		PlayRegionNameAnimation(EUMGSequencePlayMode::PingPong);
 	}
 }
 
