@@ -9,6 +9,8 @@
 #include "CombatCharacterDataAsset.generated.h"
 
 class USkillDataAsset;
+class UNiagaraSystem;
+class UCurveFloat;
 
 USTRUCT()
 struct FCharacterBaseParams
@@ -53,6 +55,12 @@ public:
 	UPROPERTY(EditAnywhere) FName BasicAttackStartCueTag = "Attack.Start";
 	UPROPERTY(EditAnywhere) FName BasicAttackHitCueTag = "Attack.Hit";
 	UPROPERTY(EditAnywhere) FName BasicAttackFinishCueTag = "Attack.Finish";
+	UPROPERTY(EditAnywhere, Category="Basic Attack|VFX") TObjectPtr<UNiagaraSystem> BasicAttackHitNiagaraEffect = nullptr;
+	UPROPERTY(EditAnywhere, Category="Basic Attack|VFX") TObjectPtr<UCurveFloat> BasicAttackDamageToEffectScaleCurve = nullptr;
+	UPROPERTY(EditAnywhere, Category="Basic Attack|VFX", meta=(ClampMin="0.0")) float BasicAttackEffectScaleReferenceDamage = 100.f;
+	UPROPERTY(EditAnywhere, Category="Basic Attack|VFX", meta=(ClampMin="0.0")) float BasicAttackEffectScaleMultiplier = 0.25f;
+	UPROPERTY(EditAnywhere, Category="Basic Attack|VFX", meta=(ClampMin="1.0")) float BasicAttackMinEffectScale = 1.f;
+	UPROPERTY(EditAnywhere, Category="Basic Attack|VFX", meta=(ClampMin="1.0")) float BasicAttackMaxEffectScale = 3.f;
 
 	// 스킬 ID만 보관 (에디터에서 KnownSkills에 이미 DA가 있을 때 해금 용도)
 	UPROPERTY(EditAnywhere) TArray<FName> StartingSkillIds;
