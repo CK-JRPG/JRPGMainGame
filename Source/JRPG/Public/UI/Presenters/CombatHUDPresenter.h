@@ -23,6 +23,8 @@ public:
     UPROPERTY() TSubclassOf<class UDamageTextWidget> DamageTextClass;
     void OnActiveCharacterChanged(FName NewActiveID);
     void ShowSkillAnnouncer(const FString& SkillName);
+    void BeginEncounterIntro();
+    void EndEncounterIntro();
 
 private:
     UPROPERTY() TObjectPtr<UCombatUIWidget> CombatWidget;

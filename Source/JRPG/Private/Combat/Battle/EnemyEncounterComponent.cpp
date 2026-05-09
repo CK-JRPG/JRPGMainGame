@@ -360,6 +360,7 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 				UE_LOG(LogTemp, Error, TEXT("EncounterComponent : 전투 전환 실패. BattleSession을 중단합니다."));
 				if (UBattleSessionSubsystem* BattleSession = Self->GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
 				{
+					BattleSession->ExitExclusiveMode(TEXT("Encounter.Intro"));
 					BattleSession->AbortBattle("Encounter.EnterCombatFailed");
 				}
 				if (UPartyActorSpawnSubsystem* SpawnSub = Self->GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
@@ -374,10 +375,6 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 			}
 		});
 }
-
-
-
-
 
 bool UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx) 
 {
@@ -396,6 +393,13 @@ bool UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 	if (bSucessed)
 	{
 		UE_LOG(LogTemp, Log, TEXT("EncounterComponent : BattleSession 시작. SessionID = %s"), *SessionID.ToString());
+		if (!BattleSession->EnterExclusiveMode(TEXT("Encounter.Intro")))
+		{
+			UE_LOG(LogTemp, Error, TEXT("EncounterComponent : Encounter.Intro ExclusiveMode 진입 실패"));
+			BattleSession->AbortBattle(TEXT("Encounter.IntroExclusiveFailed"));
+			bHasTriggered = false;
+			return false;
+		}
 		ActiveEncounterEnemies = Config.EnemySide;
 		if (TriggerSphere)
 		{
