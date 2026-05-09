@@ -354,19 +354,6 @@ void UCombatHUDPresenter::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, 
 	for (auto& VM : PartyVMs) { if (VM) VM->Unbind(); }
 	for (auto& VM : EnemyHPBarVMs) { if (VM) VM->Unbind(); }
 	ClearHPBindings();
-
-	if (UBattleSessionSubsystem* BattleSub = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
-	{
-		TArray<AActor*> ActiveEnemies;
-		BattleSub->GetAliveParticipantsByTeam(ECombatTeam::Enemy, ActiveEnemies);
-		for (AActor* Enemy : ActiveEnemies)
-		{
-			if (UWidgetComponent* HPBarComp = Enemy->FindComponentByClass<UWidgetComponent>())
-			{
-				HPBarComp->SetVisibility(false);
-			}
-		}
-	}
 }
 
 void UCombatHUDPresenter::ClearHPBindings()

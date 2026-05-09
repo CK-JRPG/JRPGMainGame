@@ -75,10 +75,6 @@ public:
 	
 	virtual FVector  GetCameraTargetLocation()  const override;
 	virtual FRotator GetCameraTargetRotation()  const override;
-	virtual float    GetCameraTargetArmLength() const override;
-	
-	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "100.0"))
-	float CombatArmLength = 550.f;
 	
 	// 사망 몽타주
 	UPROPERTY(EditAnywhere, Category = "Combat|Death")

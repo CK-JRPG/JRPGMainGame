@@ -20,6 +20,7 @@
 #include "Game/HubSubsystem.h"
 #include "UI/JRPGHUD.h"
 #include "UI/Presenters/ExplorationHUDPresenter.h"
+#include "TimerManager.h"
 
 
 void UCombatTransitionSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -937,5 +938,17 @@ void UCombatTransitionSubsystem::HandleBattleStarted(const FBattleSessionSnapsho
 
 void UCombatTransitionSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason Reason)
 {
+	bIsTransitioning = true;
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateWeakLambda(this, [this, Reason]()
+			{
+				OnBattleEnded(Reason);
+			}));
+		return;
+	}
+
 	OnBattleEnded(Reason);
 }

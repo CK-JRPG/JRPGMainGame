@@ -79,6 +79,7 @@ private:
 
 
 	// BattleSessionSubsystem 델리게이트 콜백
+	void OnBattleStarted(const struct FBattleSessionSnapshot& Snapshot);
 	void OnBattleEnded(const struct FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);
 	
 	// BattleSessionSubsystem 빙의 전환 델리게이트 콜백

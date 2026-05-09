@@ -27,7 +27,6 @@ public:
 	// ICameraTargetInterface
 	virtual FVector GetCameraTargetLocation() const override;
 	virtual FRotator GetCameraTargetRotation() const override;
-	virtual float GetCameraTargetArmLength() const override;
 	
 	UPROPERTY(VisibleAnywhere, Category = "JRPG|Combat")
 	FName CurrentCharacterId;
