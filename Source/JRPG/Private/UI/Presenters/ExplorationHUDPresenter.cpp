@@ -20,7 +20,7 @@ void UExplorationHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UExplorat
 	if (ExplorationWidget)
 	{
 		ExplorationWidget->AddToViewport();
-		ExplorationWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+		//ExplorationWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	}
 
 	ViewModel = NewObject<UExplorationViewModel>(this);
@@ -33,6 +33,9 @@ void UExplorationHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UExplorat
 	{
 		BattleSub->OnBattleStarted.AddUObject(this, &UExplorationHUDPresenter::OnBattleStarted);
 		BattleSub->OnBattleEnded.AddUObject(this, &UExplorationHUDPresenter::OnBattleEnded);
+
+		if (BattleSub->IsBattleActive()) HideExplorationUI();
+		else ShowExplorationUI();
 	}
 
 	// 임시 통합 테스트용 퀘스트 데이터 로드
@@ -114,7 +117,7 @@ void UExplorationHUDPresenter::ShowExplorationUI()
 
 void UExplorationHUDPresenter::HideExplorationUI()
 {
-	if (ExplorationWidget) ExplorationWidget->SetVisibility(ESlateVisibility::Hidden);
+	if (ExplorationWidget) ExplorationWidget->SetVisibility(ESlateVisibility::Collapsed);
 }
 
 void UExplorationHUDPresenter::RefreshPartyStatusData()
@@ -201,6 +204,7 @@ void UExplorationHUDPresenter::OnRegionChanged(const FString& RegionName)
 
 void UExplorationHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot)
 {
+	UE_LOG(LogTemp, Warning, TEXT("UExplorationHUDPresenter::OnBattleStarted"));
 	HideExplorationUI();
 }
 

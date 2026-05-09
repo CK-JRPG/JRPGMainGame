@@ -11,6 +11,8 @@
 #include "SkillDataAsset.generated.h"
 
 class UStatusEffectDataAsset;
+class UNiagaraSystem;
+class UCurveFloat;
 
 UCLASS()
 class JRPG_API USkillDataAsset :public UPrimaryDataAsset
@@ -52,6 +54,16 @@ public:
 	UPROPERTY(EditAnywhere) FName FinishCueTag = "Skill.Finish";
 	UPROPERTY(EditAnywhere) bool bHasSkillMotion = false;
 	UPROPERTY(EditAnywhere) FJRPGCombatMotionRequest SkillMotion;
+
+	UPROPERTY(EditAnywhere, Category="Presentation|VFX") TObjectPtr<UNiagaraSystem> HitNiagaraEffect = nullptr;
+	UPROPERTY(EditAnywhere, Category="Presentation|VFX") TObjectPtr<UNiagaraSystem> OnResolveTargetEffect = nullptr;
+	UPROPERTY(EditAnywhere, Category="Presentation|VFX") TObjectPtr<UNiagaraSystem> OnResolveGroundEffect = nullptr;
+	UPROPERTY(EditAnywhere, Category="Presentation|VFX", meta=(ClampMin="0.0")) float GroundEffectDuration = 0.f;
+	UPROPERTY(EditAnywhere, Category="Presentation|VFX") TObjectPtr<UCurveFloat> DamageToEffectScaleCurve = nullptr;
+	UPROPERTY(EditAnywhere, Category="Presentation|VFX", meta=(ClampMin="0.0")) float EffectScaleReferenceDamage = 100.f;
+	UPROPERTY(EditAnywhere, Category="Presentation|VFX", meta=(ClampMin="0.0")) float EffectScaleMultiplier = 0.25f;
+	UPROPERTY(EditAnywhere, Category="Presentation|VFX", meta=(ClampMin="1.0")) float MinEffectScale = 1.f;
+	UPROPERTY(EditAnywhere, Category="Presentation|VFX", meta=(ClampMin="1.0")) float MaxEffectScale = 3.f;
 
 	UPROPERTY(EditAnywhere) FGameplayTagContainer DispelAnyTags;
 	UPROPERTY(EditAnywhere) int32 DispelRemoveCount = 0;// <=0 means all

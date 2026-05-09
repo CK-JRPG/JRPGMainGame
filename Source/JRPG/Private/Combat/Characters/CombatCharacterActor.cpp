@@ -14,6 +14,7 @@
 #include "Combat/AI/EnemyAIController.h"
 #include "Combat/Items/CombatItemComponent.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
+#include "Combat/Presentation/CombatVFXComponent.h"
 #include "Combat/Motion/CombatMotionComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
@@ -52,6 +53,7 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 	AIActionSelectorComp = CreateDefaultSubobject<UCombatAIActionSelectorComponent>(TEXT("CombatAIActionSelectorComponent"));
 	ItemComp = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
+	VFXComp = CreateDefaultSubobject<UCombatVFXComponent>(TEXT("CombatVFXComponent"));
 	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
 	LocomotionComp = CreateDefaultSubobject<ULocomotionComponent>(TEXT("LocomotionComponent"));
 	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));
@@ -209,6 +211,12 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 		{
 			Anim->Montage_Play(DeathMontage);
 		}
+	}
+
+	// HP Widget Component 제거
+	if (HPBarWidgetComponent)
+	{
+		HPBarWidgetComponent->SetVisibility(false);
 	}
 }
 

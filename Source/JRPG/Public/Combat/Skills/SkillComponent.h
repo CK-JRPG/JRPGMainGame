@@ -34,6 +34,7 @@ public:
 
 	FOnSkillCast OnSkillCast;
 	FOnSkillResolvedDetailed OnSkillResolvedDetailed;
+	FOnSkillTargetResolved OnSkillTargetResolved;
 
 	bool HasSkill(FName SkillId) const;
 	void LearnSkill(USkillDataAsset *Skill);

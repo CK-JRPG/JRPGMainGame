@@ -9,7 +9,7 @@ void UMainMenuPresenter::Initialize(UWorld* World, TSubclassOf<UMainMenuUIWidget
 	if (MainMenuWidget)
 	{
 		MainMenuWidget->AddToViewport(100);
-		MainMenuWidget->SetVisibility(ESlateVisibility::Hidden);
+		MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 		MainMenuWidget->OnTabChanged.AddUObject(this, &UMainMenuPresenter::HandleTabChanged);
 	}
 }
@@ -25,18 +25,19 @@ void UMainMenuPresenter::Shutdown()
 
 void UMainMenuPresenter::ToggleMenu()
 {
+	//UE_LOG(LogTemp, Warning, TEXT("MainMenuPresenter::ToggleMenu"));
 	bIsOpen ? CloseMenu() : OpenMenu();
 }
 
 void UMainMenuPresenter::OpenMenu()
 {
-	UE_LOG(LogTemp, Warning, TEXT("MainMenuPresenter::OpenMenu()"));
+	//UE_LOG(LogTemp, Warning, TEXT("MainMenuPresenter::OpenMenu : Try Open Main Menu"));
 	if (!MainMenuWidget || bIsOpen) return;
-	UE_LOG(LogTemp, Warning, TEXT("MainMenuPresenter::OpenMenu()"));
 	bIsOpen = true;
-	MainMenuWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	MainMenuWidget->SetVisibility(ESlateVisibility::Visible);
 
 	HandleTabChanged(EMainMenuTab::Map);
+	//UE_LOG(LogTemp, Warning, TEXT("MainMenuPresenter::OpenMenu : Open Main Menu"));
 
 	if (APlayerController* PC = UGameplayStatics::GetPlayerController(MainMenuWidget->GetWorld(), 0))
 	{
@@ -44,13 +45,18 @@ void UMainMenuPresenter::OpenMenu()
 		PC->SetInputMode(FInputModeGameAndUI());
 		PC->bShowMouseCursor = true;
 	}
+	else
+	{
+		//UE_LOG(LogTemp, Warning, TEXT("MainMenuPresenter::OpenMenu : PlayerController is Not Invalid"));
+	}
 }
 
 void UMainMenuPresenter::CloseMenu()
 {
+	//UE_LOG(LogTemp, Warning, TEXT("MainMenuPresenter::OpenMenu : Try Close Main Menu"));
 	if (!MainMenuWidget || !bIsOpen) return;
 	bIsOpen = false;
-	MainMenuWidget->SetVisibility(ESlateVisibility::Hidden);
+	MainMenuWidget->SetVisibility(ESlateVisibility::Collapsed);
 
 	if (APlayerController* PC = UGameplayStatics::GetPlayerController(MainMenuWidget->GetWorld(), 0))
 	{

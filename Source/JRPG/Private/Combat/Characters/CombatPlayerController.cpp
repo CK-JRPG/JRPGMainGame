@@ -67,11 +67,6 @@ void ACombatPlayerController::SetupInputComponent()
 		EIC->BindAction(IA_ToggleMainMenu, ETriggerEvent::Started, this, &ACombatPlayerController::OnToggleMainMenu);
 	}
 
-	if (IA_ToggleMainMenu)
-	{
-		EIC->BindAction(IA_ToggleMainMenu, ETriggerEvent::Started, this, &ACombatPlayerController::OnToggleMainMenu);
-	}
-
 	if (IA_Skill1)
 	{
 		EIC->BindAction(IA_Skill1, ETriggerEvent::Started, this, &ACombatPlayerController::OnSkill1);
