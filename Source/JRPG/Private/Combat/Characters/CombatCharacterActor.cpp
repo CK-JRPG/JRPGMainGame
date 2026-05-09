@@ -330,9 +330,3 @@ FRotator ACombatCharacterActor::GetCameraTargetRotation() const
 		return C->GetControlRotation();
 	return GetActorRotation();
 }
-
-float ACombatCharacterActor::GetCameraTargetArmLength() const
-{
-	return CombatArmLength;
-}
-

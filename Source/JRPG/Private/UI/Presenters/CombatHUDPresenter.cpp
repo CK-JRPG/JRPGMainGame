@@ -242,7 +242,9 @@ void UCombatHUDPresenter::ReturnDamageTextToPool(UDamageTextWidget* Widget)
 void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot)
 {
 	if (!CombatWidget) return;
-	CombatWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	CombatWidget->SetVisibility(ESlateVisibility::Hidden);
+	CombatWidget->SetCombatPanelsVisible(false);
+	CombatWidget->HideEncounterOverlay();
 	UE_LOG(LogTemp, Warning, TEXT("UCombatHUDPresenter::OnBattleStarted"));
 
 	if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0)) {
@@ -348,25 +350,17 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 
 void UCombatHUDPresenter::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason)
 {
-	if (CombatWidget) CombatWidget->SetVisibility(ESlateVisibility::Hidden);
+	if (CombatWidget)
+	{
+		CombatWidget->HideEncounterOverlay();
+		CombatWidget->SetCombatPanelsVisible(false);
+		CombatWidget->SetVisibility(ESlateVisibility::Hidden);
+	}
 	if (ActionPaletteVM) ActionPaletteVM->Unbind();
 	if (TargetVM) TargetVM->Unbind();
 	for (auto& VM : PartyVMs) { if (VM) VM->Unbind(); }
 	for (auto& VM : EnemyHPBarVMs) { if (VM) VM->Unbind(); }
 	ClearHPBindings();
-
-	if (UBattleSessionSubsystem* BattleSub = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
-	{
-		TArray<AActor*> ActiveEnemies;
-		BattleSub->GetAliveParticipantsByTeam(ECombatTeam::Enemy, ActiveEnemies);
-		for (AActor* Enemy : ActiveEnemies)
-		{
-			if (UWidgetComponent* HPBarComp = Enemy->FindComponentByClass<UWidgetComponent>())
-			{
-				HPBarComp->SetVisibility(false);
-			}
-		}
-	}
 }
 
 void UCombatHUDPresenter::ClearHPBindings()
@@ -516,4 +510,28 @@ void UCombatHUDPresenter::ShowSkillAnnouncer(const FString& SkillName)
 	{
 		CombatWidget->PlaySkillAnnouncer(SkillName);
 	}
+}
+
+void UCombatHUDPresenter::BeginEncounterIntro()
+{
+	if (!CombatWidget)
+	{
+		return;
+	}
+
+	CombatWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	CombatWidget->SetCombatPanelsVisible(false);
+	CombatWidget->ShowEncounterOverlay();
+}
+
+void UCombatHUDPresenter::EndEncounterIntro()
+{
+	if (!CombatWidget)
+	{
+		return;
+	}
+
+	CombatWidget->HideEncounterOverlay();
+	CombatWidget->SetCombatPanelsVisible(true);
+	CombatWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }

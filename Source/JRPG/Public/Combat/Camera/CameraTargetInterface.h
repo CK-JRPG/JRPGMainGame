@@ -20,5 +20,4 @@ class JRPG_API ICameraTargetInterface
 public:
 	virtual FVector  GetCameraTargetLocation() const = 0;
 	virtual FRotator GetCameraTargetRotation() const = 0;
-	virtual float    GetCameraTargetArmLength() const = 0;
 };
