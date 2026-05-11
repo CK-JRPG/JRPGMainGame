@@ -1,4 +1,4 @@
-#include "UI/Combat/CombatUIWidget.h"
+﻿#include "UI/Combat/CombatUIWidget.h"
 #include "UI/Combat/CombatActionPaletteWidget.h"
 #include "UI/Combat/CombatPartyRosterWidget.h"
 #include "UI/Combat/CombatTagSwapWidget.h"
@@ -29,10 +29,10 @@ void UCombatUIWidget::SetCombatPanelsVisible(bool bVisible)
         TargetInfoPanel->SetVisibility(PanelVisibility);
     }
 
-    if (PartyRosterPanel)
-    {
-        PartyRosterPanel->SetVisibility(PanelVisibility);
-    }
+    //if (PartyRosterPanel)
+    //{
+    //    PartyRosterPanel->SetVisibility(PanelVisibility);
+    //}
 
     if (TagSwapPanel)
     {

@@ -25,6 +25,10 @@ public:
     void ShowSkillAnnouncer(const FString& SkillName);
     void BeginEncounterIntro();
     void EndEncounterIntro();
+    void UpdateTargetEnemyUI(AActor* NewTarget);
+
+    void SetPartyWheelActive(bool bActive);
+    FName GetHoveredPartyMemberID() const;
 
 private:
     UPROPERTY() TObjectPtr<UCombatUIWidget> CombatWidget;
@@ -47,9 +51,9 @@ private:
     void OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot);
 
     void OnActionPaletteSPUpdated(float Percent, const FString& Text);
-    void OnTargetNameUpdated(const FString& Name);
+    //void OnTargetNameUpdated(const FString& Name);
     void OnTargetHPUpdated(float Percent, const FString& Text);
-    void OnTargetGroggyUpdated(bool bGroggy);
+    //void OnTargetGroggyUpdated(bool bGroggy);
 
     void OnPartySlotNameUpdated(const FString& Name, class UCombatPartySlotWidget* View);
     void OnPartySlotHPUpdated(float Percent, const FString& Text, class UCombatPartySlotWidget* View);

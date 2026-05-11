@@ -47,6 +47,10 @@ protected:
 
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_SwitchNext;   // E : 다음 파티원으로 전환
+
+	// 파티 캐릭터 전환
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_PartyWheel;
 	
 	// 전술 모드 진입 Tab
 	UPROPERTY(EditDefaultsOnly, Category="Input")
@@ -76,4 +80,7 @@ private:
 	void OnTacticalModePressed(const FInputActionValue& Value);
 	void OnToggleMainMenu(const FInputActionValue& Value);
 	void OnSkill1(const FInputActionValue& Value);
+	bool bIsPartyWheelActive = false;
+	void OnPartyWheelStarted(const FInputActionValue& Value);
+	void OnPartyWheelCompleted(const FInputActionValue& Value);
 };

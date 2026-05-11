@@ -12,3 +12,9 @@ void UCombatPartySlotWidget::UpdateHP(float Percent, const FString& Text) {
 void UCombatPartySlotWidget::UpdateAP(float Percent) {
     if (PB_APBar) PB_APBar->SetPercent(Percent);
 }
+
+void UCombatPartySlotWidget::SetIsActiveCharacter(bool bIsActive)
+{
+    float ScaleValue = bIsActive ? 1.04f : 0.8f;
+    SetRenderScale(FVector2D(ScaleValue, ScaleValue));
+}
