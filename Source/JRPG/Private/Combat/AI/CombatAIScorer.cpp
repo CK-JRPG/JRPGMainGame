@@ -44,6 +44,7 @@ float UCombatAIScorer::ScoreAction(const UCombatAIContext &Ctx, const FJRPGComba
 	float S =0.f;
 	S += ScoreRoleLogic(Ctx, Action, Meta);
 	S += ScoreSPOpportunity(Ctx, Action, Meta);
+	S += ScoreThreatDangerNeed(Ctx, Action, Meta);
 
 	// SP 스팸 방지(동일 이벤트 반복 억제)을 AI 쪽에서도 살짝 반영:
 	// 완전한 억제는 SP 시스템이 하지만, AI가 같은 행동만 연타하는 걸 줄여준다. :contentReference[oaicite:22]{index=22}
@@ -163,6 +164,35 @@ float UCombatAIScorer::ScoreSPOpportunity(const UCombatAIContext &Ctx,const FJRP
 	}
 
 	Score *= FMath::Max(0.1f,W.SPBonusMultiplier);
+	return Score;
+}
+float UCombatAIScorer::ScoreThreatDangerNeed(const UCombatAIContext& Ctx, const FJRPGCombatAIAction& A, const FSkillAIMeta& Meta) const
+{
+	const float Threat01 = FMath::Clamp(Ctx.TargetThreatToAllies01, 0.f, 1.f);
+	const float Danger01 = FMath::Clamp(FMath::Max(Ctx.SelfDanger01, Ctx.bSelfIsDead ? 1.f : 0.f), 0.f, 1.f);
+	const float Need01 = FMath::Clamp(FMath::Max(Ctx.AllyHighestNeed01, Ctx.bAnyAllyCritical ? 1.f : 0.f), 0.f, 1.f);
+
+	float Score = 0.f;
+	if (Ctx.Role == EJRPGPartyRole::Defender)
+	{
+		if (Meta.bIsTaunt) Score += Threat01 * 3.0f;
+		if (Meta.bIsBuff) Score += Need01 * 1.5f;
+		if (Meta.bIsHighDps) Score += Threat01 * 0.5f;
+	}
+	else if (Ctx.Role == EJRPGPartyRole::Supporter)
+	{
+		if (Meta.bIsHeal) Score += Need01 * 3.5f;
+		if (Meta.bIsCleanse) Score += Need01 * 1.5f;
+		if (Meta.bIsBuff) Score += (1.f - Danger01) * 0.75f;
+	}
+	else
+	{
+		if (Meta.bIsHighDps) Score += (1.f - Danger01) * 2.0f;
+		if (Meta.bIsBreak) Score += Threat01 * 1.5f;
+		if (Meta.bIsDebuff) Score += Threat01 * 0.75f;
+	}
+
+	(void)A;
 	return Score;
 }
 

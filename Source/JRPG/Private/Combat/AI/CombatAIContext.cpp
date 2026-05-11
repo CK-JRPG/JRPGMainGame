@@ -34,11 +34,14 @@ void UCombatAIContext::Refresh()
 	{
 		SelfHp01 = HPComp->GetHpRatio01();
 		bSelfIsDead = HPComp->IsDead();
+		SelfDanger01 = bSelfIsDead ? 1.f : (1.f - FMath::Clamp(SelfHp01, 0.f, 1.f));
+
 	}
 	else
 	{
 		SelfHp01 = 1.f;
 		bSelfIsDead = false;
+		SelfDanger01 = 0.f;
 	}
 
 	RefreshPartySnapshot();
@@ -73,8 +76,11 @@ void UCombatAIContext::RefreshPartySnapshot()
 	// 프로젝트에서 Registry 연동 시 교체.
 	bAnyAllyCritical = false;
 	bAnyAllyHasCC = false;
+	bAnyAllyDangerous = false;
 	AllyCriticalTarget = nullptr;
 	AllyCC_Target = nullptr;
+	AllyHighestNeedTarget = nullptr;
+	AllyHighestNeed01 = 0.f;
 
 	for (const TWeakObjectPtr<AActor> &Ally : PartyMembers)
 	{
@@ -85,11 +91,22 @@ void UCombatAIContext::RefreshPartySnapshot()
 		{
 			const float Hp01 = AllyHP->GetHpRatio01();
 			const float CritThr = PresetAsset.IsValid() ? PresetAsset->Thresholds.PartyDangerHp01 : 0.30f;
+			const float Need01 = 1.f - FMath::Clamp(Hp01, 0.f, 1.f);
+			if (Need01 > AllyHighestNeed01)
+			{
+				AllyHighestNeed01 = Need01;
+				AllyHighestNeedTarget = Ally;
+			}
+
 			if (!AllyHP->IsDead() && Hp01<CritThr)
 			{
 				bAnyAllyCritical = true;
 				AllyCriticalTarget = Ally;
-				break;
+			
+			}
+			if (!AllyHP->IsDead() && Need01 >= 0.6f)
+			{
+				bAnyAllyDangerous = true;
 			}
 		}
 	}
@@ -104,9 +121,24 @@ void UCombatAIContext::RefreshTargetSnapshot()
 	// 실제로는 BattleSessionSubsystem에서 가져오기.
 	TargetGroggyPhase = EJRPGGroggyPhase::Normal;
 	TargetBreakRatio01 = 0.f;
+	TargetThreatToAllies01 = 0.f;
+
 	if (PrimaryTarget.IsValid())
 	{
 		TryReadGroggyFromActor(PrimaryTarget.Get(),TargetGroggyPhase,TargetBreakRatio01);
+		if (UThreatComponent* TargetThreatComp = PrimaryTarget->FindComponentByClass<UThreatComponent>())
+		{
+			float MaxThreat = 0.f;
+			float SumThreat = 0.f;
+			for (const TWeakObjectPtr<AActor>& Ally : PartyMembers)
+			{
+				if (!Ally.IsValid()) continue;
+				const float ThreatValue = FMath::Max(0.f, TargetThreatComp->GetThreat(Ally.Get()));
+				SumThreat += ThreatValue;
+				MaxThreat = FMath::Max(MaxThreat, ThreatValue);
+			}
+			TargetThreatToAllies01 = (MaxThreat > 0.f) ? FMath::Clamp(SumThreat / (MaxThreat * FMath::Max(1, PartyMembers.Num())), 0.f, 1.f) : 0.f;
+		}
 	}
 }
 

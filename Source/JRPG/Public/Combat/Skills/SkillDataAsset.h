@@ -68,5 +68,8 @@ public:
 	UPROPERTY(EditAnywhere) FGameplayTagContainer DispelAnyTags;
 	UPROPERTY(EditAnywhere) int32 DispelRemoveCount = 0;// <=0 means all
 	
+	// AI utility tags (ex: Damage, Heal, Taunt, Buff, Debuff, Shield, Escape, AOE...)
+	UPROPERTY(EditAnywhere, Category = "AI") FGameplayTagContainer AITags;
+
 	bool IsValidSkill() const { return !SkillId.IsNone(); }
 };

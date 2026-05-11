@@ -39,6 +39,7 @@ private:
  
 	float ScoreRoleLogic(const UCombatAIContext &Ctx,const FJRPGCombatAIAction &A,const FSkillAIMeta &Meta) const;
 	float ScoreSPOpportunity(const UCombatAIContext &Ctx,const FJRPGCombatAIAction &A,const FSkillAIMeta &Meta) const;
- 
+	float ScoreThreatDangerNeed(const UCombatAIContext & Ctx, const FJRPGCombatAIAction & A, const FSkillAIMeta & Meta) const;
+
 	static float SoftCapPenalty(float Value,float SoftCap);
 };
