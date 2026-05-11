@@ -4,6 +4,8 @@
 #include "UI/Combat/CombatTagSwapWidget.h"
 #include "UI/Combat/CombatTargetInfoWidget.h"
 #include "UI/Combat/CombatEncounterOverlayWidget.h"
+#include "UI/Combat/CombatLogEntry.h" 
+#include "Components/VerticalBox.h"
 #include "Components/CanvasPanel.h"
 #include "Components/TextBlock.h"
 
@@ -48,6 +50,11 @@ void UCombatUIWidget::SetCombatPanelsVisible(bool bVisible)
     {
         Canvas_Damage->SetVisibility(PanelVisibility);
     }
+
+    if (LogOverlayWidget)
+    {
+        LogOverlayWidget->SetVisibility(PanelVisibility);
+    }
 }
 
 void UCombatUIWidget::ShowEncounterOverlay()
@@ -73,5 +80,17 @@ void UCombatUIWidget::HideEncounterOverlay()
     if (EncounterOverlayPanel)
     {
         EncounterOverlayPanel->SetVisibility(ESlateVisibility::Hidden);
+    }
+}
+
+void UCombatUIWidget::AddCombatLog(const FString& Message, UTexture2D* Icon)
+{
+    if (!VB_CombatLog || !LogEntryClass) return;
+
+    UCombatLogEntry* NewLog = CreateWidget<UCombatLogEntry>(this, LogEntryClass);
+    if (NewLog)
+    {
+        NewLog->SetupLog(Message, Icon);
+        VB_CombatLog->AddChildToVerticalBox(NewLog);
     }
 }

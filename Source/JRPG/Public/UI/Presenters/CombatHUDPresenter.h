@@ -78,4 +78,6 @@ private:
     void OnActionPaletteSkillUpdated(const TArray<FString>& SkillNames);
 
     void OnCombatPresentationStarted(EPresentedCombatActionType ActionType, FName ActionId);
+
+    void HandleSkillCooldownFinished(FName SkillId, FName CharacterID);
 };

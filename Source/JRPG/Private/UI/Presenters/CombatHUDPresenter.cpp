@@ -22,6 +22,12 @@
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Presentation/CombatPresentationTypes.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
+#include "Combat/Characters/CharacterRuntimeSubsystem.h"
+#include "Combat/Characters/CombatCharacterComponent.h"
+#include "Engine/AssetManager.h"
+#include "Combat/Characters/CombatCharacterDataAsset.h"
+#include "Combat/Skills/SkillComponent.h"
+#include "Combat/Skills/SkillDataAsset.h"
 
 void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass)
 {
@@ -257,6 +263,7 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 	{
 		for (int32 i = 0; i < PartyIdsForUI.Num(); ++i)
 		{
+			FName CharID = PartyIdsForUI[i];
 			ACombatCharacterActor* Actor = SpawnSub->FindActorByCharacterID(PartyIdsForUI[i]);
 			if (!Actor) continue;
 
@@ -268,6 +275,12 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 			if (UHPComponent* HPComp = Actor->FindComponentByClass<UHPComponent>()) {
 				HPComp->OnHPChanged.AddUObject(this, &UCombatHUDPresenter::HandleActorHPChangedForDamageText, Cast<AActor>(Actor));
 				BoundHPComps.Add(HPComp);
+			}
+
+			if (USkillComponent* SkillComp = Actor->FindComponentByClass<USkillComponent>())
+			{
+				SkillComp->OnSkillCooldownFinished.RemoveAll(this);
+				SkillComp->OnSkillCooldownFinished.AddUObject(this, &UCombatHUDPresenter::HandleSkillCooldownFinished, CharID);
 			}
 		}
 	}
@@ -383,6 +396,46 @@ void UCombatHUDPresenter::OnCombatPresentationStarted(EPresentedCombatActionType
 			CombatWidget->PlaySkillAnnouncer(DisplayName);
 		}
 	}
+}
+
+void UCombatHUDPresenter::HandleSkillCooldownFinished(FName SkillId, FName CharacterID)
+{
+	if (!CombatWidget) return;
+
+	FString CharName = CharacterID.ToString();
+	FString SkillName = SkillId.ToString();
+	UTexture2D* SkillIcon = nullptr;
+
+	FPrimaryAssetId CharAssetId = FPrimaryAssetId(FName("CombatCharacterData"), CharacterID);
+	if (UAssetManager* AssetMgr = UAssetManager::GetIfValid())
+	{
+		if (UObject* LoadedAsset = AssetMgr->GetPrimaryAssetObject(CharAssetId))
+		{
+			if (const UCombatCharacterDataAsset* CharDA = Cast<UCombatCharacterDataAsset>(LoadedAsset))
+			{
+				CharName = CharDA->DisplayName.ToString();
+			}
+		}
+	}
+
+	if (UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
+	{
+		if (ACombatCharacterActor* Actor = SpawnSub->FindActorByCharacterID(CharacterID))
+		{
+			if (USkillComponent* SkillComp = Actor->FindComponentByClass<USkillComponent>())
+			{
+				if (USkillDataAsset* SkillDA = SkillComp->GetSkillDef(SkillId))
+				{
+					SkillName = SkillDA->DisplayName.ToString();
+					//SkillIcon = SkillDA->KeyIcon;
+				}
+			}
+		}
+	}
+
+	FString LogMessage = FString::Printf(TEXT("(%s의 %s) 준비 완료"), *CharName, *SkillName);
+
+	CombatWidget->AddCombatLog(LogMessage, SkillIcon);
 }
 
 void UCombatHUDPresenter::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
