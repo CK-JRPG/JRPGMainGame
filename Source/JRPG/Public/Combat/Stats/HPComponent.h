@@ -10,11 +10,14 @@ UCLASS(ClassGroup = (Combat), meta = (BlueprintSpawnableComponent))
 class JRPG_API UHPComponent : public UActorComponent
 {
 	GENERATED_BODY()
-	
+
 public:
-	
 	UHPComponent();
 
+protected:
+	virtual void BeginPlay() override;
+
+public:
 	UPROPERTY(EditAnywhere) float MaxHP = 100.f;
 	UPROPERTY(VisibleAnywhere) float CurrentHP = 100.f;
 

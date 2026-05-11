@@ -4,7 +4,7 @@
 #include "GameFramework/Actor.h"
 #include "CombatZoneActor.generated.h"
 
-class UBoxComponent;
+class USphereComponent;
 
 /**
  * 전투 구역(Clamp) 액터
@@ -27,12 +27,21 @@ public:
 	UFUNCTION(BlueprintCallable)
 	bool IsCharacterInside(const FVector& WorldLocation, float CapsuleRadius, float CapsuleHalfHeight) const;
 
-	UBoxComponent* GetZoneBounds() const { return ZoneBounds; }
+	UFUNCTION(BlueprintCallable)
+	void SetZoneRadius(float InRadius);
+
+	UFUNCTION(BlueprintCallable)
+	void SetZoneHalfHeight(float InHalfHeight);
+
+	USphereComponent* GetZoneBounds() const { return ZoneBounds; }
 	
 protected:
 	UPROPERTY(VisibleAnywhere)
-	TObjectPtr<UBoxComponent> ZoneBounds;
+	TObjectPtr<USphereComponent> ZoneBounds;
 	
+	UPROPERTY(EditAnywhere, Category = "JRPG|CombatZone", meta = (ClampMin = "0.0"))
+	float ZoneHalfHeight = 300.0f;
+
 	/** 디버그 표시 */
 	UPROPERTY(EditAnywhere, Category="JRPG|CombatZone")
 	bool bDrawDebug = false;

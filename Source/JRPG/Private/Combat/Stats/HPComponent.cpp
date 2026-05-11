@@ -2,9 +2,15 @@
 #include "UI/JRPGHUD.h"
 #include "UI/Presenters/CombatHUDPresenter.h"
 
+
 UHPComponent::UHPComponent()
 {
 	PrimaryComponentTick.bCanEverTick =false;
+}
+
+void UHPComponent::BeginPlay()
+{
+	CurrentHP = MaxHP;
 }
 
 void UHPComponent::InitializeHP(float InMaxHP, bool bFillToMax)
