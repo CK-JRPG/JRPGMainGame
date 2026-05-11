@@ -35,31 +35,65 @@ void AFakeGIActor::BeginPlay()
 {
     Super::BeginPlay();
 
-    UpdateFakeGI();
+    RefreshFakeGI(false);
 }
 
 void AFakeGIActor::OnConstruction(const FTransform& Transform)
 {
     Super::OnConstruction(Transform);
 
-    UpdateFakeGI();
+#if WITH_EDITOR
+    if (!bIsApplyingEditorPropertyChange)
+    {
+        SyncTransformPropertiesFromActor();
+    }
+#endif
+
+    RefreshFakeGI(false);
 }
 
 #if WITH_EDITOR
 void AFakeGIActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
-    Super::PostEditChangeProperty(PropertyChangedEvent);
+    const bool bTransformPropertyChanged = IsTransformPropertyChanged(PropertyChangedEvent);
 
-    UpdateFakeGI();
+    bIsApplyingEditorPropertyChange = true;
+    Super::PostEditChangeProperty(PropertyChangedEvent);
+    bIsApplyingEditorPropertyChange = false;
+
+    if (bTransformPropertyChanged)
+    {
+        UpdateFakeGI();
+    }
+    else
+    {
+        RefreshFakeGI(false);
+    }
+}
+
+void AFakeGIActor::PostEditMove(bool bFinished)
+{
+    Super::PostEditMove(bFinished);
+
+    SyncTransformPropertiesFromActor();
+    RefreshFakeGI(false);
 }
 #endif
 
 void AFakeGIActor::UpdateFakeGI()
 {
+    RefreshFakeGI(true);
+}
+
+void AFakeGIActor::RefreshFakeGI(bool bApplyTransform)
+{
     ApplyMeshType();
     EnsureDynamicMaterial();
-    ApplyAngle();
-    ApplyRange();
+    if (bApplyTransform)
+    {
+        ApplyAngle();
+        ApplyRange();
+    }
     ApplyCulling();
     ApplyIntensity();
     ApplyEnabled();
@@ -126,14 +160,27 @@ void AFakeGIActor::ApplyMeshType()
 
 void AFakeGIActor::ApplyAngle()
 {
-    GIMesh->SetWorldRotation(FRotator(LightPitch, LightYaw, 0.f));
+    SetActorRotation(FRotator(LightPitch, LightYaw, LightRoll));
 }
 
 void AFakeGIActor::ApplyRange()
 {
-   
-    const float Scale = FMath::Max(GIRange / 1000.f, 0.1f);
-    GIMesh->SetWorldScale3D(FVector(Scale));
+    if (!GIMesh)
+    {
+        return;
+    }
+
+    FVector TargetSize(GIRange);
+    if (bUseCustomGISize)
+    {
+        TargetSize = GISize;
+    }
+
+    TargetSize.X = FMath::Clamp(TargetSize.X, 1.f, 50000.f);
+    TargetSize.Y = FMath::Clamp(TargetSize.Y, 1.f, 50000.f);
+    TargetSize.Z = FMath::Clamp(TargetSize.Z, 1.f, 50000.f);
+
+    SetActorScale3D(TargetSize / 1000.f);
 }
 
 void AFakeGIActor::ApplyCulling()
@@ -178,3 +225,63 @@ void AFakeGIActor::SetFakeGIEnabled(bool bEnabled)
     bFakeGIEnabled = bEnabled;
     ApplyEnabled();
 }
+
+void AFakeGIActor::SetGISize(const FVector& NewSize)
+{
+    bUseCustomGISize = true;
+    GISize.X = FMath::Clamp(NewSize.X, 1.f, 50000.f);
+    GISize.Y = FMath::Clamp(NewSize.Y, 1.f, 50000.f);
+    GISize.Z = FMath::Clamp(NewSize.Z, 1.f, 50000.f);
+    ApplyRange();
+    ApplyCulling();
+}
+
+#if WITH_EDITOR
+void AFakeGIActor::SyncTransformPropertiesFromActor()
+{
+    const FRotator ActorRotation = GetActorRotation();
+    LightPitch = ActorRotation.Pitch;
+    LightYaw = ActorRotation.Yaw;
+    LightRoll = ActorRotation.Roll;
+
+    const FVector ActorScale = GetActorScale3D();
+    FVector ActorSize(
+        FMath::Clamp(ActorScale.X * 1000.f, 1.f, 50000.f),
+        FMath::Clamp(ActorScale.Y * 1000.f, 1.f, 50000.f),
+        FMath::Clamp(ActorScale.Z * 1000.f, 1.f, 50000.f));
+
+    const bool bUniformScale =
+        FMath::IsNearlyEqual(ActorSize.X, ActorSize.Y, 0.1f) &&
+        FMath::IsNearlyEqual(ActorSize.Y, ActorSize.Z, 0.1f);
+
+    GIRange = FMath::Clamp(ActorSize.GetMax(), 1.f, 50000.f);
+    GISize = ActorSize;
+
+    if (!bUniformScale)
+    {
+        bUseCustomGISize = true;
+    }
+}
+
+bool AFakeGIActor::IsTransformPropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent) const
+{
+    const FName PropertyName = PropertyChangedEvent.Property
+        ? PropertyChangedEvent.Property->GetFName()
+        : NAME_None;
+    const FName MemberPropertyName = PropertyChangedEvent.MemberProperty
+        ? PropertyChangedEvent.MemberProperty->GetFName()
+        : NAME_None;
+
+    auto Matches = [PropertyName, MemberPropertyName](const FName Name)
+        {
+            return PropertyName == Name || MemberPropertyName == Name;
+        };
+
+    return Matches(GET_MEMBER_NAME_CHECKED(AFakeGIActor, LightYaw)) ||
+        Matches(GET_MEMBER_NAME_CHECKED(AFakeGIActor, LightPitch)) ||
+        Matches(GET_MEMBER_NAME_CHECKED(AFakeGIActor, LightRoll)) ||
+        Matches(GET_MEMBER_NAME_CHECKED(AFakeGIActor, GIRange)) ||
+        Matches(GET_MEMBER_NAME_CHECKED(AFakeGIActor, bUseCustomGISize)) ||
+        Matches(GET_MEMBER_NAME_CHECKED(AFakeGIActor, GISize));
+}
+#endif
