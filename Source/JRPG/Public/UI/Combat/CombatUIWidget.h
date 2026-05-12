@@ -49,4 +49,4 @@ protected:
 
     UPROPERTY(meta = (BindWidgetOptional))
     TObjectPtr<class UVerticalBox> VB_CombatLog;
-};
+   };

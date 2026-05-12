@@ -15,7 +15,6 @@
 #include "Components/WidgetComponent.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
-#include "Kismet/GameplayStatics.h"
 #include "UI/Combat/CombatTagSwapWidget.h"
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
@@ -28,6 +27,8 @@
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Skills/SkillComponent.h"
 #include "Combat/Skills/SkillDataAsset.h"
+#include "Combat/Camera/CameraSubsystem.h"
+#include "Kismet/GameplayStatics.h"
 
 void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass)
 {
@@ -366,6 +367,72 @@ void UCombatHUDPresenter::ClearHPBindings()
 	BoundHPComps.Empty();
 }
 
+AActor* UCombatHUDPresenter::FindSoftTargetEnemy() const
+{
+	UWorld* World = GetWorld();
+	if (!World) return nullptr;
+
+	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(World, 0);
+	if (!PlayerPawn) return nullptr;
+
+	UBattleSessionSubsystem* BattleSub = World->GetSubsystem<UBattleSessionSubsystem>();
+	if (!BattleSub) return nullptr;
+
+	TArray<AActor*> ActiveEnemies;
+	BattleSub->GetAliveParticipantsByTeam(ECombatTeam::Enemy, ActiveEnemies);
+
+	AActor* BestTarget = nullptr;
+	float ClosestDistance = 999999.0f;
+	const float MaxTargetingDistance = 3000.0f;
+
+	FVector PlayerLoc = PlayerPawn->GetActorLocation();
+	FVector PlayerForward = PlayerPawn->GetActorForwardVector();
+	PlayerForward.Z = 0.0f;
+	PlayerForward.Normalize();
+
+	for (AActor* Enemy : ActiveEnemies)
+	{
+		if (!Enemy) continue;
+
+		FVector DirToEnemy = Enemy->GetActorLocation() - PlayerLoc;
+		DirToEnemy.Z = 0.0f;
+
+		float DistanceToEnemy = DirToEnemy.Size();
+		if (DistanceToEnemy > MaxTargetingDistance) continue;
+
+		DirToEnemy.Normalize();
+
+		float DotProduct = FVector::DotProduct(PlayerForward, DirToEnemy);
+
+		if (DotProduct > 0.0f)
+		{
+			if (DistanceToEnemy < ClosestDistance)
+			{
+				ClosestDistance = DistanceToEnemy;
+				BestTarget = Enemy;
+			}
+		}
+	}
+
+	if (!BestTarget)
+	{
+		ClosestDistance = 999999.0f; // 거리 초기화
+		for (AActor* Enemy : ActiveEnemies)
+		{
+			if (!Enemy) continue;
+
+			float Dist = FVector::Dist(PlayerLoc, Enemy->GetActorLocation());
+			if (Dist < MaxTargetingDistance && Dist < ClosestDistance)
+			{
+				ClosestDistance = Dist;
+				BestTarget = Enemy;
+			}
+		}
+	}
+
+	return BestTarget;
+}
+
 //void UCombatHUDPresenter::OnActionPaletteHPUpdated(float Percent, const FString& Text)
 //{
 //	if (CombatWidget && CombatWidget->ActionPalettePanel) 
@@ -564,6 +631,7 @@ void UCombatHUDPresenter::BeginEncounterIntro()
 	{
 		return;
 	}
+	isPlayEncounter = true;
 
 	CombatWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	CombatWidget->SetCombatPanelsVisible(false);
@@ -576,16 +644,37 @@ void UCombatHUDPresenter::EndEncounterIntro()
 	{
 		return;
 	}
+	isPlayEncounter = false;
 
 	CombatWidget->HideEncounterOverlay();
 	CombatWidget->SetCombatPanelsVisible(true);
 	CombatWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 }
 
+void UCombatHUDPresenter::UpdateTargetInfo()
+{
+	AActor* CurrentTarget = nullptr;
+
+	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
+	{
+		CurrentTarget = CamSub->GetLockedOnEnemy();
+	}
+
+	if (!CurrentTarget)
+	{
+		CurrentTarget = FindSoftTargetEnemy();
+	}
+
+	if (CurrentTarget != LastTargetActor.Get())
+	{
+		UpdateTargetEnemyUI(CurrentTarget);
+		LastTargetActor = CurrentTarget;
+	}
+}
+
 void UCombatHUDPresenter::UpdateTargetEnemyUI(AActor* NewTarget)
 {
-	//UE_LOG(LogTemp, Warning, TEXT("UCombatHUDPresenter::UpdateTargetEnemyUI"));
-	if (!TargetVM || !CombatWidget || !CombatWidget->TargetInfoPanel) return;
+	if (!TargetVM || !CombatWidget || !CombatWidget->TargetInfoPanel || isPlayEncounter) return;
 
 	if (NewTarget)
 	{

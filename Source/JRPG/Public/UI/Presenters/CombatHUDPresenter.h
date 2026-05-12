@@ -30,7 +30,11 @@ public:
     void SetPartyWheelActive(bool bActive);
     FName GetHoveredPartyMemberID() const;
 
+    void UpdateTargetInfo();
+
 private:
+    bool isPlayEncounter;
+
     UPROPERTY() TObjectPtr<UCombatUIWidget> CombatWidget;
     UPROPERTY() TObjectPtr<UTacticalUIWidget> TacticalWidget;
     UPROPERTY() TObjectPtr<class UActionPaletteViewModel> ActionPaletteVM;
@@ -72,6 +76,9 @@ private:
     TMap<FName, TObjectPtr<class UCombatPartySlotWidget>> PartySlotWidgets;
 
     TWeakObjectPtr<class UCombatPartySlotViewModel> CurrentActivePartyVM;
+
+    TWeakObjectPtr<AActor> LastTargetActor;
+    AActor* FindSoftTargetEnemy() const;
 
     void OnActionPaletteHPUpdated(float Percent, const FString& Text);
     void OnActionPaletteAPUpdated(float Percent);

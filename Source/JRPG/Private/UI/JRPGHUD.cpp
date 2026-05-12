@@ -4,6 +4,7 @@
 #include "UI/Presenters/MainMenuPresenter.h"
 #include "UI/Presenters/InventoryPresenter.h"
 #include "UI/Widgets/InventoryUIWidget.h"
+#include "Combat/Battle/BattleSessionSubsystem.h"
 
 void AJRPGHUD::BeginPlay()
 {
@@ -40,6 +41,22 @@ void AJRPGHUD::EndPlay(const EEndPlayReason::Type EndPlayReason)
     if (CombatPresenter) { CombatPresenter->Shutdown(); CombatPresenter = nullptr; }
 
     Super::EndPlay(EndPlayReason);
+}
+
+void AJRPGHUD::Tick(float DeltaSeconds)
+{
+    Super::Tick(DeltaSeconds);
+
+    if (CombatPresenter)
+    {
+        if (UBattleSessionSubsystem* BattleSub = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+        {
+            if (BattleSub->IsBattleActive())
+            {
+                CombatPresenter->UpdateTargetInfo();
+            }
+        }
+    }
 }
 
 void AJRPGHUD::ToggleMainMenu()
