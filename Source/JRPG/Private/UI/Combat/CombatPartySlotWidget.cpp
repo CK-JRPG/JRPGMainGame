@@ -1,6 +1,7 @@
 ﻿#include "UI/Combat/CombatPartySlotWidget.h"
 #include "Components/TextBlock.h"
 #include "Components/ProgressBar.h"
+#include "Components/Image.h"
 
 void UCombatPartySlotWidget::UpdateName(const FString& Name) {
     if (Text_Name) Text_Name->SetText(FText::FromString(Name));
