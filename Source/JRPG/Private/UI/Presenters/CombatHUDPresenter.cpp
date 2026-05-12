@@ -300,17 +300,17 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 
 		for (AActor* Enemy : ActiveEnemies)
 		{
-			if (UWidgetComponent* HPBarComp = Enemy->FindComponentByClass<UWidgetComponent>())
-			{
-				HPBarComp->SetVisibility(true);
-				if (UEnemyHPBarWidget* HPWidget = Cast<UEnemyHPBarWidget>(HPBarComp->GetUserWidgetObject()))
-				{
-					UEnemyViewModel* EnemyVM = NewObject<UEnemyViewModel>(this);
-					EnemyVM->OnTargetHPUpdated.AddUObject(this, &UCombatHUDPresenter::OnEnemyHPBarUpdated, HPWidget);
-					EnemyVM->BindToEnemy(Enemy);
-					EnemyHPBarVMs.Add(EnemyVM);
-				}
-			}
+			//if (UWidgetComponent* HPBarComp = Enemy->FindComponentByClass<UWidgetComponent>())
+			//{
+			//	HPBarComp->SetVisibility(true);
+			//	if (UEnemyHPBarWidget* HPWidget = Cast<UEnemyHPBarWidget>(HPBarComp->GetUserWidgetObject()))
+			//	{
+			//		UEnemyViewModel* EnemyVM = NewObject<UEnemyViewModel>(this);
+			//		EnemyVM->OnTargetHPUpdated.AddUObject(this, &UCombatHUDPresenter::OnEnemyHPBarUpdated, HPWidget);
+			//		EnemyVM->BindToEnemy(Enemy);
+			//		EnemyHPBarVMs.Add(EnemyVM);
+			//	}
+			//}
 
 			if (UHPComponent* HPComp = Enemy->FindComponentByClass<UHPComponent>()) {
 				HPComp->OnHPChanged.AddUObject(this, &UCombatHUDPresenter::HandleActorHPChangedForDamageText, Enemy);
@@ -464,6 +464,21 @@ void UCombatHUDPresenter::OnActionPaletteSPUpdated(float Percent, const FString&
 
 void UCombatHUDPresenter::OnTargetHPUpdated(float Percent, const FString& Text) {
 	if (CombatWidget && CombatWidget->TargetInfoPanel) CombatWidget->TargetInfoPanel->UpdateTargetHP(Percent);
+	//if (Percent <= 0.0f) 
+	//{
+	//	CombatWidget->TargetInfoPanel->SetVisibility(ESlateVisibility::Collapsed);
+	//	if (UBattleSessionSubsystem* BattleSub = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+	//	{
+	//		TArray<AActor*> ActiveEnemies;
+	//		BattleSub->GetAliveParticipantsByTeam(ECombatTeam::Enemy, ActiveEnemies);
+	//
+	//		if (ActiveEnemies.Num() > 0 && TargetVM) {
+	//			TargetVM->BindToEnemy(ActiveEnemies[0]);
+	//		}
+	//
+	//		UpdateTargetEnemyUI(ActiveEnemies[0]);
+	//	}
+	//}
 }
 
 //void UCombatHUDPresenter::OnTargetGroggyUpdated(bool bGroggy) {
@@ -569,7 +584,7 @@ void UCombatHUDPresenter::EndEncounterIntro()
 
 void UCombatHUDPresenter::UpdateTargetEnemyUI(AActor* NewTarget)
 {
-	UE_LOG(LogTemp, Warning, TEXT("UCombatHUDPresenter::UpdateTargetEnemyUI"));
+	//UE_LOG(LogTemp, Warning, TEXT("UCombatHUDPresenter::UpdateTargetEnemyUI"));
 	if (!TargetVM || !CombatWidget || !CombatWidget->TargetInfoPanel) return;
 
 	if (NewTarget)

@@ -1,7 +1,7 @@
 ﻿#include "UI/Combat/CombatUIWidget.h"
 #include "UI/Combat/CombatActionPaletteWidget.h"
 #include "UI/Combat/CombatPartyRosterWidget.h"
-#include "UI/Combat/CombatTagSwapWidget.h"
+//#include "UI/Combat/CombatTagSwapWidget.h"
 #include "UI/Combat/CombatTargetInfoWidget.h"
 #include "UI/Combat/CombatEncounterOverlayWidget.h"
 #include "UI/Combat/CombatLogEntry.h" 
@@ -36,10 +36,10 @@ void UCombatUIWidget::SetCombatPanelsVisible(bool bVisible)
     //    PartyRosterPanel->SetVisibility(PanelVisibility);
     //}
 
-    if (TagSwapPanel)
-    {
-        TagSwapPanel->SetVisibility(PanelVisibility);
-    }
+    //if (TagSwapPanel)
+    //{
+    //    TagSwapPanel->SetVisibility(PanelVisibility);
+    //}
 
     if (ActionPalettePanel)
     {
