@@ -7,9 +7,6 @@
 #include "Components/StaticMeshComponent.h"
 #include "FakeGIActor.generated.h"
 
-class UMaterialInstanceDynamic;
-class UMaterialInterface;
-
 UENUM(BlueprintType)
 enum class EFakeGIMeshType : uint8
 {
@@ -108,22 +105,21 @@ public:
 
 private:
     void RefreshFakeGI(bool bApplyTransform);
-    void EnsureDynamicMaterial();
-    UMaterialInterface* ResolveMaterialSource(UMaterialInterface* CurrentMaterial) const;
     void ApplyMeshType();
     void ApplyAngle();
     void ApplyRange();
     void ApplyCulling();
     void ApplyIntensity();
-    void ApplyEnabled();
 
-    UPROPERTY(Transient, DuplicateTransient)
-    TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
+    static constexpr int32 GIIntensityPrimitiveDataIndex = 0;
+    static constexpr int32 GIColorPrimitiveDataIndex = 1;
 
 #if WITH_EDITOR
     void SyncTransformPropertiesFromActor();
     bool IsTransformPropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent) const;
 
     bool bIsApplyingEditorPropertyChange = false;
+
+  
 #endif
 };

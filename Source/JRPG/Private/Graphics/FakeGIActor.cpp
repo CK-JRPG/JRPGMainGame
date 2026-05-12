@@ -1,9 +1,9 @@
 ﻿#include "Graphics/FakeGIActor.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
-#include "Materials/MaterialInstance.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
+
+
 
 AFakeGIActor::AFakeGIActor()
 {
@@ -86,7 +86,6 @@ void AFakeGIActor::UpdateFakeGI()
 void AFakeGIActor::RefreshFakeGI(bool bApplyTransform)
 {
     ApplyMeshType();
-    EnsureDynamicMaterial();
     if (bApplyTransform)
     {
         ApplyAngle();
@@ -94,43 +93,6 @@ void AFakeGIActor::RefreshFakeGI(bool bApplyTransform)
     }
     ApplyCulling();
     ApplyIntensity();
-    ApplyEnabled();
-}
-
-void AFakeGIActor::EnsureDynamicMaterial()
-{
-    if (!GIMesh)
-    {
-        return;
-    }
-
-    UMaterialInterface* CurrentMaterial = GIMesh->GetMaterial(0);
-
-    if (DynamicMaterial && DynamicMaterial->GetOuter() == this && CurrentMaterial == DynamicMaterial)
-    {
-        return;
-    }
-
-    UMaterialInterface* SourceMaterial = ResolveMaterialSource(CurrentMaterial);
-    if (!SourceMaterial)
-    {
-        return;
-    }
-
-    DynamicMaterial = UMaterialInstanceDynamic::Create(SourceMaterial, this);
-    DynamicMaterial->SetFlags(RF_Transient | RF_DuplicateTransient);
-    GIMesh->SetMaterial(0, DynamicMaterial);
-}
-
-UMaterialInterface* AFakeGIActor::ResolveMaterialSource(UMaterialInterface* CurrentMaterial) const
-{
-    const UMaterialInstanceDynamic* CurrentDynamicMaterial = Cast<UMaterialInstanceDynamic>(CurrentMaterial);
-    if (!CurrentDynamicMaterial)
-    {
-        return CurrentMaterial;
-    }
-
-    return CurrentDynamicMaterial->Parent;
 }
 
 void AFakeGIActor::ApplyMeshType()
@@ -229,27 +191,18 @@ void AFakeGIActor::ApplyCulling()
 
 void AFakeGIActor::ApplyIntensity()
 {
-    if (DynamicMaterial)
-    {
-        DynamicMaterial->SetScalarParameterValue(FName("GI_Intensity"), GIIntensity);
-        DynamicMaterial->SetVectorParameterValue(FName("GI_Color"), GIColor);
-    }
-}
-
-// 적용 여부 
-void AFakeGIActor::ApplyEnabled()
-{
-    if (DynamicMaterial)
+    if (GIMesh)
     {
         const float FinalIntensity = bFakeGIEnabled ? GIIntensity : 0.f;
-        DynamicMaterial->SetScalarParameterValue(FName("GI_Intensity"), FinalIntensity);
+        GIMesh->SetCustomPrimitiveDataFloat(GIIntensityPrimitiveDataIndex, FinalIntensity);
+        GIMesh->SetCustomPrimitiveDataVector4(GIColorPrimitiveDataIndex, FVector4(GIColor));
     }
 }
 
 void AFakeGIActor::SetFakeGIEnabled(bool bEnabled)
 {
     bFakeGIEnabled = bEnabled;
-    ApplyEnabled();
+    ApplyIntensity();
 }
 
 void AFakeGIActor::SetGISize(const FVector& NewSize)
