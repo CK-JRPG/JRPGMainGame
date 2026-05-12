@@ -1,6 +1,7 @@
 ﻿#include "Graphics/FakeGIActor.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
+#include "Materials/MaterialInstance.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -15,13 +16,10 @@ AFakeGIActor::AFakeGIActor()
     GIMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     GIMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
     GIMesh->SetHiddenInGame(true);
+    GIMesh->SetAffectDynamicIndirectLighting(true);
     GIMesh->SetAffectIndirectLightingWhileHidden(true);
-    GIMesh->SetCullDistance(0.f);
-    GIMesh->bAllowCullDistanceVolume = false;
-    GIMesh->SetBoundsScale(GIBoundsScale);
-    GIMesh->SetVisibleInRayTracing(true);
-    GIMesh->RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_0_NEVER_CULL;
-
+    GIMesh->SetEmissiveLightSource(true);
+    ApplyCulling();
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
         TEXT("/Engine/BasicShapes/Sphere.Sphere"));
@@ -106,46 +104,67 @@ void AFakeGIActor::EnsureDynamicMaterial()
         return;
     }
 
-    if (DynamicMaterial && GIMesh->GetMaterial(0) == DynamicMaterial)
+    UMaterialInterface* CurrentMaterial = GIMesh->GetMaterial(0);
+
+    if (DynamicMaterial && DynamicMaterial->GetOuter() == this && CurrentMaterial == DynamicMaterial)
     {
         return;
     }
 
-    if (DynamicMaterial)
+    UMaterialInterface* SourceMaterial = ResolveMaterialSource(CurrentMaterial);
+    if (!SourceMaterial)
     {
-        GIMesh->SetMaterial(0, DynamicMaterial);
         return;
     }
 
-    if (UMaterialInterface* Material = GIMesh->GetMaterial(0))
+    DynamicMaterial = UMaterialInstanceDynamic::Create(SourceMaterial, this);
+    DynamicMaterial->SetFlags(RF_Transient | RF_DuplicateTransient);
+    GIMesh->SetMaterial(0, DynamicMaterial);
+}
+
+UMaterialInterface* AFakeGIActor::ResolveMaterialSource(UMaterialInterface* CurrentMaterial) const
+{
+    const UMaterialInstanceDynamic* CurrentDynamicMaterial = Cast<UMaterialInstanceDynamic>(CurrentMaterial);
+    if (!CurrentDynamicMaterial)
     {
-        DynamicMaterial = UMaterialInstanceDynamic::Create(Material, this);
-        GIMesh->SetMaterial(0, DynamicMaterial);
+        return CurrentMaterial;
     }
+
+    return CurrentDynamicMaterial->Parent;
 }
 
 void AFakeGIActor::ApplyMeshType()
 {
     UStaticMesh* TargetMesh = nullptr;
 
-    auto LoadMesh = [](const TCHAR* Path) -> UStaticMesh*
+    auto LoadMesh = [](const TCHAR* Path, TWeakObjectPtr<UStaticMesh>& CachedMesh) -> UStaticMesh*
         {
-            return Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, Path));
+            if (!CachedMesh.IsValid())
+            {
+                CachedMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, Path));
+            }
+
+            return CachedMesh.Get();
         };
+
+    static TWeakObjectPtr<UStaticMesh> SphereMesh;
+    static TWeakObjectPtr<UStaticMesh> PlaneMesh;
+    static TWeakObjectPtr<UStaticMesh> CubeMesh;
+    static TWeakObjectPtr<UStaticMesh> CylinderMesh;
 
     switch (MeshType)
     {
     case EFakeGIMeshType::Sphere:
-        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"), SphereMesh);
         break;
     case EFakeGIMeshType::Plane:
-        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Plane.Plane"));
+        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Plane.Plane"), PlaneMesh);
         break;
     case EFakeGIMeshType::Cube:
-        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Cube.Cube"), CubeMesh);
         break;
     case EFakeGIMeshType::Cylinder:
-        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), CylinderMesh);
         break;
     case EFakeGIMeshType::Custom:
         TargetMesh = CustomMesh;
@@ -196,6 +215,13 @@ void AFakeGIActor::ApplyCulling()
         GIMesh->bAllowCullDistanceVolume = false;
         GIMesh->SetVisibleInRayTracing(true);
         GIMesh->RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_0_NEVER_CULL;
+    }
+    else
+    {
+        GIMesh->SetCullDistance(FMath::Max(GICullDistance, 0.f));
+        GIMesh->bAllowCullDistanceVolume = true;
+        GIMesh->SetVisibleInRayTracing(true);
+        GIMesh->RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_4_DEFAULT;
     }
 
     GIMesh->SetBoundsScale(FMath::Max(GIBoundsScale, 1.f));

@@ -8,6 +8,7 @@
 #include "FakeGIActor.generated.h"
 
 class UMaterialInstanceDynamic;
+class UMaterialInterface;
 
 UENUM(BlueprintType)
 enum class EFakeGIMeshType : uint8
@@ -79,11 +80,15 @@ public:
     FVector GISize = FVector(1000.f, 1000.f, 1000.f);
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling")
-    bool bNeverCullGIProxy = true;
+    bool bNeverCullGIProxy = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling",
+        meta = (ClampMin = "0.0", EditCondition = "!bNeverCullGIProxy"))
+    float GICullDistance = 8000.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling",
         meta = (ClampMin = "1.0", ClampMax = "10000.0"))
-    float GIBoundsScale = 10.f;
+    float GIBoundsScale = 2.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Intensity",
         meta = (ClampMin = "0.0", ClampMax = "100.0"))
@@ -104,6 +109,7 @@ public:
 private:
     void RefreshFakeGI(bool bApplyTransform);
     void EnsureDynamicMaterial();
+    UMaterialInterface* ResolveMaterialSource(UMaterialInterface* CurrentMaterial) const;
     void ApplyMeshType();
     void ApplyAngle();
     void ApplyRange();
@@ -111,7 +117,7 @@ private:
     void ApplyIntensity();
     void ApplyEnabled();
 
-    UPROPERTY()
+    UPROPERTY(Transient, DuplicateTransient)
     TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
 
 #if WITH_EDITOR
