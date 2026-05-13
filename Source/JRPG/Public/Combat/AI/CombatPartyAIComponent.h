@@ -30,6 +30,9 @@ public:
 	UPROPERTY(EditAnywhere) TObjectPtr<UCombatAIPresetAsset> PresetAsset;
 
 	UPROPERTY(VisibleAnywhere) EPartyAIState State = EPartyAIState::Follow;
+	UPROPERTY(VisibleAnywhere) FString CurrentGoal;
+	UPROPERTY(VisibleAnywhere) FString CurrentAction;
+	UPROPERTY(VisibleAnywhere) float LastDecisionScore = 0.f;
 
 	/** 피격 시 호출 - 자기를 때린 적을 우선 타겟으로 설정 */
 	void NotifyDamagedBy(AActor* Attacker);
@@ -57,6 +60,12 @@ private:
 	void ExecuteAction(const FJRPGCombatAIAction& Action);
 
 	void RefreshTarget();
+	AActor * FindEnemyTargetingActor(AActor * DesiredTarget) const;
+	AActor * FindTankAlly() const;
+	bool HandleRoleBasedAggroReaction();
+	void MoveTowardSafePointFromEnemy(AActor * EnemyActor, float Scale = 1.0f);
+	void MoveBetweenEnemyAndAlly(AActor * EnemyActor, AActor * AllyActor);
+	void SetDecisionDebug(const TCHAR * InGoal, const TCHAR * InAction, float InScore);
 	void MoveDirectlyToward(const FVector& Destination);
 	void MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale = 1.0f);
 	void MoveLaterallyAround(const FVector& FocusLocation, float Scale = 1.0f);

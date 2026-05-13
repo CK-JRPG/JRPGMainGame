@@ -154,11 +154,18 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	// FSM 업데이트
 	UpdateStateMachine();
 
+	// 2단계: 어그로 반응(역할별 우선 대응)
+	if (HandleRoleBasedAggroReaction())
+	{
+		return;
+	}
+
 	// 이동 + 행동
 	TickMovementAndAction(DeltaTime);
 
 	// 결정 주기마다 스킬 판단
 	const FJRPGCombatAIAction Best = ChooseBestAction();
+	LastDecisionScore = Best.Score;
 	ExecuteAction(Best);
 }
 
@@ -404,6 +411,128 @@ FJRPGCombatAIAction UCombatPartyAIComponent::ChooseBestAction() const
 	return Best;
 }
 
+AActor* UCombatPartyAIComponent::FindEnemyTargetingActor(AActor* DesiredTarget) const
+{
+	if (!DesiredTarget || !GetOwner()) return nullptr;
+	UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	if (!Battle) return nullptr;
+
+	TArray<AActor*> Enemies;
+	Battle->GetOpponentsFor(GetOwner(), Enemies);
+	for (AActor* Enemy : Enemies)
+	{
+		if (!IsValid(Enemy)) continue;
+		if (const UThreatComponent* ThreatComp = Enemy->FindComponentByClass<UThreatComponent>())
+		{
+			if (ThreatComp->GetTopThreatSource() == DesiredTarget)
+			{
+				return Enemy;
+			}
+		}
+	}
+	return nullptr;
+}
+
+AActor* UCombatPartyAIComponent::FindTankAlly() const
+{
+	UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	if (!Battle || !GetOwner()) return nullptr;
+	TArray<AActor*> Allies;
+	Battle->GetAlliesFor(GetOwner(), Allies);
+	for (AActor* Ally : Allies)
+	{
+		if (!IsValid(Ally) || Ally == GetOwner()) continue;
+		if (const UCombatPartyAIComponent* AllyAI = Ally->FindComponentByClass<UCombatPartyAIComponent>())
+		{
+			if (AllyAI->Role == EJRPGPartyRole::Defender) return Ally;
+		}
+	}
+	return nullptr;
+}
+
+void UCombatPartyAIComponent::SetDecisionDebug(const TCHAR* InGoal, const TCHAR* InAction, float InScore)
+{
+	CurrentGoal = InGoal;
+	CurrentAction = InAction;
+	LastDecisionScore = InScore;
+	UE_LOG(LogTemp, Log, TEXT("[PartyAI][%s][%s] Goal=%s Action=%s Score=%.2f"),
+		*GetNameSafe(GetOwner()), *UEnum::GetValueAsString(Role), *CurrentGoal, *CurrentAction, LastDecisionScore);
+}
+
+void UCombatPartyAIComponent::MoveTowardSafePointFromEnemy(AActor* EnemyActor, float Scale)
+{
+	if (!EnemyActor || !GetOwner()) return;
+	const FVector MyLoc = GetOwner()->GetActorLocation();
+	const FVector EnemyLoc = EnemyActor->GetActorLocation();
+	FVector SafeDir = (MyLoc - EnemyLoc).GetSafeNormal2D();
+	if (AActor* Tank = FindTankAlly())
+	{
+		SafeDir = (Tank->GetActorForwardVector() * -1.f + (MyLoc - EnemyLoc).GetSafeNormal2D()).GetSafeNormal2D();
+	}
+	MoveDirectlyToward(MyLoc + SafeDir * 350.f);
+}
+
+void UCombatPartyAIComponent::MoveBetweenEnemyAndAlly(AActor* EnemyActor, AActor* AllyActor)
+{
+	if (!EnemyActor || !AllyActor) return;
+	const FVector E = EnemyActor->GetActorLocation();
+	const FVector A = AllyActor->GetActorLocation();
+	const FVector Mid = E + (A - E) * 0.45f;
+	MoveDirectlyToward(Mid);
+	FaceTarget(EnemyActor);
+}
+
+bool UCombatPartyAIComponent::HandleRoleBasedAggroReaction()
+{
+	AActor* EnemyTargetingMe = FindEnemyTargetingActor(GetOwner());
+	AActor* TankAlly = FindTankAlly();
+
+	if (Role == EJRPGPartyRole::Supporter && EnemyTargetingMe)
+	{
+		SetDecisionDebug(TEXT("Survive"), TEXT("RetreatFromEnemy"), 100.f);
+		MoveTowardSafePointFromEnemy(EnemyTargetingMe, 1.0f);
+		return true;
+	}
+
+	if (Role == EJRPGPartyRole::Defender)
+	{
+		UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+		if (!Battle || !GetOwner()) return false;
+		TArray<AActor*> Allies;
+		Battle->GetAlliesFor(GetOwner(), Allies);
+		for (AActor* Ally : Allies)
+		{
+			if (!IsValid(Ally) || Ally == GetOwner()) continue;
+			if (AActor* EnemyTargetingAlly = FindEnemyTargetingActor(Ally))
+			{
+				const bool bHealerFocused = Ally->FindComponentByClass<UCombatPartyAIComponent>() &&
+					Ally->FindComponentByClass<UCombatPartyAIComponent>()->Role == EJRPGPartyRole::Supporter;
+				const float Score = bHealerFocused ? 120.f : 90.f;
+				SetDecisionDebug(TEXT("RecoverAggro"), TEXT("MoveBetweenEnemyAndTarget"), Score);
+				CurrentTarget = EnemyTargetingAlly;
+				MoveBetweenEnemyAndAlly(EnemyTargetingAlly, Ally);
+				return true;
+			}
+		}
+	}
+
+	if (Role == EJRPGPartyRole::Attacker && EnemyTargetingMe)
+	{
+		SetDecisionDebug(TEXT("Survive"), TEXT("EvadeOrReposition"), 95.f);
+		if (TankAlly)
+		{
+			MoveDirectlyToward(TankAlly->GetActorLocation());
+		}
+		else
+		{
+			MoveTowardSafePointFromEnemy(EnemyTargetingMe, 1.0f);
+		}
+		return true;
+	}
+
+	return false;
+}
+
 void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 {
 	if (Action.Type == EJRPGCombatAIActionType::Wait) return;
@@ -627,12 +756,11 @@ bool UCombatPartyAIComponent::ResolveSkillMeta(USkillComponent* SkillComp, FName
 
 	if (const USkillDataAsset* Def = SkillComp->GetSkillDef(SkillId))
 	{
-		
 		auto HasAITag = [Def](const TCHAR* TagName) -> bool
-		{
-			return Def->AITags.HasTagExact(FGameplayTag::RequestGameplayTag(FName(TagName), false));
-		};
-		
+			{
+				return Def->AITags.HasTagExact(FGameplayTag::RequestGameplayTag(FName(TagName), false));
+			};
+
 		OutMeta.bIsHeal = Def->HealPower > 0.f || HasAITag(TEXT("Heal"));
 		OutMeta.bIsBreak = Def->GroggyPower > 0.f || HasAITag(TEXT("Break"));
 		OutMeta.bIsDebuff = Def->ApplyStatus != nullptr || HasAITag(TEXT("Debuff"));
