@@ -31,6 +31,7 @@ public:
 	UPROPERTY(EditAnywhere) float BasePower = 0.f;
 	UPROPERTY(EditAnywhere) float AttackScale = 1.0f;
 	UPROPERTY(EditAnywhere) float DefenseScale = 0.5f;
+	UPROPERTY(EditAnywhere, Category="Damage|Directional") bool bEnableDirectionalDamageBonus = false;
 
 	UPROPERTY(EditAnywhere) bool bAllowCrit = true;
 	UPROPERTY(EditAnywhere) float VarianceMin = 0.95f;
