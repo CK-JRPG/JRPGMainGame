@@ -15,6 +15,7 @@
 #include "Combat/Items/CombatItemComponent.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Presentation/CombatVFXComponent.h"
+#include "Combat/Presentation/TargetGuideLineComponent.h"
 #include "Combat/Motion/CombatMotionComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
@@ -54,6 +55,7 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 	ItemComp = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
 	VFXComp = CreateDefaultSubobject<UCombatVFXComponent>(TEXT("CombatVFXComponent"));
+	TargetGuideLineComp = CreateDefaultSubobject<UTargetGuideLineComponent>(TEXT("TargetGuideLineComponent"));
 	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
 	LocomotionComp = CreateDefaultSubobject<ULocomotionComponent>(TEXT("LocomotionComponent"));
 	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));
@@ -218,6 +220,11 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 	{
 		HPBarWidgetComponent->SetVisibility(false);
 	}
+
+	if (TargetGuideLineComp)
+	{
+		TargetGuideLineComp->ClearAggroTarget();
+	}
 }
 
 FName ACombatCharacterActor::GetCombatantId() const
@@ -280,6 +287,11 @@ void ACombatCharacterActor::ResetEnemyRuntimeForRematch(FName ReasonTag)
 	if (ThreatComp)
 	{
 		ThreatComp->ClearAll();
+	}
+
+	if (TargetGuideLineComp)
+	{
+		TargetGuideLineComp->ClearAggroTarget();
 	}
 
 	if (GroggyComp)
