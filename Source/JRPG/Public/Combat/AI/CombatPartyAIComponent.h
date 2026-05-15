@@ -44,9 +44,15 @@ private:
 	TWeakObjectPtr<UCombatPresentationComponent> CachedPresentation;
 
 	UPROPERTY() float DecisionAccum = 0.f;
+	UPROPERTY() float CurrentActionElapsed = 0.f;
 	UPROPERTY() TWeakObjectPtr<AActor> CurrentTarget;
 	UPROPERTY() TWeakObjectPtr<AActor> LastAttacker;  // 자기를 마지막으로 때린 적
-
+	UPROPERTY() TWeakObjectPtr<AActor> LastMoveTargetActor;
+	UPROPERTY() FVector LastMoveDestination = FVector::ZeroVector;
+	UPROPERTY() bool bHasLastMoveDestination = false;
+	UPROPERTY() bool bWithinAttackRange = false;
+	UPROPERTY() bool bQueuedDecisionRefresh = false;
+	
 	// 캐릭터 데이터에서 가져온 사거리 파라미터
 	float AttackRange = 200.f;
 	float PreferredMinRange = 0.f;

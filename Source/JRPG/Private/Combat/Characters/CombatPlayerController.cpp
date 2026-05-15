@@ -109,6 +109,28 @@ void ACombatPlayerController::OnUnPossess()
 	Super::OnUnPossess();
 }
 
+void ACombatPlayerController::PlayerTick(float DeltaTime)
+{
+	Super::PlayerTick(DeltaTime);
+
+	if (!bSkill1Buffered)
+	{
+		return;
+	}
+
+	const double Now = FPlatformTime::Seconds();
+	if ((Now - Skill1BufferedAtRealSec) > SkillInputBufferSec)
+	{
+		bSkill1Buffered = false;
+		return;
+	}
+
+	if (TryCastPrimarySkill())
+	{
+		bSkill1Buffered = false;
+	}
+}
+
 //------Input------
 
 void ACombatPlayerController::OnMove(const FInputActionValue& Value)
@@ -275,31 +297,41 @@ void ACombatPlayerController::OnToggleMainMenu(const FInputActionValue& Value)
 
 void ACombatPlayerController::OnSkill1(const FInputActionValue& Value)
 {
-	APawn* ControlledPawn = GetPawn();
-	if (!ControlledPawn) return;
+	if (!TryCastPrimarySkill())
+	{
+		bSkill1Buffered = true;
+		Skill1BufferedAtRealSec = FPlatformTime::Seconds();
+	}
+}
 
+bool ACombatPlayerController::TryCastPrimarySkill()
+{
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn) return false;
+ 
 	USkillComponent* SkillComp = ControlledPawn->FindComponentByClass<USkillComponent>();
 	UCombatPresentationComponent* Presentation = ControlledPawn->FindComponentByClass<UCombatPresentationComponent>();
-	if (!SkillComp || !Presentation) return;
-
+	if (!SkillComp || !Presentation) return false;
+	if (Presentation->HasActivePresentation()) return false;
+ 
 	// 보유 스킬 목록의 첫 번째 스킬
 	TArray<FName> SkillIds;
 	SkillComp->GetOwnedSkillIds(SkillIds);
-	if (SkillIds.Num() == 0) return;
-
+	if (SkillIds.Num() == 0) return false;
+ 
 	const FName SkillId = SkillIds[0];
 	const USkillDataAsset* SkillDef = SkillComp->GetSkillDef(SkillId);
-	if (!SkillDef) return;
-
+	if (!SkillDef) return false;
+ 
 	// 락온 중인 적을 우선 타겟으로, 없으면 스킬 타겟팅 자동 선택
 	TArray<AActor*> Targets;
-
+ 
 	AActor* LockedTarget = nullptr;
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
 	{
 		LockedTarget = CamSub->GetLockedOnEnemy();
 	}
-
+ 
 	if (LockedTarget)
 	{
 		Targets.Add(LockedTarget);
@@ -316,8 +348,9 @@ void ACombatPlayerController::OnSkill1(const FInputActionValue& Value)
 			}
 		}
 	}
-
-	if (Targets.Num() == 0) return;
-
-	Presentation->TryPresentSkill(SkillId, Targets);
+ 
+	if (Targets.Num() == 0) return false;
+ 
+	const FSkillCastResult Result = Presentation->TryPresentSkill(SkillId, Targets);
+	return Result.bOk;
 }

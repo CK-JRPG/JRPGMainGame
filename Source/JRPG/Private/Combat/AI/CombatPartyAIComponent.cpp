@@ -14,9 +14,9 @@
 
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Character.h"
-#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "Combat/Stats/HPComponent.h"
+#include "GameFramework/CharacterMovementComponent.h"
 
 UCombatPartyAIComponent::UCombatPartyAIComponent()
 {
@@ -115,6 +115,7 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	const float Interval = (PresetAsset ? PresetAsset->DecisionIntervalSec : 0.25f);
 	DecisionAccum += DeltaTime;
+	CurrentActionElapsed += DeltaTime;
 	if (DecisionAccum < Interval)
 	{
 		// 결정 주기 사이에도 이동은 계속
@@ -151,8 +152,16 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		return;
 	}
 
-	// FSM 업데이트
-	UpdateStateMachine();
+
+	// 공격/시전 중에는 일반 판단으로 행동을 갈아치우지 않음(긴급 갱신 플래그 예외)
+	const bool bPresentationActive = CachedPresentation.IsValid() && CachedPresentation->HasActivePresentation();
+	const float MinActionHoldSec = PresetAsset ? PresetAsset->MinActionHoldSec : 0.8f;
+	const bool bCanSwitchAction = (CurrentActionElapsed >= MinActionHoldSec) || bQueuedDecisionRefresh || !bPresentationActive;
+	if (bCanSwitchAction)
+	{
+		UpdateStateMachine();
+		bQueuedDecisionRefresh = false;
+	}	
 
 	// 2단계: 어그로 반응(역할별 우선 대응)
 	if (HandleRoleBasedAggroReaction())
@@ -163,10 +172,14 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	// 이동 + 행동
 	TickMovementAndAction(DeltaTime);
 
+
 	// 결정 주기마다 스킬 판단
-	const FJRPGCombatAIAction Best = ChooseBestAction();
-	LastDecisionScore = Best.Score;
-	ExecuteAction(Best);
+	if (!bPresentationActive || bQueuedDecisionRefresh)
+	{
+		const FJRPGCombatAIAction Best = ChooseBestAction();
+		LastDecisionScore = Best.Score;
+		ExecuteAction(Best);
+	}	
 }
 
 void UCombatPartyAIComponent::RefreshContext()
@@ -285,6 +298,10 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 	}
 
 	const float Dist = GetDistanceToTarget();
+	
+	const float Margin = PresetAsset ? PresetAsset->AttackRangeEnterMargin : 40.f;
+	const float EnterRange = AttackRange - Margin;
+	const float ExitRange = AttackRange + Margin;
 
 	if (bIsRanged)
 	{
@@ -294,20 +311,30 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 		{
 			State = EPartyAIState::KeepDistance;
 		}
-	
-		else if (Dist > AttackRange)
+		else if (Dist > ExitRange)
 		{
+			bWithinAttackRange = false;
 			State = EPartyAIState::Chase;
 		}
 		else
 		{
+			bWithinAttackRange = true;
 			State = EPartyAIState::Attack;
 		}
 	}
 	else
 	{
-		// 근거리
-		if (Dist <= AttackRange)
+		// 근거리 + 히스테리시스
+		if (!bWithinAttackRange && Dist <= EnterRange)
+		{
+			bWithinAttackRange = true;
+		}
+		else if (bWithinAttackRange && Dist >= ExitRange)
+		{
+			bWithinAttackRange = false;
+		}
+
+		if (bWithinAttackRange)
 		{
 			State = EPartyAIState::Attack;
 		}
@@ -537,14 +564,19 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 {
 	if (Action.Type == EJRPGCombatAIActionType::Wait) return;
 
+
 	if (Action.Type == EJRPGCombatAIActionType::BasicAttack)
 	{
 		if (CachedPresentation.IsValid() && Action.Target.IsValid())
 		{
-			CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
+			const FCombatActionResult AttackResult = CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
+			if (AttackResult.bOk)
+			{
+				CurrentActionElapsed = 0.f;
+			}
 		}		
 		return;
-	}
+	} 	
 
 	if (Action.Type == EJRPGCombatAIActionType::UseSkill)
 	{
@@ -568,9 +600,17 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 				return;
 			}
 			const FSkillCastResult SkillResult = CachedPresentation->TryPresentSkill(Action.SkillId, Targets, false);
+			if (SkillResult.bOk)
+			{
+				CurrentActionElapsed = 0.f;
+			}
 			if (!SkillResult.bOk && Action.Target.IsValid())
 			{
-				CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
+				const FCombatActionResult FallbackAttackResult = CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
+				if (FallbackAttackResult.bOk)
+				{
+					CurrentActionElapsed = 0.f;
+				}
 			}
 		}
 		return;
@@ -581,7 +621,11 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 {
 	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
-	if (!MyChar) return;
+	
+	if (CachedPresentation.IsValid() && CachedPresentation->HasActivePresentation())
+	{
+		return;
+	}	
 
 	FVector Dir = Destination - MyChar->GetActorLocation();
 	Dir.Z = 0.f;
@@ -589,8 +633,20 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 	const float Dist = Dir.Size();
 	if (Dist < 10.0f) return;
 
+	const float RepathThreshold = PresetAsset ? PresetAsset->RepathThreshold : 80.f;
+	if (bHasLastMoveDestination)
+	{
+		const float DeltaSq = FVector::DistSquared2D(Destination, LastMoveDestination);
+		if (DeltaSq < FMath::Square(RepathThreshold * 0.5f))
+		{
+			return;
+		}
+	}
+ 
 	Dir /= Dist;
 	MyChar->AddMovementInput(Dir, 1.0f);
+	LastMoveDestination = Destination;
+	bHasLastMoveDestination = true;
 }
 
 void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale)
