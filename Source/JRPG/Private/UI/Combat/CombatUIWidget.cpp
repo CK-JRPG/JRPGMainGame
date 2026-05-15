@@ -1,9 +1,11 @@
-#include "UI/Combat/CombatUIWidget.h"
+﻿#include "UI/Combat/CombatUIWidget.h"
 #include "UI/Combat/CombatActionPaletteWidget.h"
 #include "UI/Combat/CombatPartyRosterWidget.h"
-#include "UI/Combat/CombatTagSwapWidget.h"
+//#include "UI/Combat/CombatTagSwapWidget.h"
 #include "UI/Combat/CombatTargetInfoWidget.h"
 #include "UI/Combat/CombatEncounterOverlayWidget.h"
+#include "UI/Combat/CombatLogEntry.h" 
+#include "Components/VerticalBox.h"
 #include "Components/CanvasPanel.h"
 #include "Components/TextBlock.h"
 
@@ -29,15 +31,15 @@ void UCombatUIWidget::SetCombatPanelsVisible(bool bVisible)
         TargetInfoPanel->SetVisibility(PanelVisibility);
     }
 
-    if (PartyRosterPanel)
-    {
-        PartyRosterPanel->SetVisibility(PanelVisibility);
-    }
+    //if (PartyRosterPanel)
+    //{
+    //    PartyRosterPanel->SetVisibility(PanelVisibility);
+    //}
 
-    if (TagSwapPanel)
-    {
-        TagSwapPanel->SetVisibility(PanelVisibility);
-    }
+    //if (TagSwapPanel)
+    //{
+    //    TagSwapPanel->SetVisibility(PanelVisibility);
+    //}
 
     if (ActionPalettePanel)
     {
@@ -47,6 +49,11 @@ void UCombatUIWidget::SetCombatPanelsVisible(bool bVisible)
     if (Canvas_Damage)
     {
         Canvas_Damage->SetVisibility(PanelVisibility);
+    }
+
+    if (LogOverlayWidget)
+    {
+        LogOverlayWidget->SetVisibility(PanelVisibility);
     }
 }
 
@@ -73,5 +80,17 @@ void UCombatUIWidget::HideEncounterOverlay()
     if (EncounterOverlayPanel)
     {
         EncounterOverlayPanel->SetVisibility(ESlateVisibility::Hidden);
+    }
+}
+
+void UCombatUIWidget::AddCombatLog(const FString& Message, UTexture2D* Icon)
+{
+    if (!VB_CombatLog || !LogEntryClass) return;
+
+    UCombatLogEntry* NewLog = CreateWidget<UCombatLogEntry>(this, LogEntryClass);
+    if (NewLog)
+    {
+        NewLog->SetupLog(Message, Icon);
+        VB_CombatLog->AddChildToVerticalBox(NewLog);
     }
 }

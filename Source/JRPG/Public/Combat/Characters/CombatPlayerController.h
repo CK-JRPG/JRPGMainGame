@@ -41,12 +41,9 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_TargetLockOn;
 
-	// 임시로 Q, E로 바인딩 했음.
-	UPROPERTY(EditDefaultsOnly, Category="Input")
-	TObjectPtr<UInputAction> IA_SwitchPrev;   // Q : 이전 파티원으로 전환
-
-	UPROPERTY(EditDefaultsOnly, Category="Input")
-	TObjectPtr<UInputAction> IA_SwitchNext;   // E : 다음 파티원으로 전환
+	// 파티 캐릭터 전환 Alt
+	UPROPERTY(EditDefaultsOnly, Category = "Input")
+	TObjectPtr<UInputAction> IA_PartyWheel;
 	
 	// 전술 모드 진입 Tab
 	UPROPERTY(EditDefaultsOnly, Category="Input")
@@ -67,13 +64,16 @@ protected:
 private:
 	void OnMove(const FInputActionValue& Value);
 	void OnLook(const FInputActionValue& Value);
-	void OnSwitchPrev(const FInputActionValue& Value);
-	void OnSwitchNext(const FInputActionValue& Value);
-	void SwitchCombatCharacter(int32 Direction);
+	//void OnSwitchPrev(const FInputActionValue& Value);
+	//void OnSwitchNext(const FInputActionValue& Value);
+	//void SwitchCombatCharacter(int32 Direction);
 	void OnCameraZoom(const FInputActionValue& Value);
 	void OnTargetLockOn(const FInputActionValue& Value);
 	void UpdateCameraTargetForPawn(APawn* InPawn) const;
 	void OnTacticalModePressed(const FInputActionValue& Value);
 	void OnToggleMainMenu(const FInputActionValue& Value);
 	void OnSkill1(const FInputActionValue& Value);
+	bool bIsPartyWheelActive = false;
+	void OnPartyWheelStarted(const FInputActionValue& Value);
+	void OnPartyWheelCompleted(const FInputActionValue& Value);
 };

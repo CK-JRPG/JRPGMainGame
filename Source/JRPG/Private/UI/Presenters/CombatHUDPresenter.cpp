@@ -15,13 +15,20 @@
 #include "Components/WidgetComponent.h"
 #include "Components/CanvasPanel.h"
 #include "Components/CanvasPanelSlot.h"
-#include "Kismet/GameplayStatics.h"
 #include "UI/Combat/CombatTagSwapWidget.h"
 #include "Combat/Characters/CombatTransitionSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Presentation/CombatPresentationTypes.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
+#include "Combat/Characters/CharacterRuntimeSubsystem.h"
+#include "Combat/Characters/CombatCharacterComponent.h"
+#include "Engine/AssetManager.h"
+#include "Combat/Characters/CombatCharacterDataAsset.h"
+#include "Combat/Skills/SkillComponent.h"
+#include "Combat/Skills/SkillDataAsset.h"
+#include "Combat/Camera/CameraSubsystem.h"
+#include "Kismet/GameplayStatics.h"
 
 void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidget> WidgetClass, TSubclassOf<UTacticalUIWidget> TacticalClass)
 {
@@ -40,9 +47,9 @@ void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidge
 			ActionPaletteVM->OnSkillListUpdated.AddUObject(this, &UCombatHUDPresenter::OnActionPaletteSkillUpdated);
 
 			TargetVM = NewObject<UEnemyViewModel>(this);
-			TargetVM->OnTargetNameUpdated.AddUObject(this, &UCombatHUDPresenter::OnTargetNameUpdated);
+			//TargetVM->OnTargetNameUpdated.AddUObject(this, &UCombatHUDPresenter::OnTargetNameUpdated);
 			TargetVM->OnTargetHPUpdated.AddUObject(this, &UCombatHUDPresenter::OnTargetHPUpdated);
-			TargetVM->OnTargetGroggyUpdated.AddUObject(this, &UCombatHUDPresenter::OnTargetGroggyUpdated);
+			//TargetVM->OnTargetGroggyUpdated.AddUObject(this, &UCombatHUDPresenter::OnTargetGroggyUpdated);
 		}
 	}
 
@@ -148,70 +155,48 @@ void UCombatHUDPresenter::ShowDamageText(AActor* Target, float Damage, bool bIsC
 
 void UCombatHUDPresenter::OnActiveCharacterChanged(FName NewActiveID)
 {
+	if (!CombatWidget || !CombatWidget->ActionPalettePanel) return;
+
 	UPartySubsystem* PartySys = GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>();
-	if (!PartySys || !CombatWidget) return;
+	if (!PartySys) return;
 
 	const TArray<FName>& PartyIds = PartySys->GetPartyIds();
-	int32 TotalCount = PartyIds.Num();
 
-	int32 CurrentIdx = PartyIds.IndexOfByKey(NewActiveID);
-	if (CurrentIdx == INDEX_NONE) return;
+	CombatWidget->ActionPalettePanel->ClearAllPartySlots();
 
-	if (TotalCount >= 2 && CombatWidget->TagSwapPanel)
+	int32 SlotIndex = 0;
+	for (UCombatPartySlotViewModel* VM : PartyVMs)
 	{
-		FName LeftID = PartyIds[(CurrentIdx - 1 + TotalCount) % TotalCount];
-		FName RightID = (TotalCount > 2) ? PartyIds[(CurrentIdx + 1) % TotalCount] : NAME_None;
-		CombatWidget->TagSwapPanel->UpdateSwapUI(GetPartySLotVM(LeftID), GetPartySLotVM(RightID));
-	}
-	else
-	{
-		CombatWidget->TagSwapPanel->InitailizeSwapUI();
-	}
+		if (!VM) continue;
+		FName CharID = VM->GetCharacterID();
 
-	if (CurrentActivePartyVM.IsValid()) {
-		CurrentActivePartyVM->OnHPUIUpdated.RemoveAll(this);
-		CurrentActivePartyVM->OnAPUIUpdated.RemoveAll(this);
-	}
+		VM->OnNameUpdated.RemoveAll(this);
+		VM->OnHPUIUpdated.RemoveAll(this);
+		VM->OnAPUIUpdated.RemoveAll(this);
 
-	if (CombatWidget->PartyRosterPanel)
-	{
-		CombatWidget->PartyRosterPanel->ClearRoster();
-
-		for (UCombatPartySlotViewModel* VM : PartyVMs)
+		if (UCombatPartySlotWidget* SlotWidget = CombatWidget->ActionPalettePanel->GetPartySlot(SlotIndex))
 		{
-			if (!VM) continue;
-			FName CharID = VM->GetCharacterID();
+			SlotWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+			SlotWidget->SetCharacterID(CharID);
 
-			VM->OnNameUpdated.RemoveAll(this);
-			VM->OnHPUIUpdated.RemoveAll(this);
-			VM->OnAPUIUpdated.RemoveAll(this);
+			bool bIsActive = (CharID == NewActiveID);
+			SlotWidget->SetIsActiveCharacter(bIsActive);
 
-			if (CharID == NewActiveID)
-			{
-				// [메인 캐릭터] 액션 팔레트와 연결
-				CurrentActivePartyVM = VM;
-				VM->OnHPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnActionPaletteHPUpdated);
-				VM->OnAPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnActionPaletteAPUpdated);
-			}
-			else
-			{
-				// [대기 멤버] 로스터 슬롯과 연결
-				if (TotalCount >= 2)
-				{
-					if (auto* FoundWidget = PartySlotWidgets.Find(CharID))
-					{
-						UCombatPartySlotWidget* SlotWidget = *FoundWidget;
-						VM->OnNameUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotNameUpdated, SlotWidget);
-						VM->OnHPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotHPUpdated, SlotWidget);
-						VM->OnAPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotAPUpdated, SlotWidget);
+			VM->OnNameUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotNameUpdated, SlotWidget);
+			VM->OnHPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotHPUpdated, SlotWidget);
+			VM->OnAPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnPartySlotAPUpdated, SlotWidget);
 
-						CombatWidget->PartyRosterPanel->AddPartySlot(SlotWidget);
-					}
-				}
-			}
-
-			VM->Refresh();
+			SlotIndex++;
 		}
+
+		if (CharID == NewActiveID)
+		{
+			CurrentActivePartyVM = VM;
+
+			VM->OnAPUIUpdated.AddUObject(this, &UCombatHUDPresenter::OnActionPaletteAPUpdated);
+		}
+
+		VM->Refresh();
 	}
 
 	if (APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(GetWorld(), 0)) {
@@ -265,11 +250,11 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 			SlotVM->BindToCharacter(CharID);
 			PartyVMs.Add(SlotVM);
 
-			if (CombatWidget->PartyRosterPanel && CombatWidget->PartyRosterPanel->PartySlotClass)
-			{
-				UCombatPartySlotWidget* SlotWidget = CreateWidget<UCombatPartySlotWidget>(GetWorld(), CombatWidget->PartyRosterPanel->PartySlotClass);
-				PartySlotWidgets.Add(CharID, SlotWidget);
-			}
+			//if (CombatWidget->PartyRosterPanel && CombatWidget->PartyRosterPanel->PartySlotClass)
+			//{
+			//	UCombatPartySlotWidget* SlotWidget = CreateWidget<UCombatPartySlotWidget>(GetWorld(), CombatWidget->PartyRosterPanel->PartySlotClass);
+			//	PartySlotWidgets.Add(CharID, SlotWidget);
+			//}
 		}
 	}
 
@@ -279,6 +264,7 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 	{
 		for (int32 i = 0; i < PartyIdsForUI.Num(); ++i)
 		{
+			FName CharID = PartyIdsForUI[i];
 			ACombatCharacterActor* Actor = SpawnSub->FindActorByCharacterID(PartyIdsForUI[i]);
 			if (!Actor) continue;
 
@@ -290,6 +276,12 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 			if (UHPComponent* HPComp = Actor->FindComponentByClass<UHPComponent>()) {
 				HPComp->OnHPChanged.AddUObject(this, &UCombatHUDPresenter::HandleActorHPChangedForDamageText, Cast<AActor>(Actor));
 				BoundHPComps.Add(HPComp);
+			}
+
+			if (USkillComponent* SkillComp = Actor->FindComponentByClass<USkillComponent>())
+			{
+				SkillComp->OnSkillCooldownFinished.RemoveAll(this);
+				SkillComp->OnSkillCooldownFinished.AddUObject(this, &UCombatHUDPresenter::HandleSkillCooldownFinished, CharID);
 			}
 		}
 	}
@@ -309,17 +301,17 @@ void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot
 
 		for (AActor* Enemy : ActiveEnemies)
 		{
-			if (UWidgetComponent* HPBarComp = Enemy->FindComponentByClass<UWidgetComponent>())
-			{
-				HPBarComp->SetVisibility(true);
-				if (UEnemyHPBarWidget* HPWidget = Cast<UEnemyHPBarWidget>(HPBarComp->GetUserWidgetObject()))
-				{
-					UEnemyViewModel* EnemyVM = NewObject<UEnemyViewModel>(this);
-					EnemyVM->OnTargetHPUpdated.AddUObject(this, &UCombatHUDPresenter::OnEnemyHPBarUpdated, HPWidget);
-					EnemyVM->BindToEnemy(Enemy);
-					EnemyHPBarVMs.Add(EnemyVM);
-				}
-			}
+			//if (UWidgetComponent* HPBarComp = Enemy->FindComponentByClass<UWidgetComponent>())
+			//{
+			//	HPBarComp->SetVisibility(true);
+			//	if (UEnemyHPBarWidget* HPWidget = Cast<UEnemyHPBarWidget>(HPBarComp->GetUserWidgetObject()))
+			//	{
+			//		UEnemyViewModel* EnemyVM = NewObject<UEnemyViewModel>(this);
+			//		EnemyVM->OnTargetHPUpdated.AddUObject(this, &UCombatHUDPresenter::OnEnemyHPBarUpdated, HPWidget);
+			//		EnemyVM->BindToEnemy(Enemy);
+			//		EnemyHPBarVMs.Add(EnemyVM);
+			//	}
+			//}
 
 			if (UHPComponent* HPComp = Enemy->FindComponentByClass<UHPComponent>()) {
 				HPComp->OnHPChanged.AddUObject(this, &UCombatHUDPresenter::HandleActorHPChangedForDamageText, Enemy);
@@ -375,12 +367,78 @@ void UCombatHUDPresenter::ClearHPBindings()
 	BoundHPComps.Empty();
 }
 
-void UCombatHUDPresenter::OnActionPaletteHPUpdated(float Percent, const FString& Text)
+AActor* UCombatHUDPresenter::FindSoftTargetEnemy() const
 {
-	if (CombatWidget && CombatWidget->ActionPalettePanel) 
-	    CombatWidget->ActionPalettePanel->UpdateHP(Percent, Text);
+	UWorld* World = GetWorld();
+	if (!World) return nullptr;
+
+	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(World, 0);
+	if (!PlayerPawn) return nullptr;
+
+	UBattleSessionSubsystem* BattleSub = World->GetSubsystem<UBattleSessionSubsystem>();
+	if (!BattleSub) return nullptr;
+
+	TArray<AActor*> ActiveEnemies;
+	BattleSub->GetAliveParticipantsByTeam(ECombatTeam::Enemy, ActiveEnemies);
+
+	AActor* BestTarget = nullptr;
+	float ClosestDistance = 999999.0f;
+	const float MaxTargetingDistance = 3000.0f;
+
+	FVector PlayerLoc = PlayerPawn->GetActorLocation();
+	FVector PlayerForward = PlayerPawn->GetActorForwardVector();
+	PlayerForward.Z = 0.0f;
+	PlayerForward.Normalize();
+
+	for (AActor* Enemy : ActiveEnemies)
+	{
+		if (!Enemy) continue;
+
+		FVector DirToEnemy = Enemy->GetActorLocation() - PlayerLoc;
+		DirToEnemy.Z = 0.0f;
+
+		float DistanceToEnemy = DirToEnemy.Size();
+		if (DistanceToEnemy > MaxTargetingDistance) continue;
+
+		DirToEnemy.Normalize();
+
+		float DotProduct = FVector::DotProduct(PlayerForward, DirToEnemy);
+
+		if (DotProduct > 0.0f)
+		{
+			if (DistanceToEnemy < ClosestDistance)
+			{
+				ClosestDistance = DistanceToEnemy;
+				BestTarget = Enemy;
+			}
+		}
+	}
+
+	if (!BestTarget)
+	{
+		ClosestDistance = 999999.0f; // 거리 초기화
+		for (AActor* Enemy : ActiveEnemies)
+		{
+			if (!Enemy) continue;
+
+			float Dist = FVector::Dist(PlayerLoc, Enemy->GetActorLocation());
+			if (Dist < MaxTargetingDistance && Dist < ClosestDistance)
+			{
+				ClosestDistance = Dist;
+				BestTarget = Enemy;
+			}
+		}
+	}
+
+	return BestTarget;
 }
 
+//void UCombatHUDPresenter::OnActionPaletteHPUpdated(float Percent, const FString& Text)
+//{
+//	if (CombatWidget && CombatWidget->ActionPalettePanel) 
+//	    CombatWidget->ActionPalettePanel->UpdateHP(Percent, Text);
+//}
+//
 void UCombatHUDPresenter::OnActionPaletteAPUpdated(float Percent)
 {
 	if (CombatWidget && CombatWidget->ActionPalettePanel) 
@@ -407,6 +465,46 @@ void UCombatHUDPresenter::OnCombatPresentationStarted(EPresentedCombatActionType
 	}
 }
 
+void UCombatHUDPresenter::HandleSkillCooldownFinished(FName SkillId, FName CharacterID)
+{
+	if (!CombatWidget) return;
+
+	FString CharName = CharacterID.ToString();
+	FString SkillName = SkillId.ToString();
+	UTexture2D* SkillIcon = nullptr;
+
+	FPrimaryAssetId CharAssetId = FPrimaryAssetId(FName("CombatCharacterData"), CharacterID);
+	if (UAssetManager* AssetMgr = UAssetManager::GetIfValid())
+	{
+		if (UObject* LoadedAsset = AssetMgr->GetPrimaryAssetObject(CharAssetId))
+		{
+			if (const UCombatCharacterDataAsset* CharDA = Cast<UCombatCharacterDataAsset>(LoadedAsset))
+			{
+				CharName = CharDA->DisplayName.ToString();
+			}
+		}
+	}
+
+	if (UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
+	{
+		if (ACombatCharacterActor* Actor = SpawnSub->FindActorByCharacterID(CharacterID))
+		{
+			if (USkillComponent* SkillComp = Actor->FindComponentByClass<USkillComponent>())
+			{
+				if (USkillDataAsset* SkillDA = SkillComp->GetSkillDef(SkillId))
+				{
+					SkillName = SkillDA->DisplayName.ToString();
+					//SkillIcon = SkillDA->KeyIcon;
+				}
+			}
+		}
+	}
+
+	FString LogMessage = FString::Printf(TEXT("(%s의 %s) 준비 완료"), *CharName, *SkillName);
+
+	CombatWidget->AddCombatLog(LogMessage, SkillIcon);
+}
+
 void UCombatHUDPresenter::OnTacticalModeEntered(const FTacticalModeSnapshot& Snapshot)
 {
 	if (TacticalWidget)
@@ -427,17 +525,32 @@ void UCombatHUDPresenter::OnActionPaletteSPUpdated(float Percent, const FString&
 	//if (CombatWidget && CombatWidget->ActionPalettePanel) CombatWidget->ActionPalettePanel->UpdateSPUI(Percent, Text);
 }
 
-void UCombatHUDPresenter::OnTargetNameUpdated(const FString& Name) {
-	if (CombatWidget && CombatWidget->TargetInfoPanel) CombatWidget->TargetInfoPanel->UpdateTargetName(Name);
-}
+//void UCombatHUDPresenter::OnTargetNameUpdated(const FString& Name) {
+//	if (CombatWidget && CombatWidget->TargetInfoPanel) CombatWidget->TargetInfoPanel->UpdateTargetName(Name);
+//}
 
 void UCombatHUDPresenter::OnTargetHPUpdated(float Percent, const FString& Text) {
 	if (CombatWidget && CombatWidget->TargetInfoPanel) CombatWidget->TargetInfoPanel->UpdateTargetHP(Percent);
+	//if (Percent <= 0.0f) 
+	//{
+	//	CombatWidget->TargetInfoPanel->SetVisibility(ESlateVisibility::Collapsed);
+	//	if (UBattleSessionSubsystem* BattleSub = GetWorld()->GetSubsystem<UBattleSessionSubsystem>())
+	//	{
+	//		TArray<AActor*> ActiveEnemies;
+	//		BattleSub->GetAliveParticipantsByTeam(ECombatTeam::Enemy, ActiveEnemies);
+	//
+	//		if (ActiveEnemies.Num() > 0 && TargetVM) {
+	//			TargetVM->BindToEnemy(ActiveEnemies[0]);
+	//		}
+	//
+	//		UpdateTargetEnemyUI(ActiveEnemies[0]);
+	//	}
+	//}
 }
 
-void UCombatHUDPresenter::OnTargetGroggyUpdated(bool bGroggy) {
-	if (CombatWidget && CombatWidget->TargetInfoPanel) CombatWidget->TargetInfoPanel->UpdateGroggyState(bGroggy);
-}
+//void UCombatHUDPresenter::OnTargetGroggyUpdated(bool bGroggy) {
+//	if (CombatWidget && CombatWidget->TargetInfoPanel) CombatWidget->TargetInfoPanel->UpdateGroggyState(bGroggy);
+//}
 
 void UCombatHUDPresenter::OnPartySlotNameUpdated(const FString& Name, UCombatPartySlotWidget* View)
 {
@@ -518,6 +631,7 @@ void UCombatHUDPresenter::BeginEncounterIntro()
 	{
 		return;
 	}
+	isPlayEncounter = true;
 
 	CombatWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
 	CombatWidget->SetCombatPanelsVisible(false);
@@ -530,8 +644,64 @@ void UCombatHUDPresenter::EndEncounterIntro()
 	{
 		return;
 	}
+	isPlayEncounter = false;
 
 	CombatWidget->HideEncounterOverlay();
 	CombatWidget->SetCombatPanelsVisible(true);
 	CombatWidget->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+}
+
+void UCombatHUDPresenter::UpdateTargetInfo()
+{
+	AActor* CurrentTarget = nullptr;
+
+	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
+	{
+		CurrentTarget = CamSub->GetLockedOnEnemy();
+	}
+
+	if (!CurrentTarget)
+	{
+		CurrentTarget = FindSoftTargetEnemy();
+	}
+
+	if (CurrentTarget != LastTargetActor.Get())
+	{
+		UpdateTargetEnemyUI(CurrentTarget);
+		LastTargetActor = CurrentTarget;
+	}
+}
+
+void UCombatHUDPresenter::UpdateTargetEnemyUI(AActor* NewTarget)
+{
+	if (!TargetVM || !CombatWidget || !CombatWidget->TargetInfoPanel || isPlayEncounter) return;
+
+	if (NewTarget)
+	{
+		TargetVM->BindToEnemy(NewTarget);
+
+		CombatWidget->TargetInfoPanel->SetVisibility(ESlateVisibility::SelfHitTestInvisible);
+	}
+	else
+	{
+		TargetVM->Unbind();
+		CombatWidget->TargetInfoPanel->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UCombatHUDPresenter::SetPartyWheelActive(bool bActive)
+{
+	if (CombatWidget && CombatWidget->ActionPalettePanel)
+	{
+		CombatWidget->ActionPalettePanel->SetWheelModeActive(bActive);
+	}
+}
+
+FName UCombatHUDPresenter::GetHoveredPartyMemberID() const
+{
+	if (CombatWidget && CombatWidget->ActionPalettePanel)
+	{
+		return CombatWidget->ActionPalettePanel->GetSelectedPartyMemberID();
+	}
+	return NAME_None;
 }
