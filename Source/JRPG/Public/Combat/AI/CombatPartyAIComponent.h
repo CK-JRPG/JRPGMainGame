@@ -52,6 +52,11 @@ private:
 	UPROPERTY() bool bHasLastMoveDestination = false;
 	UPROPERTY() bool bWithinAttackRange = false;
 	UPROPERTY() bool bQueuedDecisionRefresh = false;
+	UPROPERTY() bool bActionLocked = false;
+	UPROPERTY() float LastDecisionTimeSec = -1000.f;
+	UPROPERTY() float LastActionChangeTimeSec = -1000.f;
+	UPROPERTY() float LastMoveIssuedTimeSec = -1000.f;
+	UPROPERTY() FVector LastDebugMoveInput = FVector::ZeroVector;
 	
 	// 캐릭터 데이터에서 가져온 사거리 파라미터
 	float AttackRange = 200.f;
@@ -86,4 +91,8 @@ private:
 	float RangedRepositionPauseRemaining = 0.f;
 	float RangedRepositionDirection = 1.f;
 	float KeepDistanceTolerance = 60.f;
+	float AttackStartRange = 220.f;
+	float AttackKeepRange = 320.f;
+	float LastDistanceToTarget = MAX_FLT;
+	float LastActionTransitionLogTimeSec = -1000.f;
 };
