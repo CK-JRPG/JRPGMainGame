@@ -35,6 +35,7 @@ void UCombatAIContext::Refresh()
 		SelfHp01 = HPComp->GetHpRatio01();
 		bSelfIsDead = HPComp->IsDead();
 		SelfDanger01 = bSelfIsDead ? 1.f : (1.f - FMath::Clamp(SelfHp01, 0.f, 1.f));
+
 	}
 	else
 	{
@@ -101,6 +102,7 @@ void UCombatAIContext::RefreshPartySnapshot()
 			{
 				bAnyAllyCritical = true;
 				AllyCriticalTarget = Ally;
+			
 			}
 			if (!AllyHP->IsDead() && Need01 >= 0.6f)
 			{

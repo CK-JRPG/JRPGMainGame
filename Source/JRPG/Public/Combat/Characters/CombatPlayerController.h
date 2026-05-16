@@ -23,7 +23,6 @@ protected:
 	virtual void SetupInputComponent() override;
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void OnUnPossess() override;
-	virtual void PlayerTick(float DeltaTime) override;
 
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputMappingContext> IMC_Combat;
@@ -77,9 +76,4 @@ private:
 	void OnTacticalModePressed(const FInputActionValue& Value);
 	void OnToggleMainMenu(const FInputActionValue& Value);
 	void OnSkill1(const FInputActionValue& Value);
-	bool TryCastPrimarySkill();
-	
-	bool bSkill1Buffered = false;
-	double Skill1BufferedAtRealSec = 0.0;
-	float SkillInputBufferSec = 0.3f;
 };

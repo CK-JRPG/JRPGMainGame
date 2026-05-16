@@ -14,9 +14,9 @@
 
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "Combat/Stats/HPComponent.h"
-#include "GameFramework/CharacterMovementComponent.h"
 
 UCombatPartyAIComponent::UCombatPartyAIComponent()
 {
@@ -113,11 +113,11 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		return;
 	}
 
-	const float Interval = FMath::Clamp((PresetAsset ? PresetAsset->DecisionIntervalSec : 0.4f), 0.3f, 0.5f);
+	const float Interval = (PresetAsset ? PresetAsset->DecisionIntervalSec : 0.25f);
 	DecisionAccum += DeltaTime;
-	CurrentActionElapsed += DeltaTime;
-	if (DecisionAccum < Interval && !bQueuedDecisionRefresh)
+	if (DecisionAccum < Interval)
 	{
+		// 결정 주기 사이에도 이동은 계속
 		if (!bPlayerControlled)
 		{
 			TickMovementAndAction(DeltaTime);
@@ -151,35 +151,15 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		return;
 	}
 
-
-	// 공격/시전 중에는 일반 판단으로 행동을 갈아치우지 않음(긴급 갱신 플래그 예외)
-	const bool bPresentationActive = CachedPresentation.IsValid() && CachedPresentation->HasActivePresentation();
-	bActionLocked = bPresentationActive;
-	const float MinActionHoldSec = PresetAsset ? PresetAsset->MinActionHoldSec : 0.8f;
-	const bool bCanSwitchAction = bQueuedDecisionRefresh || (!bActionLocked && CurrentActionElapsed >= MinActionHoldSec);
-	if (bCanSwitchAction)
-	{
-		UpdateStateMachine();
-		bQueuedDecisionRefresh = false;
-	}	
-
-	// 2단계: 어그로 반응(역할별 우선 대응)
-	if (HandleRoleBasedAggroReaction())
-	{
-		return;
-	}
+	// FSM 업데이트
+	UpdateStateMachine();
 
 	// 이동 + 행동
 	TickMovementAndAction(DeltaTime);
 
-
 	// 결정 주기마다 스킬 판단
-	if (!bActionLocked || bQueuedDecisionRefresh)
-	{
-		const FJRPGCombatAIAction Best = ChooseBestAction();
-		LastDecisionScore = Best.Score;
-		ExecuteAction(Best);
-	}	
+	const FJRPGCombatAIAction Best = ChooseBestAction();
+	ExecuteAction(Best);
 }
 
 void UCombatPartyAIComponent::RefreshContext()
@@ -298,10 +278,6 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 	}
 
 	const float Dist = GetDistanceToTarget();
-	
-	const float Margin = PresetAsset ? PresetAsset->AttackRangeEnterMargin : 40.f;
-	AttackStartRange = FMath::Max(80.f, AttackRange - Margin);
-	AttackKeepRange = FMath::Max(AttackStartRange + 80.f, AttackRange + FMath::Max(80.f, Margin));
 
 	if (bIsRanged)
 	{
@@ -311,30 +287,20 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 		{
 			State = EPartyAIState::KeepDistance;
 		}
-		else if (Dist > AttackKeepRange)
+	
+		else if (Dist > AttackRange)
 		{
-			bWithinAttackRange = false;
 			State = EPartyAIState::Chase;
 		}
 		else
 		{
-			bWithinAttackRange = true;
 			State = EPartyAIState::Attack;
 		}
 	}
 	else
 	{
-		// 근거리 + 히스테리시스
-		if (!bWithinAttackRange && Dist <= AttackStartRange)
-		{
-			bWithinAttackRange = true;
-		}
-		else if (bWithinAttackRange && Dist >= AttackKeepRange)
-		{
-			bWithinAttackRange = false;
-		}
-
-		if (bWithinAttackRange)
+		// 근거리
+		if (Dist <= AttackRange)
 		{
 			State = EPartyAIState::Attack;
 		}
@@ -348,11 +314,6 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 {
 	if (!CurrentTarget.IsValid()) return;
-	LastDistanceToTarget = GetDistanceToTarget();
-	if (bActionLocked)
-	{
-		return;
-	}
 	if (RangedRepositionPauseRemaining > 0.f)
 	{
 		RangedRepositionPauseRemaining = FMath::Max(0.f, RangedRepositionPauseRemaining - DeltaTime);
@@ -443,151 +404,18 @@ FJRPGCombatAIAction UCombatPartyAIComponent::ChooseBestAction() const
 	return Best;
 }
 
-AActor* UCombatPartyAIComponent::FindEnemyTargetingActor(AActor* DesiredTarget) const
-{
-	if (!DesiredTarget || !GetOwner()) return nullptr;
-	UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
-	if (!Battle) return nullptr;
-
-	TArray<AActor*> Enemies;
-	Battle->GetOpponentsFor(GetOwner(), Enemies);
-	for (AActor* Enemy : Enemies)
-	{
-		if (!IsValid(Enemy)) continue;
-		if (const UThreatComponent* ThreatComp = Enemy->FindComponentByClass<UThreatComponent>())
-		{
-			if (ThreatComp->GetTopThreatSource() == DesiredTarget)
-			{
-				return Enemy;
-			}
-		}
-	}
-	return nullptr;
-}
-
-AActor* UCombatPartyAIComponent::FindTankAlly() const
-{
-	UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
-	if (!Battle || !GetOwner()) return nullptr;
-	TArray<AActor*> Allies;
-	Battle->GetAlliesFor(GetOwner(), Allies);
-	for (AActor* Ally : Allies)
-	{
-		if (!IsValid(Ally) || Ally == GetOwner()) continue;
-		if (const UCombatPartyAIComponent* AllyAI = Ally->FindComponentByClass<UCombatPartyAIComponent>())
-		{
-			if (AllyAI->Role == EJRPGPartyRole::Defender) return Ally;
-		}
-	}
-	return nullptr;
-}
-
-void UCombatPartyAIComponent::SetDecisionDebug(const TCHAR* InGoal, const TCHAR* InAction, float InScore)
-{
-	CurrentGoal = InGoal;
-	CurrentAction = InAction;
-	LastDecisionScore = InScore;
-	UE_LOG(LogTemp, Log, TEXT("[PartyAI][%s][%s] Goal=%s Action=%s Score=%.2f"),
-		*GetNameSafe(GetOwner()), *UEnum::GetValueAsString(Role), *CurrentGoal, *CurrentAction, LastDecisionScore);
-	UE_LOG(LogTemp, Verbose, TEXT("[PartyAI][%s] Dist=%.1f State=%s Locked=%d MovingInput=(%.2f,%.2f,%.2f)"),
-		*GetNameSafe(GetOwner()), LastDistanceToTarget, *UEnum::GetValueAsString(State), bActionLocked ? 1 : 0,
-		LastDebugMoveInput.X, LastDebugMoveInput.Y, LastDebugMoveInput.Z);
-}
-
-void UCombatPartyAIComponent::MoveTowardSafePointFromEnemy(AActor* EnemyActor, float Scale)
-{
-	if (!EnemyActor || !GetOwner()) return;
-	const FVector MyLoc = GetOwner()->GetActorLocation();
-	const FVector EnemyLoc = EnemyActor->GetActorLocation();
-	FVector SafeDir = (MyLoc - EnemyLoc).GetSafeNormal2D();
-	if (AActor* Tank = FindTankAlly())
-	{
-		SafeDir = (Tank->GetActorForwardVector() * -1.f + (MyLoc - EnemyLoc).GetSafeNormal2D()).GetSafeNormal2D();
-	}
-	MoveDirectlyToward(MyLoc + SafeDir * 350.f);
-}
-
-void UCombatPartyAIComponent::MoveBetweenEnemyAndAlly(AActor* EnemyActor, AActor* AllyActor)
-{
-	if (!EnemyActor || !AllyActor) return;
-	const FVector E = EnemyActor->GetActorLocation();
-	const FVector A = AllyActor->GetActorLocation();
-	const FVector Mid = E + (A - E) * 0.45f;
-	MoveDirectlyToward(Mid);
-	FaceTarget(EnemyActor);
-}
-
-bool UCombatPartyAIComponent::HandleRoleBasedAggroReaction()
-{
-	AActor* EnemyTargetingMe = FindEnemyTargetingActor(GetOwner());
-	AActor* TankAlly = FindTankAlly();
-
-	if (Role == EJRPGPartyRole::Supporter && EnemyTargetingMe)
-	{
-		SetDecisionDebug(TEXT("Survive"), TEXT("RetreatFromEnemy"), 100.f);
-		MoveTowardSafePointFromEnemy(EnemyTargetingMe, 1.0f);
-		return true;
-	}
-
-	if (Role == EJRPGPartyRole::Defender)
-	{
-		UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
-		if (!Battle || !GetOwner()) return false;
-		TArray<AActor*> Allies;
-		Battle->GetAlliesFor(GetOwner(), Allies);
-		for (AActor* Ally : Allies)
-		{
-			if (!IsValid(Ally) || Ally == GetOwner()) continue;
-			if (AActor* EnemyTargetingAlly = FindEnemyTargetingActor(Ally))
-			{
-				const bool bHealerFocused = Ally->FindComponentByClass<UCombatPartyAIComponent>() &&
-					Ally->FindComponentByClass<UCombatPartyAIComponent>()->Role == EJRPGPartyRole::Supporter;
-				const float Score = bHealerFocused ? 120.f : 90.f;
-				SetDecisionDebug(TEXT("RecoverAggro"), TEXT("MoveBetweenEnemyAndTarget"), Score);
-				CurrentTarget = EnemyTargetingAlly;
-				MoveBetweenEnemyAndAlly(EnemyTargetingAlly, Ally);
-				return true;
-			}
-		}
-	}
-
-	if (Role == EJRPGPartyRole::Attacker && EnemyTargetingMe)
-	{
-		SetDecisionDebug(TEXT("Survive"), TEXT("EvadeOrReposition"), 95.f);
-		if (TankAlly)
-		{
-			MoveDirectlyToward(TankAlly->GetActorLocation());
-		}
-		else
-		{
-			MoveTowardSafePointFromEnemy(EnemyTargetingMe, 1.0f);
-		}
-		return true;
-	}
-
-	return false;
-}
-
 void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 {
 	if (Action.Type == EJRPGCombatAIActionType::Wait) return;
-	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-
 
 	if (Action.Type == EJRPGCombatAIActionType::BasicAttack)
 	{
 		if (CachedPresentation.IsValid() && Action.Target.IsValid())
 		{
-			const FCombatActionResult AttackResult = CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
-			if (AttackResult.bOk)
-			{
-				CurrentActionElapsed = 0.f;
-				bActionLocked = true;
-				LastActionChangeTimeSec = Now;
-			}
+			CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
 		}		
 		return;
-	} 	
+	}
 
 	if (Action.Type == EJRPGCombatAIActionType::UseSkill)
 	{
@@ -611,19 +439,9 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 				return;
 			}
 			const FSkillCastResult SkillResult = CachedPresentation->TryPresentSkill(Action.SkillId, Targets, false);
-			if (SkillResult.bOk)
-			{
-				CurrentActionElapsed = 0.f;
-				bActionLocked = true;
-				LastActionChangeTimeSec = Now;
-			}
 			if (!SkillResult.bOk && Action.Target.IsValid())
 			{
-				const FCombatActionResult FallbackAttackResult = CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
-				if (FallbackAttackResult.bOk)
-				{
-					CurrentActionElapsed = 0.f;
-				}
+				CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
 			}
 		}
 		return;
@@ -635,25 +453,15 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 {
 	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
 	if (!MyChar) return;
-	if (bActionLocked || (CachedPresentation.IsValid() && CachedPresentation->HasActivePresentation())) return;
 
 	FVector Dir = Destination - MyChar->GetActorLocation();
 	Dir.Z = 0.f;
+
 	const float Dist = Dir.Size();
 	if (Dist < 10.0f) return;
+
 	Dir /= Dist;
 	MyChar->AddMovementInput(Dir, 1.0f);
-	LastDebugMoveInput = Dir;
-
-	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	const float RepathThreshold = FMath::Max(100.f, PresetAsset ? PresetAsset->RepathThreshold : 120.f);
-	const bool bMovedGoalFarEnough = !bHasLastMoveDestination || FVector::DistSquared2D(Destination, LastMoveDestination) >= FMath::Square(RepathThreshold);
-	if (bMovedGoalFarEnough)
-	{
-		LastMoveDestination = Destination;
-		bHasLastMoveDestination = true;
-		LastMoveIssuedTimeSec = Now;
-	}
 }
 
 void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale)
@@ -675,7 +483,6 @@ void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation
 	}
 
 	MyChar->AddMovementInput(Dir, Scale);
-	LastDebugMoveInput = Dir * Scale;
 }
 
 void UCombatPartyAIComponent::MoveLaterallyAround(const FVector& FocusLocation, float Scale)
@@ -698,7 +505,6 @@ void UCombatPartyAIComponent::MoveLaterallyAround(const FVector& FocusLocation, 
 	}
 
 	MyChar->AddMovementInput(Right, Scale);
-	LastDebugMoveInput = Right * Scale;
 }
 
 void UCombatPartyAIComponent::FaceTarget(AActor* Target)
@@ -821,11 +627,12 @@ bool UCombatPartyAIComponent::ResolveSkillMeta(USkillComponent* SkillComp, FName
 
 	if (const USkillDataAsset* Def = SkillComp->GetSkillDef(SkillId))
 	{
+		
 		auto HasAITag = [Def](const TCHAR* TagName) -> bool
-			{
-				return Def->AITags.HasTagExact(FGameplayTag::RequestGameplayTag(FName(TagName), false));
-			};
-
+		{
+			return Def->AITags.HasTagExact(FGameplayTag::RequestGameplayTag(FName(TagName), false));
+		};
+		
 		OutMeta.bIsHeal = Def->HealPower > 0.f || HasAITag(TEXT("Heal"));
 		OutMeta.bIsBreak = Def->GroggyPower > 0.f || HasAITag(TEXT("Break"));
 		OutMeta.bIsDebuff = Def->ApplyStatus != nullptr || HasAITag(TEXT("Debuff"));

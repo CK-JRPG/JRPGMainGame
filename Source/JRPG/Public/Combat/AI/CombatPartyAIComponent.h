@@ -30,9 +30,6 @@ public:
 	UPROPERTY(EditAnywhere) TObjectPtr<UCombatAIPresetAsset> PresetAsset;
 
 	UPROPERTY(VisibleAnywhere) EPartyAIState State = EPartyAIState::Follow;
-	UPROPERTY(VisibleAnywhere) FString CurrentGoal;
-	UPROPERTY(VisibleAnywhere) FString CurrentAction;
-	UPROPERTY(VisibleAnywhere) float LastDecisionScore = 0.f;
 
 	/** 피격 시 호출 - 자기를 때린 적을 우선 타겟으로 설정 */
 	void NotifyDamagedBy(AActor* Attacker);
@@ -44,20 +41,9 @@ private:
 	TWeakObjectPtr<UCombatPresentationComponent> CachedPresentation;
 
 	UPROPERTY() float DecisionAccum = 0.f;
-	UPROPERTY() float CurrentActionElapsed = 0.f;
 	UPROPERTY() TWeakObjectPtr<AActor> CurrentTarget;
 	UPROPERTY() TWeakObjectPtr<AActor> LastAttacker;  // 자기를 마지막으로 때린 적
-	UPROPERTY() TWeakObjectPtr<AActor> LastMoveTargetActor;
-	UPROPERTY() FVector LastMoveDestination = FVector::ZeroVector;
-	UPROPERTY() bool bHasLastMoveDestination = false;
-	UPROPERTY() bool bWithinAttackRange = false;
-	UPROPERTY() bool bQueuedDecisionRefresh = false;
-	UPROPERTY() bool bActionLocked = false;
-	UPROPERTY() float LastDecisionTimeSec = -1000.f;
-	UPROPERTY() float LastActionChangeTimeSec = -1000.f;
-	UPROPERTY() float LastMoveIssuedTimeSec = -1000.f;
-	UPROPERTY() FVector LastDebugMoveInput = FVector::ZeroVector;
-	
+
 	// 캐릭터 데이터에서 가져온 사거리 파라미터
 	float AttackRange = 200.f;
 	float PreferredMinRange = 0.f;
@@ -71,12 +57,6 @@ private:
 	void ExecuteAction(const FJRPGCombatAIAction& Action);
 
 	void RefreshTarget();
-	AActor * FindEnemyTargetingActor(AActor * DesiredTarget) const;
-	AActor * FindTankAlly() const;
-	bool HandleRoleBasedAggroReaction();
-	void MoveTowardSafePointFromEnemy(AActor * EnemyActor, float Scale = 1.0f);
-	void MoveBetweenEnemyAndAlly(AActor * EnemyActor, AActor * AllyActor);
-	void SetDecisionDebug(const TCHAR * InGoal, const TCHAR * InAction, float InScore);
 	void MoveDirectlyToward(const FVector& Destination);
 	void MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale = 1.0f);
 	void MoveLaterallyAround(const FVector& FocusLocation, float Scale = 1.0f);
@@ -91,8 +71,4 @@ private:
 	float RangedRepositionPauseRemaining = 0.f;
 	float RangedRepositionDirection = 1.f;
 	float KeepDistanceTolerance = 60.f;
-	float AttackStartRange = 220.f;
-	float AttackKeepRange = 320.f;
-	float LastDistanceToTarget = MAX_FLT;
-	float LastActionTransitionLogTimeSec = -1000.f;
 };

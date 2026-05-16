@@ -60,16 +60,7 @@ public:
 	UPROPERTY(EditAnywhere) EPartyAIPreset Preset = EPartyAIPreset::Basic;
 
 	// AI가 스킬/행동 선택을 갱신하는 주기 (너무 짧으면 스팸)
-	UPROPERTY(EditAnywhere) float DecisionIntervalSec = 0.4f;
-
-	// 일반 행동이 너무 자주 바뀌지 않도록 최소 유지 시간
-	UPROPERTY(EditAnywhere) float MinActionHoldSec = 0.8f;
-
-	// 목표 위치/타겟 갱신의 히스테리시스: 사거리 경계 흔들림 완화
-	UPROPERTY(EditAnywhere) float AttackRangeEnterMargin = 40.f;
-
-	// 목적지 변경 허용 임계치(작은 변경은 무시)
-	UPROPERTY(EditAnywhere) float RepathThreshold = 80.f;
+	UPROPERTY(EditAnywhere) float DecisionIntervalSec = 0.25f;
 
 	UPROPERTY(EditAnywhere) FPartyAIThresholds Thresholds;
 	UPROPERTY(EditAnywhere) FPartyAIWeights Weights;
