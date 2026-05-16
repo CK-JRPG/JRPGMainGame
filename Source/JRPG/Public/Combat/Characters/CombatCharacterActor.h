@@ -24,7 +24,9 @@ class ULocomotionComponent;
 class UEnemyEncounterComponent;
 class UCombatZoneTrackerComponent;
 class UCombatPartyAIComponent;
+class UDirectionalDamageComponent;
 class UTargetGuideLineComponent;
+
 
 class UHPComponent;
 class UAPComponent;
@@ -49,6 +51,7 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatAIActionSelectorComponent> AIActionSelectorComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatItemComponent> ItemComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPartyAIComponent> CombatPartyAIComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UDirectionalDamageComponent> DirectionalDamageComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPresentationComponent> PresentationComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatVFXComponent> VFXComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UTargetGuideLineComponent> TargetGuideLineComp;
@@ -83,6 +86,7 @@ public:
 	TObjectPtr<UAnimMontage> DeathMontage = nullptr;
 	
 protected:
+
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 

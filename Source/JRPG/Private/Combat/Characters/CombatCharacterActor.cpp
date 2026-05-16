@@ -11,6 +11,7 @@
 #include "Combat/AI/CombatCharacterActorAIController.h"
 #include "Combat/AI/CombatPartyAIComponent.h"
 #include "Combat/Battle/EnemyEncounterComponent.h"
+#include "Combat/Battle/DirectionalDamageComponent.h"
 #include "Combat/AI/EnemyAIController.h"
 #include "Combat/Items/CombatItemComponent.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
@@ -61,6 +62,7 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));
 	ZoneTrackerComp = CreateDefaultSubobject<UCombatZoneTrackerComponent>(TEXT("CombatZoneTracker"));
 	CombatPartyAIComp = CreateDefaultSubobject<UCombatPartyAIComponent>(TEXT("CombatPartyAIComponent"));
+	DirectionalDamageComp = CreateDefaultSubobject<UDirectionalDamageComponent>(TEXT("DirectionalDamageComponent"));
 	// PartyAIComp는 BeginPlay에서 팀 확인 후 활성화
 	CombatPartyAIComp->PrimaryComponentTick.bStartWithTickEnabled = false;
 
@@ -342,3 +344,4 @@ FRotator ACombatCharacterActor::GetCameraTargetRotation() const
 		return C->GetControlRotation();
 	return GetActorRotation();
 }
+

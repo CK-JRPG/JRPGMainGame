@@ -3,6 +3,7 @@
 #include "JRPG/Public/Combat/Skills/SkillDataAsset.h"
 
 #include "JRPG/Public/Combat/Battle/CombatFormulaLibrary.h"
+#include "Combat/Battle/DirectionalDamageComponent.h"
 #include "JRPG/Public/Combat/Characters/CombatParticipantInterface.h"
 #include "JRPG/Public/Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 
@@ -214,6 +215,10 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 						);
 
 			DamageDone = B.FinalDamage;
+			if (const UDirectionalDamageComponent* DirectionalDamage = T->FindComponentByClass<UDirectionalDamageComponent>())
+			{
+				DamageDone *= DirectionalDamage->EvaluateSkillDamageMultiplier(&Skill, GetOwner());
+			}
 			bCritical = B.bCritical;
 			
 			if (SPSubSystem && DamageDone>0.f)
