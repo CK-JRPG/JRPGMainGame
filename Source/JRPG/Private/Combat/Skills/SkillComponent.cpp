@@ -45,7 +45,13 @@ void USkillComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponent
 	for (auto &KV : Cooldowns)
 	{
 		if (KV.Value>0.f) 
-			KV.Value = FMath::Max(0.f,KV.Value - DeltaTime);
+		{
+			KV.Value = FMath::Max(0.f, KV.Value - DeltaTime);
+			if (KV.Value == 0.f)
+			{
+				OnSkillCooldownFinished.Broadcast(KV.Key);
+			}
+		}
 	}
 }
 

@@ -11,6 +11,7 @@ class USkillComponent;
 class UCombatAIPresetAsset;
 class UCombatCharacterComponent;
 class UCombatPresentationComponent;
+class UTargetGuideLineComponent;
 
 /**
  * 적 AI 컨트롤러 (Tales of Arise 스타일 FSM, NavMesh/BT 미사용)
@@ -39,6 +40,7 @@ private:
 	UPROPERTY() TObjectPtr<USkillComponent> SkillComp;
 	UPROPERTY() TObjectPtr<UCombatCharacterComponent> CharComp;
 	UPROPERTY() TObjectPtr<UCombatPresentationComponent> PresentationComp;
+	UPROPERTY() TObjectPtr<UTargetGuideLineComponent> TargetGuideLineComp;
 
 	UPROPERTY() EEnemyCombatState State = EEnemyCombatState::Idle;
 	UPROPERTY() TWeakObjectPtr<AActor> CurrentTarget;
@@ -54,6 +56,7 @@ private:
 	// FSM
 	void RefreshStateFromGroggyAndChain();
 	void RefreshTarget();
+	void SetCurrentTarget(AActor* NewTarget);
 	void TickChase(float DeltaSeconds);
 	void TickAttack(float DeltaSeconds);
 	void TickRetreat(float DeltaSeconds);

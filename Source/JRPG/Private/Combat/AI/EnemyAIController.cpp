@@ -8,6 +8,7 @@
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Presentation/TargetGuideLineComponent.h"
 #include "Combat/Stats/HPComponent.h"
 
 #include "GameFramework/Pawn.h"
@@ -29,6 +30,7 @@ void AEnemyAIController::OnPossess(APawn* InPawn)
 	SkillComp = InPawn ? InPawn->FindComponentByClass<USkillComponent>() : nullptr;
 	CharComp = InPawn ? InPawn->FindComponentByClass<UCombatCharacterComponent>() : nullptr;
 	PresentationComp = InPawn ? InPawn->FindComponentByClass<UCombatPresentationComponent>() : nullptr;
+	TargetGuideLineComp = InPawn ? InPawn->FindComponentByClass<UTargetGuideLineComponent>() : nullptr;
 
 	LoadRangeParamsFromCharacterData();
 	State = EEnemyCombatState::Engage;
@@ -56,6 +58,7 @@ void AEnemyAIController::Tick(float DeltaSeconds)
 	if (const UHPComponent* SelfHP = ControlledPawn->FindComponentByClass<UHPComponent>(); SelfHP && SelfHP->IsDead())
 	{
 		StopMovement();
+		SetCurrentTarget(nullptr);
 		State = EEnemyCombatState::Idle;
 		return;
 	}
@@ -107,7 +110,7 @@ void AEnemyAIController::Tick(float DeltaSeconds)
 void AEnemyAIController::ResetForNewBattle()
 {
 	StopMovement();
-	CurrentTarget = nullptr;
+	SetCurrentTarget(nullptr);
 	CachedChainProviderObject = nullptr;
 	NextChainProviderRescanAt = 0.0f;
 	TargetLockUntilReal = 0.0f;
@@ -160,7 +163,7 @@ void AEnemyAIController::RefreshTarget()
 
 	if (CurrentTarget.IsValid() && !IsAliveTarget(CurrentTarget.Get()))
 	{
-		CurrentTarget = nullptr;
+		SetCurrentTarget(nullptr);
 	}
 
 	if (ThreatComp)
@@ -168,14 +171,18 @@ void AEnemyAIController::RefreshTarget()
 		AActor* TopThreat = ThreatComp->GetTopThreatSource();
 		if (IsAliveTarget(TopThreat))
 		{
-			CurrentTarget = TopThreat;
+			SetCurrentTarget(TopThreat);
 			return;
 		}
 
 	}
 
 	UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
-	if (!Battle || !ControlledPawn) return;
+	if (!Battle || !ControlledPawn)
+	{
+		SetCurrentTarget(nullptr);
+		return;
+	}
 
 	TArray<AActor*> Opponents;
 	Battle->GetOpponentsFor(ControlledPawn.Get(), Opponents);
@@ -199,7 +206,30 @@ void AEnemyAIController::RefreshTarget()
 
 	if (Closest)
 	{
-		CurrentTarget = Closest;
+		SetCurrentTarget(Closest);
+		return;
+	}
+
+	SetCurrentTarget(nullptr);
+}
+
+void AEnemyAIController::SetCurrentTarget(AActor* NewTarget)
+{
+	if (CurrentTarget.Get() != NewTarget)
+	{
+		CurrentTarget = NewTarget;
+	}
+
+	if (TargetGuideLineComp)
+	{
+		if (NewTarget)
+		{
+			TargetGuideLineComp->SetAggroTarget(NewTarget);
+		}
+		else
+		{
+			TargetGuideLineComp->ClearAggroTarget();
+		}
 	}
 }
 
