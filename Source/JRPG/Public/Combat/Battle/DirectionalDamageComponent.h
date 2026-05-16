@@ -55,4 +55,12 @@ public:
 	FDirectionalDamageResult EvaluateDirectionalDamage(AActor* SourceActor) const;
 
 	float EvaluateSkillDamageMultiplier(const USkillDataAsset* Skill, AActor* SourceActor) const;
+
+private:
+	FDirectionalDamageResult EvaluateDirectionalDamageWithSettings(
+		AActor* SourceActor,
+		float InBackDotThreshold,
+		float InSideDotThreshold,
+		float InBackDamageMultiplier,
+		float InSideDamageMultiplier) const;
 };

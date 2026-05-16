@@ -13,6 +13,21 @@ UDirectionalDamageComponent::UDirectionalDamageComponent()
 
 FDirectionalDamageResult UDirectionalDamageComponent::EvaluateDirectionalDamage(AActor* SourceActor) const
 {
+	return EvaluateDirectionalDamageWithSettings(
+		SourceActor,
+		BackDotThreshold,
+		SideDotThreshold,
+		BackDamageMultiplier,
+		SideDamageMultiplier);
+}
+
+FDirectionalDamageResult UDirectionalDamageComponent::EvaluateDirectionalDamageWithSettings(
+	AActor* SourceActor,
+	float InBackDotThreshold,
+	float InSideDotThreshold,
+	float InBackDamageMultiplier,
+	float InSideDamageMultiplier) const
+{
 	FDirectionalDamageResult Result;
 
 	const AActor* OwnerActor = GetOwner();
@@ -45,18 +60,18 @@ FDirectionalDamageResult UDirectionalDamageComponent::EvaluateDirectionalDamage(
 	Result.ForwardDot = FVector::DotProduct(Forward, ToSource);
 	Result.RightDot = FVector::DotProduct(Right, ToSource);
 
-	const float ClampedBackThreshold = FMath::Clamp(BackDotThreshold, -1.f, 1.f);
-	const float ClampedSideThreshold = FMath::Clamp(SideDotThreshold, 0.f, 1.f);
+	const float ClampedBackThreshold = FMath::Clamp(InBackDotThreshold, -1.f, 1.f);
+	const float ClampedSideThreshold = FMath::Clamp(InSideDotThreshold, 0.f, 1.f);
 
 	if (Result.ForwardDot <= ClampedBackThreshold)
 	{
 		Result.Side = EDirectionalDamageSide::Back;
-		Result.DamageMultiplier = FMath::Max(1.f, BackDamageMultiplier);
+		Result.DamageMultiplier = FMath::Max(1.f, InBackDamageMultiplier);
 	}
 	else if (FMath::Abs(Result.RightDot) >= ClampedSideThreshold)
 	{
 		Result.Side = Result.RightDot >= 0.f ? EDirectionalDamageSide::Right : EDirectionalDamageSide::Left;
-		Result.DamageMultiplier = FMath::Max(1.f, SideDamageMultiplier);
+		Result.DamageMultiplier = FMath::Max(1.f, InSideDamageMultiplier);
 	}
 	else
 	{
@@ -129,7 +144,12 @@ float UDirectionalDamageComponent::EvaluateSkillDamageMultiplier(const USkillDat
 		return 1.f;
 	}
 
-	const FDirectionalDamageResult DirectionalResult = EvaluateDirectionalDamage(SourceActor);
+	const FDirectionalDamageResult DirectionalResult = EvaluateDirectionalDamageWithSettings(
+		SourceActor,
+		Skill->DirectionalBackDotThreshold,
+		Skill->DirectionalSideDotThreshold,
+		Skill->DirectionalBackDamageMultiplier,
+		Skill->DirectionalSideDamageMultiplier);
 	const float Multiplier = DirectionalResult.bAppliesDamageBonus ? DirectionalResult.DamageMultiplier : 1.f;
 	const TCHAR* SideName = TEXT("None");
 	switch (DirectionalResult.Side)

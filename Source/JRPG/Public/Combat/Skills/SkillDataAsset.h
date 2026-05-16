@@ -32,6 +32,14 @@ public:
 	UPROPERTY(EditAnywhere) float AttackScale = 1.0f;
 	UPROPERTY(EditAnywhere) float DefenseScale = 0.5f;
 	UPROPERTY(EditAnywhere, Category="Damage|Directional") bool bEnableDirectionalDamageBonus = false;
+	UPROPERTY(EditAnywhere, Category="Damage|Directional", meta=(ClampMin="-1.0", ClampMax="1.0", EditCondition="bEnableDirectionalDamageBonus"))
+	float DirectionalBackDotThreshold = -0.5f;
+	UPROPERTY(EditAnywhere, Category="Damage|Directional", meta=(ClampMin="0.0", ClampMax="1.0", EditCondition="bEnableDirectionalDamageBonus"))
+	float DirectionalSideDotThreshold = 0.5f;
+	UPROPERTY(EditAnywhere, Category="Damage|Directional", meta=(ClampMin="1.0", EditCondition="bEnableDirectionalDamageBonus"))
+	float DirectionalBackDamageMultiplier = 2.0f;
+	UPROPERTY(EditAnywhere, Category="Damage|Directional", meta=(ClampMin="1.0", EditCondition="bEnableDirectionalDamageBonus"))
+	float DirectionalSideDamageMultiplier = 1.5f;
 
 	UPROPERTY(EditAnywhere) bool bAllowCrit = true;
 	UPROPERTY(EditAnywhere) float VarianceMin = 0.95f;
