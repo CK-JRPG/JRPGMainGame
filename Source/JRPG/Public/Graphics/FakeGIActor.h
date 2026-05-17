@@ -33,6 +33,7 @@ protected:
 
 #if WITH_EDITOR
     virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+    virtual void PostEditMove(bool bFinished) override;
 #endif
 
 public:
@@ -60,10 +61,22 @@ public:
         meta = (ClampMin = "-90.0", ClampMax = "90.0"))
     float LightPitch = -45.f;
 
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Angle",
+        meta = (ClampMin = "-180.0", ClampMax = "180.0"))
+    float LightRoll = 0.f;
+
     // 메시 스케일로 이미시브 라이트 범위 설정
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Range",
         meta = (ClampMin = "1.0", ClampMax = "50000.0"))
     float GIRange = 1000.f;
+
+    // X/Y/Z 축별로 프록시 메시 크기를 따로 조절할 때 사용
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Range")
+    bool bUseCustomGISize = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Range",
+        meta = (ClampMin = "1.0", ClampMax = "50000.0", EditCondition = "bUseCustomGISize"))
+    FVector GISize = FVector(1000.f, 1000.f, 1000.f);
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling")
     bool bNeverCullGIProxy = true;
@@ -85,7 +98,11 @@ public:
     UFUNCTION(BlueprintCallable, Category = "Fake GI")
     void SetFakeGIEnabled(bool bEnabled);
 
+    UFUNCTION(BlueprintCallable, Category = "Fake GI")
+    void SetGISize(const FVector& NewSize);
+
 private:
+    void RefreshFakeGI(bool bApplyTransform);
     void EnsureDynamicMaterial();
     void ApplyMeshType();
     void ApplyAngle();
@@ -96,4 +113,11 @@ private:
 
     UPROPERTY()
     TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
+
+#if WITH_EDITOR
+    void SyncTransformPropertiesFromActor();
+    bool IsTransformPropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent) const;
+
+    bool bIsApplyingEditorPropertyChange = false;
+#endif
 };

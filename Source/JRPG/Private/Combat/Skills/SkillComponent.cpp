@@ -3,6 +3,7 @@
 #include "JRPG/Public/Combat/Skills/SkillDataAsset.h"
 
 #include "JRPG/Public/Combat/Battle/CombatFormulaLibrary.h"
+#include "Combat/Battle/DirectionalDamageComponent.h"
 #include "JRPG/Public/Combat/Characters/CombatParticipantInterface.h"
 #include "JRPG/Public/Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 
@@ -44,7 +45,13 @@ void USkillComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponent
 	for (auto &KV : Cooldowns)
 	{
 		if (KV.Value>0.f) 
-			KV.Value = FMath::Max(0.f,KV.Value - DeltaTime);
+		{
+			KV.Value = FMath::Max(0.f, KV.Value - DeltaTime);
+			if (KV.Value == 0.f)
+			{
+				OnSkillCooldownFinished.Broadcast(KV.Key);
+			}
+		}
 	}
 }
 
@@ -208,6 +215,10 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 						);
 
 			DamageDone = B.FinalDamage;
+			if (const UDirectionalDamageComponent* DirectionalDamage = T->FindComponentByClass<UDirectionalDamageComponent>())
+			{
+				DamageDone *= DirectionalDamage->EvaluateSkillDamageMultiplier(&Skill, GetOwner());
+			}
 			bCritical = B.bCritical;
 			
 			if (SPSubSystem && DamageDone>0.f)

@@ -24,6 +24,9 @@ class ULocomotionComponent;
 class UEnemyEncounterComponent;
 class UCombatZoneTrackerComponent;
 class UCombatPartyAIComponent;
+class UDirectionalDamageComponent;
+class UTargetGuideLineComponent;
+
 
 class UHPComponent;
 class UAPComponent;
@@ -48,8 +51,10 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatAIActionSelectorComponent> AIActionSelectorComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatItemComponent> ItemComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPartyAIComponent> CombatPartyAIComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UDirectionalDamageComponent> DirectionalDamageComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatPresentationComponent> PresentationComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatVFXComponent> VFXComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UTargetGuideLineComponent> TargetGuideLineComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatMotionComponent> MotionComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<ULocomotionComponent> LocomotionComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatZoneTrackerComponent> ZoneTrackerComp;

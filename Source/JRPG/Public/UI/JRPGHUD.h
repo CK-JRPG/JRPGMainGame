@@ -21,6 +21,7 @@ class JRPG_API AJRPGHUD : public AHUD
 protected:
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+	virtual void Tick(float DeltaSeconds) override;
 
 public:
 	UPROPERTY(EditAnywhere, Category = "UI|CLasses")
