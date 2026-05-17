@@ -11,6 +11,7 @@ class UCombatAIScorer;
 class USkillComponent;
 class USkillDataAsset;
 class UCombatPresentationComponent;
+class AEnemyAIController;
 
 //NavMesh 미사용 및 FSM 로직으로 구현.
 
@@ -57,6 +58,10 @@ private:
 	void ExecuteAction(const FJRPGCombatAIAction& Action);
 
 	void RefreshTarget();
+	void TryRecoverAggro(float DeltaTime);
+	bool TryTempTaunt(AEnemyAIController* EnemyController);
+	FString RoleToDebugString(EJRPGPartyRole InRole) const;
+	bool IsAllyActor(AActor* Candidate) const;
 	void MoveDirectlyToward(const FVector& Destination);
 	void MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale = 1.0f);
 	void MoveLaterallyAround(const FVector& FocusLocation, float Scale = 1.0f);
@@ -71,4 +76,8 @@ private:
 	float RangedRepositionPauseRemaining = 0.f;
 	float RangedRepositionDirection = 1.f;
 	float KeepDistanceTolerance = 60.f;
+	float TankReactionCooldownRemaining = 0.f;
+	float TankTickLogAccum = 0.f;
+	float MoveCallsThisSecond = 0.f;
+	float MoveCallsAccum = 0.f;
 };

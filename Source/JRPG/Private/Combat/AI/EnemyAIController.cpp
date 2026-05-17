@@ -233,6 +233,11 @@ void AEnemyAIController::SetCurrentTarget(AActor* NewTarget)
 	}
 }
 
+void AEnemyAIController::ForceSetCurrentTarget(AActor* NewTarget)
+{
+	SetCurrentTarget(NewTarget);
+}
+
 void AEnemyAIController::TickChase(float DeltaSeconds)
 {
 	RefreshTarget();

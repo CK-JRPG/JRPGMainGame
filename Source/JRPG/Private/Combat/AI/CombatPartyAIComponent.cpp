@@ -17,6 +17,8 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "Combat/Stats/HPComponent.h"
+#include "Combat/AI/EnemyAIController.h"
+#include "Kismet/GameplayStatics.h"
 
 UCombatPartyAIComponent::UCombatPartyAIComponent()
 {
@@ -40,6 +42,22 @@ void UCombatPartyAIComponent::BeginPlay()
 	RangedRepositionDirection = FMath::RandBool() ? 1.f : -1.f;
 
 	LoadRangeParams();
+
+	UE_LOG(LogTemp, Log, TEXT("[RoleDebug] %s RoleType=%s"), *GetNameSafe(GetOwner()), *RoleToDebugString(Role));
+
+	if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+	{
+		TArray<AActor*> Allies;
+		Battle->GetAlliesFor(GetOwner(), Allies);
+		for (AActor* Ally : Allies)
+		{
+			if (!IsValid(Ally)) continue;
+			if (UCombatPartyAIComponent* AllyAI = Ally->FindComponentByClass<UCombatPartyAIComponent>())
+			{
+				UE_LOG(LogTemp, Log, TEXT("[RoleDebug] %s RoleType=%s"), *GetNameSafe(Ally), *RoleToDebugString(AllyAI->Role));
+			}
+		}
+	}
 }
 
 void UCombatPartyAIComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -105,6 +123,26 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	}
 
 	RefreshContext();
+	if (Role == EJRPGPartyRole::Defender)
+	{
+		TankTickLogAccum += DeltaTime;
+		if (TankTickLogAccum >= 1.0f)
+		{
+			TankTickLogAccum = 0.f;
+			UE_LOG(LogTemp, Log, TEXT("[TankAI] TickAlive Owner=%s Role=Tank BattleActive=%s"), *GetNameSafe(GetOwner()), Context->bSessionActive ? TEXT("true") : TEXT("false"));
+		}
+		TryRecoverAggro(DeltaTime);
+	}
+	if (MoveCallsAccum > 0.f)
+	{
+		MoveCallsAccum += DeltaTime;
+		if (MoveCallsAccum >= 1.f)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PartyAI] MoveCallsPerSec Owner=%s Calls=%.0f"), *GetNameSafe(GetOwner()), MoveCallsThisSecond);
+			MoveCallsThisSecond = 0.f;
+			MoveCallsAccum = 0.f;
+		}
+	}
 
 	// Chain 시퀀스 중 이라면 작동안함
 	if (Context->bInChainSequence)
@@ -461,6 +499,8 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 	if (Dist < 10.0f) return;
 
 	Dir /= Dist;
+	MoveCallsThisSecond += 1.f;
+	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
 	MyChar->AddMovementInput(Dir, 1.0f);
 }
 
@@ -483,6 +523,8 @@ void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation
 	}
 
 	MyChar->AddMovementInput(Dir, Scale);
+	MoveCallsThisSecond += 1.f;
+	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
 }
 
 void UCombatPartyAIComponent::MoveLaterallyAround(const FVector& FocusLocation, float Scale)
@@ -505,6 +547,116 @@ void UCombatPartyAIComponent::MoveLaterallyAround(const FVector& FocusLocation, 
 	}
 
 	MyChar->AddMovementInput(Right, Scale);
+	MoveCallsThisSecond += 1.f;
+	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
+}
+
+void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
+{
+	TankReactionCooldownRemaining = FMath::Max(0.f, TankReactionCooldownRemaining - DeltaTime);
+	if (Role != EJRPGPartyRole::Defender)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[TankAI] RecoverAggro blocked: SelfRole is not Tank"));
+		return;
+	}
+	if (!Context || !Context->bSessionActive)
+	{
+		return;
+	}
+
+	AEnemyAIController* ObservedEnemyController = nullptr;
+	AActor* EnemyActor = nullptr;
+	TArray<AActor*> Enemies;
+	if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+	{
+		Battle->GetOpponentsFor(GetOwner(), Enemies);
+		for (AActor* Enemy : Enemies)
+		{
+			if (!IsValid(Enemy)) continue;
+			if (APawn* EnemyPawn = Cast<APawn>(Enemy))
+			{
+				if (AEnemyAIController* EnemyController = Cast<AEnemyAIController>(EnemyPawn->GetController()))
+				{
+					ObservedEnemyController = EnemyController;
+					EnemyActor = Enemy;
+					break;
+				}
+			}
+		}
+	}
+	if (!ObservedEnemyController)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: No observed enemy"));
+		return;
+	}
+	AActor* EnemyCurrentTarget = ObservedEnemyController->GetCurrentTargetActor();
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] ObservedEnemy=%s"), *GetNameSafe(EnemyActor));
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyCurrentTarget=%s"), *GetNameSafe(EnemyCurrentTarget));
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] Self=%s"), *GetNameSafe(GetOwner()));
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] SelfRole=%s"), *RoleToDebugString(Role));
+
+	if (!EnemyCurrentTarget)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: EnemyCurrentTarget is null"));
+		return;
+	}
+	UCombatPartyAIComponent* TargetAI = EnemyCurrentTarget->FindComponentByClass<UCombatPartyAIComponent>();
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTargetRole=%s"), TargetAI ? *RoleToDebugString(TargetAI->Role) : TEXT("NonParty"));
+
+	if (EnemyCurrentTarget == GetOwner())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: EnemyCurrentTarget is self"));
+		return;
+	}
+	if (!IsAllyActor(EnemyCurrentTarget))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: Target is not ally"));
+		return;
+	}
+	if (TankReactionCooldownRemaining > 0.f)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: Cooldown %.1fs remaining"), TankReactionCooldownRemaining);
+		return;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] Enter RecoverAggro"));
+	if (TryTempTaunt(ObservedEnemyController))
+	{
+		TankReactionCooldownRemaining = 1.5f;
+	}
+}
+
+bool UCombatPartyAIComponent::TryTempTaunt(AEnemyAIController* EnemyController)
+{
+	if (!EnemyController || !GetOwner()) return false;
+	AActor* Prev = EnemyController->GetCurrentTargetActor();
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] Use TempTaunt"));
+	EnemyController->ForceSetCurrentTarget(GetOwner());
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTarget changed: %s -> %s"), *GetNameSafe(Prev), *GetNameSafe(GetOwner()));
+	return true;
+}
+
+FString UCombatPartyAIComponent::RoleToDebugString(EJRPGPartyRole InRole) const
+{
+	switch (InRole)
+	{
+	case EJRPGPartyRole::Attacker: return TEXT("Dealer");
+	case EJRPGPartyRole::Defender: return TEXT("Tank");
+	case EJRPGPartyRole::Supporter: return TEXT("Supporter");
+	case EJRPGPartyRole::Healer: return TEXT("Healer");
+	default: return TEXT("Unknown");
+	}
+}
+
+bool UCombatPartyAIComponent::IsAllyActor(AActor* Candidate) const
+{
+	if (!IsValid(Candidate) || !GetOwner()) return false;
+	if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+	{
+		TArray<AActor*> Allies;
+		Battle->GetAlliesFor(GetOwner(), Allies);
+		return Allies.Contains(Candidate);
+	}
+	return false;
 }
 
 void UCombatPartyAIComponent::FaceTarget(AActor* Target)

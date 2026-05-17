@@ -31,6 +31,8 @@ public:
 	virtual void OnPossess(APawn* InPawn) override;
 	virtual void Tick(float DeltaSeconds) override;
 	void ResetForNewBattle();
+	AActor* GetCurrentTargetActor() const { return CurrentTarget.Get(); }
+	void ForceSetCurrentTarget(AActor* NewTarget);
 
 	UPROPERTY(EditAnywhere) TObjectPtr<UCombatAIPresetAsset> PresetAsset;
 
