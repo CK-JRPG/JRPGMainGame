@@ -627,12 +627,18 @@ bool UCombatPartyAIComponent::ResolveSkillMeta(USkillComponent* SkillComp, FName
 
 	if (const USkillDataAsset* Def = SkillComp->GetSkillDef(SkillId))
 	{
-		OutMeta.bIsHeal = Def->HealPower > 0.f;
-		OutMeta.bIsBreak = Def->GroggyPower > 0.f;
-		OutMeta.bIsDebuff = Def->ApplyStatus != nullptr;
-		OutMeta.bIsHighDps = (Def->BasePower > 0.f && Def->AttackScale >= 1.0f);
+		
+		auto HasAITag = [Def](const TCHAR* TagName) -> bool
+		{
+			return Def->AITags.HasTagExact(FGameplayTag::RequestGameplayTag(FName(TagName), false));
+		};
+		
+		OutMeta.bIsHeal = Def->HealPower > 0.f || HasAITag(TEXT("Heal"));
+		OutMeta.bIsBreak = Def->GroggyPower > 0.f || HasAITag(TEXT("Break"));
+		OutMeta.bIsDebuff = Def->ApplyStatus != nullptr || HasAITag(TEXT("Debuff"));
+		OutMeta.bIsHighDps = HasAITag(TEXT("Damage")) || (Def->BasePower > 0.f && Def->AttackScale >= 1.0f);
 		OutMeta.bIsCleanse = Def->DispelAnyTags.Num() > 0;
-		OutMeta.bIsTaunt = Def->ThreatBase > 0.f || Def->ThreatFromDamageMul > 1.0f;
+		OutMeta.bIsTaunt = HasAITag(TEXT("Taunt")) || Def->ThreatBase > 0.f || Def->ThreatFromDamageMul > 1.0f;
 		OutMeta.bIsBuff = Def->ApplyStatus != nullptr && (Def->TargetType == ESkillTargetType::Self || Def->TargetType == ESkillTargetType::AllySingle || Def->TargetType == ESkillTargetType::AllyAll);
 		return true;
 	}
