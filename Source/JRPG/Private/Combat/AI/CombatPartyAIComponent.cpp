@@ -499,6 +499,11 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 	if (Dist < 10.0f) return;
 
 	Dir /= Dist;
+	if (FVector::DotProduct(LastMoveDirection, Dir) > 0.999f)
+	{
+		return;
+	}
+	LastMoveDirection = Dir;
 	MoveCallsThisSecond += 1.f;
 	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
 	MyChar->AddMovementInput(Dir, 1.0f);
@@ -521,6 +526,11 @@ void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation
 	{
 		Dir /= Dist;
 	}
+	if (FVector::DotProduct(LastMoveDirection, Dir) > 0.999f)
+	{
+		return;
+	}
+	LastMoveDirection = Dir;
 
 	MyChar->AddMovementInput(Dir, Scale);
 	MoveCallsThisSecond += 1.f;
@@ -546,6 +556,12 @@ void UCombatPartyAIComponent::MoveLaterallyAround(const FVector& FocusLocation, 
 		return;
 	}
 
+	if (FVector::DotProduct(LastMoveDirection, Right * FMath::Sign(Scale)) > 0.999f)
+	{
+		return;
+	}
+	LastMoveDirection = Right * FMath::Sign(Scale);
+
 	MyChar->AddMovementInput(Right, Scale);
 	MoveCallsThisSecond += 1.f;
 	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
@@ -554,9 +570,20 @@ void UCombatPartyAIComponent::MoveLaterallyAround(const FVector& FocusLocation, 
 void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 {
 	TankReactionCooldownRemaining = FMath::Max(0.f, TankReactionCooldownRemaining - DeltaTime);
+	TankDebugLogAccum += DeltaTime;
+	TankBlockedLogAccum += DeltaTime;
+	auto LogBlocked = [this](const TCHAR* Reason)
+		{
+			if (TankBlockedLogAccum >= 0.75f || LastRecoverAggroBlockReason != Reason)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: %s"), Reason);
+				LastRecoverAggroBlockReason = Reason;
+				TankBlockedLogAccum = 0.f;
+			}
+		};
 	if (Role != EJRPGPartyRole::Defender)
 	{
-		UE_LOG(LogTemp, Verbose, TEXT("[TankAI] RecoverAggro blocked: SelfRole is not Tank"));
+		LogBlocked(TEXT("SelfRole is not Tank"));
 		return;
 	}
 	if (!Context || !Context->bSessionActive)
@@ -586,42 +613,51 @@ void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 	}
 	if (!ObservedEnemyController)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: No observed enemy"));
+		LogBlocked(TEXT("No observed enemy"));
 		return;
 	}
-	AActor* EnemyCurrentTarget = ObservedEnemyController->GetCurrentTargetActor();
-	UE_LOG(LogTemp, Log, TEXT("[TankAI] ObservedEnemy=%s"), *GetNameSafe(EnemyActor));
-	UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyCurrentTarget=%s"), *GetNameSafe(EnemyCurrentTarget));
-	UE_LOG(LogTemp, Log, TEXT("[TankAI] Self=%s"), *GetNameSafe(GetOwner()));
-	UE_LOG(LogTemp, Log, TEXT("[TankAI] SelfRole=%s"), *RoleToDebugString(Role));
+	AActor* EnemyCurrentTarget = ObservedEnemyController->GetEffectiveTargetActor();
+	if (TankDebugLogAccum >= 0.75f)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] ObservedEnemy=%s EnemyCurrentTarget=%s SelfRole=%s"), *GetNameSafe(EnemyActor), *GetNameSafe(EnemyCurrentTarget), *RoleToDebugString(Role));
+		TankDebugLogAccum = 0.f;
+	}
 
 	if (!EnemyCurrentTarget)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: EnemyCurrentTarget is null"));
+		LogBlocked(TEXT("EnemyCurrentTarget is null"));
 		return;
 	}
 	UCombatPartyAIComponent* TargetAI = EnemyCurrentTarget->FindComponentByClass<UCombatPartyAIComponent>();
-	UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTargetRole=%s"), TargetAI ? *RoleToDebugString(TargetAI->Role) : TEXT("NonParty"));
+	if (TankDebugLogAccum <= KINDA_SMALL_NUMBER)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTargetRole=%s"), TargetAI ? *RoleToDebugString(TargetAI->Role) : TEXT("NonParty"));
+	}
+	if (ObservedEnemyController->HasForcedTarget())
+	{
+		LogBlocked(TEXT("Already forced target"));
+		return;
+	}
 
 	if (EnemyCurrentTarget == GetOwner())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: EnemyCurrentTarget is self"));
+		LogBlocked(TEXT("EnemyCurrentTarget is self"));
 		return;
 	}
 	if (!IsAllyActor(EnemyCurrentTarget))
 	{
-		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: Target is not ally"));
+		LogBlocked(TEXT("Target is not ally"));
 		return;
 	}
 	if (TankReactionCooldownRemaining > 0.f)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: Cooldown %.1fs remaining"), TankReactionCooldownRemaining);
+		LogBlocked(*FString::Printf(TEXT("Cooldown %.1fs remaining"), TankReactionCooldownRemaining));
 		return;
 	}
 	UE_LOG(LogTemp, Log, TEXT("[TankAI] Enter RecoverAggro"));
 	if (TryTempTaunt(ObservedEnemyController))
 	{
-		TankReactionCooldownRemaining = 1.5f;
+		TankReactionCooldownRemaining = TempTauntForcedTargetDuration;
 	}
 }
 
@@ -630,7 +666,7 @@ bool UCombatPartyAIComponent::TryTempTaunt(AEnemyAIController* EnemyController)
 	if (!EnemyController || !GetOwner()) return false;
 	AActor* Prev = EnemyController->GetCurrentTargetActor();
 	UE_LOG(LogTemp, Log, TEXT("[TankAI] Use TempTaunt"));
-	EnemyController->ForceSetCurrentTarget(GetOwner());
+	EnemyController->ApplyForcedTarget(GetOwner(), TempTauntForcedTargetDuration);
 	UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTarget changed: %s -> %s"), *GetNameSafe(Prev), *GetNameSafe(GetOwner()));
 	return true;
 }

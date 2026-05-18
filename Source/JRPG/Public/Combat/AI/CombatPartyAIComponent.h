@@ -78,6 +78,11 @@ private:
 	float KeepDistanceTolerance = 60.f;
 	float TankReactionCooldownRemaining = 0.f;
 	float TankTickLogAccum = 0.f;
+	float TankDebugLogAccum = 0.f;
+	float TankBlockedLogAccum = 0.f;
+	FString LastRecoverAggroBlockReason;
+	float TempTauntForcedTargetDuration = 1.5f;
 	float MoveCallsThisSecond = 0.f;
 	float MoveCallsAccum = 0.f;
+	FVector LastMoveDirection = FVector::ZeroVector;
 };

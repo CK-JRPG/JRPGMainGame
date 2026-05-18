@@ -32,7 +32,10 @@ public:
 	virtual void Tick(float DeltaSeconds) override;
 	void ResetForNewBattle();
 	AActor* GetCurrentTargetActor() const { return CurrentTarget.Get(); }
+	AActor* GetEffectiveTargetActor() const;
 	void ForceSetCurrentTarget(AActor* NewTarget);
+	void ApplyForcedTarget(AActor* NewTarget, float DurationSec = 1.5f);
+	bool HasForcedTarget() const;
 
 	UPROPERTY(EditAnywhere) TObjectPtr<UCombatAIPresetAsset> PresetAsset;
 
@@ -46,6 +49,8 @@ private:
 
 	UPROPERTY() EEnemyCombatState State = EEnemyCombatState::Idle;
 	UPROPERTY() TWeakObjectPtr<AActor> CurrentTarget;
+	UPROPERTY() TWeakObjectPtr<AActor> ForcedTarget;
+	double ForcedTargetUntilReal = 0.0;
 
 	// AI 사거리 파라미터 (캐릭터 데이터 에셋에서 로드)
 	float AttackRange = 200.f;

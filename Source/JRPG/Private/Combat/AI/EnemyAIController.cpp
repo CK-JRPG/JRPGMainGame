@@ -151,6 +151,18 @@ void AEnemyAIController::RefreshStateFromGroggyAndChain()
 
 void AEnemyAIController::RefreshTarget()
 {
+	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	if (ForcedTarget.IsValid() && Now < ForcedTargetUntilReal)
+	{
+		SetCurrentTarget(ForcedTarget.Get());
+		return;
+	}
+	if (ForcedTarget.IsValid() && Now >= ForcedTargetUntilReal)
+	{
+		ForcedTarget = nullptr;
+		ForcedTargetUntilReal = 0.0;
+	}
+
 	auto IsAliveTarget = [](AActor* InTarget) -> bool
 		{
 			if (!IsValid(InTarget))
@@ -236,6 +248,29 @@ void AEnemyAIController::SetCurrentTarget(AActor* NewTarget)
 void AEnemyAIController::ForceSetCurrentTarget(AActor* NewTarget)
 {
 	SetCurrentTarget(NewTarget);
+}
+
+void AEnemyAIController::ApplyForcedTarget(AActor* NewTarget, float DurationSec)
+{
+	ForcedTarget = NewTarget;
+	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	ForcedTargetUntilReal = Now + FMath::Max(0.0, static_cast<double>(DurationSec));
+	SetCurrentTarget(NewTarget);
+}
+
+bool AEnemyAIController::HasForcedTarget() const
+{
+	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	return ForcedTarget.IsValid() && Now < ForcedTargetUntilReal;
+}
+
+AActor* AEnemyAIController::GetEffectiveTargetActor() const
+{
+	if (HasForcedTarget())
+	{
+		return ForcedTarget.Get();
+	}
+	return CurrentTarget.Get();
 }
 
 void AEnemyAIController::TickChase(float DeltaSeconds)
