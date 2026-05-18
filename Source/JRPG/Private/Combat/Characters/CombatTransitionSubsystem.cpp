@@ -1,12 +1,14 @@
 ﻿#include "Combat/Characters/CombatTransitionSubsystem.h"
 
 #include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Camera/CameraRigActor.h"
 #include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
 #include "Combat/Characters/CharacterRuntimeSubsystem.h"
 #include "Combat/Characters/CombatPlayerController.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
+#include "Combat/Infrastructure/CombatTimeSubsystem.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Game/Companion/FieldCompanionSubsystem.h"
@@ -19,7 +21,9 @@
 #include "Combat/AI/CombatPartyAIComponent.h"
 #include "Game/HubSubsystem.h"
 #include "UI/JRPGHUD.h"
+#include "UI/Presenters/CombatHUDPresenter.h"
 #include "UI/Presenters/ExplorationHUDPresenter.h"
+#include "TimerManager.h"
 
 
 void UCombatTransitionSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -188,6 +192,7 @@ bool UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 			SyncMovementStateToLeader(CachedFieldPawn.Get(), LeaderActor);
 
 			OnPartyMemberChangedDelegate.Broadcast(EffectiveLeaderID);
+			StartEncounterIntroSequence();
 
 			UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem::EnterCombatMode : CombatPlayerController 스왑 완료 → %s"), *EffectiveLeaderID.ToString());
 			return true;
@@ -206,6 +211,7 @@ bool UCombatTransitionSubsystem::EnterCombatMode(APlayerController* PC, const FN
 	// 폴백 경로에서도 필드 폰 → 전투 액터 이동 속도/입력 동기화
 	SyncMovementStateToLeader(CachedFieldPawn.Get(), LeaderActor);
 	OnPartyMemberChangedDelegate.Broadcast(EffectiveLeaderID);
+	StartEncounterIntroSequence();
 
 	UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem::EnterCombatMode : 전투 모드 진입 완료 (필드 PC 폴백) -> %s"), *EffectiveLeaderID.ToString());
 	return true;
@@ -363,6 +369,7 @@ void UCombatTransitionSubsystem::OnBattleEnded(EBattleEndReason Reason)
 	}
 
 	bIsTransitioning = true;
+	CancelEncounterIntroSequence(TEXT("Encounter.Intro.EndBattle"));
 
 	if (Reason == EBattleEndReason::Victory)
 	{
@@ -623,6 +630,125 @@ void UCombatTransitionSubsystem::StopPostBattleRecovery(FName ReasonTag)
 		UE_LOG(LogTemp, Log, TEXT("CombatTransitionSubsystem : 승리 후 HP 회복 중지 (Reason=%s)."), *ReasonTag.ToString());
 	}
 	PostBattleRecoveryPartyIds.Reset();
+}
+
+void UCombatTransitionSubsystem::StartEncounterIntroSequence()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	bEncounterIntroSequenceActive = true;
+	bEncounterIntroExclusiveModeActive = true;
+
+	if (UCombatTimeSubsystem* TimeSub = World->GetSubsystem<UCombatTimeSubsystem>())
+	{
+		FCombatTimeRequest TimeReq;
+		TimeReq.Mode = ECombatTimeMode::Slow;
+		TimeReq.Priority = EncounterIntroSettings.SlowPriority;
+		TimeReq.OwnerTag = TEXT("Encounter.Intro");
+		TimeReq.TimeScale = EncounterIntroSettings.SlowScale;
+		TimeReq.DurationRealSec = EncounterIntroSettings.SlowDurationRealSec;
+		TimeReq.BlendInSec = EncounterIntroSettings.SlowBlendInSec;
+		TimeReq.BlendOutSec = EncounterIntroSettings.SlowBlendOutSec;
+
+		const FCombatTimeResult TimeRes = TimeSub->RequestTimeMode(TimeReq);
+		EncounterIntroTimeHandle = TimeRes.Handle;
+	}
+
+	if (APlayerController* PC = CombatPlayerController.Get())
+	{
+		if (AJRPGHUD* HUD = Cast<AJRPGHUD>(PC->GetHUD()))
+		{
+			if (UCombatHUDPresenter* Presenter = HUD->GetCombatPresenter())
+			{
+				Presenter->BeginEncounterIntro();
+			}
+		}
+	}
+
+	World->GetTimerManager().ClearTimer(EncounterIntroTimerHandle);
+	World->GetTimerManager().SetTimer(
+		EncounterIntroTimerHandle,
+		this,
+		&UCombatTransitionSubsystem::FinishEncounterIntroSequence,
+		EncounterIntroSettings.DurationRealSec,
+		false);
+}
+
+void UCombatTransitionSubsystem::FinishEncounterIntroSequence()
+{
+	UWorld* World = GetWorld();
+	if (!World || !bEncounterIntroSequenceActive)
+	{
+		return;
+	}
+
+	if (APlayerController* PC = CombatPlayerController.Get())
+	{
+		if (AJRPGHUD* HUD = Cast<AJRPGHUD>(PC->GetHUD()))
+		{
+			if (UCombatHUDPresenter* Presenter = HUD->GetCombatPresenter())
+			{
+				Presenter->EndEncounterIntro();
+			}
+		}
+	}
+
+	if (UCameraSubsystem* CamSub = World->GetSubsystem<UCameraSubsystem>())
+	{
+		if (ACameraRigActor* Rig = CamSub->GetCameraRig())
+		{
+			Rig->UseCombatArmLength(false);
+		}
+	}
+
+	CancelEncounterIntroSequence(TEXT("Encounter.Intro.Finished"));
+}
+
+void UCombatTransitionSubsystem::CancelEncounterIntroSequence(FName ReasonTag)
+{
+	UWorld* World = GetWorld();
+	if (World)
+	{
+		World->GetTimerManager().ClearTimer(EncounterIntroTimerHandle);
+	}
+
+	if (EncounterIntroTimeHandle.IsValid())
+	{
+		if (UCombatTimeSubsystem* TimeSub = World ? World->GetSubsystem<UCombatTimeSubsystem>() : nullptr)
+		{
+			TimeSub->ReleaseTimeMode(EncounterIntroTimeHandle, ReasonTag);
+		}
+		EncounterIntroTimeHandle.Invalidate();
+	}
+
+	if (bEncounterIntroSequenceActive)
+	{
+		if (APlayerController* PC = CombatPlayerController.Get())
+		{
+			if (AJRPGHUD* HUD = Cast<AJRPGHUD>(PC->GetHUD()))
+			{
+				if (UCombatHUDPresenter* Presenter = HUD->GetCombatPresenter())
+				{
+					Presenter->EndEncounterIntro();
+				}
+			}
+		}
+	}
+
+	if (bEncounterIntroExclusiveModeActive)
+	{
+		if (UBattleSessionSubsystem* BattleSub = World ? World->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+		{
+			BattleSub->ExitExclusiveMode(TEXT("Encounter.Intro"));
+		}
+	}
+
+	bEncounterIntroSequenceActive = false;
+	bEncounterIntroExclusiveModeActive = false;
 }
 
 // ==== 공통 전환 로직 (승리) ====
@@ -909,6 +1035,8 @@ void UCombatTransitionSubsystem::RestoreFieldPawn(APlayerController* ControllerT
 
 void UCombatTransitionSubsystem::ResetTransitionState()
 {
+	CancelEncounterIntroSequence(TEXT("Encounter.Intro.ResetTransition"));
+
 	CombatPlayerController     = nullptr;
 	CachedFieldController      = nullptr;
 	OriginalPlayerCharacterID  = NAME_None;
@@ -937,5 +1065,18 @@ void UCombatTransitionSubsystem::HandleBattleStarted(const FBattleSessionSnapsho
 
 void UCombatTransitionSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason Reason)
 {
+	bIsTransitioning = true;
+	CancelEncounterIntroSequence(TEXT("Encounter.Intro.BattleEnded"));
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().SetTimerForNextTick(
+			FTimerDelegate::CreateWeakLambda(this, [this, Reason]()
+			{
+				OnBattleEnded(Reason);
+			}));
+		return;
+	}
+
 	OnBattleEnded(Reason);
 }

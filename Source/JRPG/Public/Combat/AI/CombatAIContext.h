@@ -46,16 +46,21 @@ public:
 
 	UPROPERTY() bool bSelfIsDead = false;
 	UPROPERTY() float SelfHp01 = 1.f;
+	UPROPERTY() float SelfDanger01 = 0.f;
 
 	// Ally danger snapshot
 	UPROPERTY() bool bAnyAllyCritical = false;
 	UPROPERTY() TWeakObjectPtr<AActor> AllyCriticalTarget;
 	UPROPERTY() bool bAnyAllyHasCC = false;
 	UPROPERTY() TWeakObjectPtr<AActor> AllyCC_Target;
+	UPROPERTY() bool bAnyAllyDangerous = false;
+	UPROPERTY() TWeakObjectPtr<AActor> AllyHighestNeedTarget;
+	UPROPERTY() float AllyHighestNeed01 = 0.f;
 
 	// Target groggy snapshot
 	UPROPERTY() EJRPGGroggyPhase TargetGroggyPhase = EJRPGGroggyPhase::Normal;
 	UPROPERTY() float TargetBreakRatio01 = 0.f;
+	UPROPERTY() float TargetThreatToAllies01 = 0.f;
 
 	// SP snapshot
 	UPROPERTY() int32 CurrentSP = 0;

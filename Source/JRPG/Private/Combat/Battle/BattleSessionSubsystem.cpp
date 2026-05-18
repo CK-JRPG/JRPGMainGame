@@ -858,6 +858,21 @@ void UBattleSessionSubsystem::CreateCombatZone(const FEncounterContext& InEncoun
 
 	if (IsValid(SpawnedZone))
 	{
+		if (IsValid(InEncounterCtx.ZoneSetting))
+		{
+			const FVector ZoneExtent = InEncounterCtx.ZoneSetting->ZoneBoxExtent.GetAbs();
+			SpawnedZone->SetZoneHalfHeight(ZoneExtent.Z);
+
+			if (InEncounterCtx.ZoneSetting->ZoneShape == ECombatZoneShape::Sphere)
+			{
+				SpawnedZone->SetZoneRadius(FMath::Max(0.0f, InEncounterCtx.ZoneSetting->ZoneSphereRadius));
+			}
+			else
+			{
+				SpawnedZone->SetZoneRadius(FMath::Max(ZoneExtent.X, ZoneExtent.Y));
+			}
+		}
+
 		UE_LOG(LogTemp, Log, TEXT("BattleSessionSubsystem::CreateCombatZone : CombatZoneActor 생성 완료 (Center=%s)"),
 			*SpawnLocation.ToString());
 	}

@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
 #include "Combat/Battle/BattleSessionTypes.h"
+#include "Combat/Time/CombatTimeTypes.h"
 #include "CombatTransitionSubsystem.generated.h"
 
 class ACombatPlayerController;
@@ -16,6 +17,30 @@ class ACombatCharacterActor;
 // 이동 상태 동기화 (양방향)
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnPartyMemberChanged, FName /*NewCharacterID*/);
+
+USTRUCT()
+struct FEncounterIntroSequenceSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	float DurationRealSec = 0.65f;
+
+	UPROPERTY()
+	float SlowDurationRealSec = 0.18f;
+
+	UPROPERTY()
+	float SlowScale = 0.06f;
+
+	UPROPERTY()
+	float SlowBlendInSec = 0.02f;
+
+	UPROPERTY()
+	float SlowBlendOutSec = 0.10f;
+
+	UPROPERTY()
+	ECombatTimePriority SlowPriority = ECombatTimePriority::High;
+};
 
 UCLASS()
 class JRPG_API UCombatTransitionSubsystem : public UWorldSubsystem
@@ -57,6 +82,9 @@ private:
 	void StartPostBattleRecovery();
 	void TickPostBattleRecovery();
 	void StopPostBattleRecovery(FName ReasonTag);
+	void StartEncounterIntroSequence();
+	void FinishEncounterIntroSequence();
+	void CancelEncounterIntroSequence(FName ReasonTag);
 
 	// 공통 전환 서브 함수
 	void PerformTransition(bool bUseLeaderPosition);
@@ -103,10 +131,16 @@ private:
 	
 	// 승리 후 회복용 타이머
 	FTimerHandle PostBattleRecoveryTimerHandle;
+	FTimerHandle EncounterIntroTimerHandle;
 	UPROPERTY()
 	TArray<FName> PostBattleRecoveryPartyIds;
+	UPROPERTY()
+	FEncounterIntroSequenceSettings EncounterIntroSettings;
+	FCombatTimeHandle EncounterIntroTimeHandle;
 	static constexpr float PostBattleRecoveryInterval = 1.0f;
 	static constexpr float PostBattleRecoveryRatio = 0.05f;
+	bool bEncounterIntroSequenceActive = false;
+	bool bEncounterIntroExclusiveModeActive = false;
 	
 	// 패배 전환 시 저장되는 필드 컨트롤러 (비동기 흐름용)
 	UPROPERTY()

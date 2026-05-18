@@ -1,13 +1,13 @@
 ﻿#include "Combat/Session/CombatZoneActor.h"
 
-#include "Components/BoxComponent.h"
+#include "Components/SphereComponent.h"
 #include "DrawDebugHelpers.h"
 
 ACombatZoneActor::ACombatZoneActor()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	ZoneBounds = CreateDefaultSubobject<UBoxComponent>(TEXT("ZoneBounds"));
+	ZoneBounds = CreateDefaultSubobject<USphereComponent>(TEXT("ZoneBounds"));
 	SetRootComponent(ZoneBounds);
 
 	// 존 추적은 파티/적 커스텀 채널 모두를 받아야 한다.
@@ -18,7 +18,7 @@ ACombatZoneActor::ACombatZoneActor()
 	ZoneBounds->SetCollisionResponseToChannel(ECC_GameTraceChannel3, ECR_Overlap);
 	ZoneBounds->SetGenerateOverlapEvents(true);
 
-	ZoneBounds->SetBoxExtent(FVector(1200.f, 1200.f, 300.f));
+	ZoneBounds->SetSphereRadius(1200.0f);
 	
 	bDrawDebug = true;
 }
@@ -28,21 +28,28 @@ FVector ACombatZoneActor::ClampCharacterLocation(const FVector& WorldLocation, f
 	if (!ZoneBounds) return WorldLocation;
 
 	const FTransform T = ZoneBounds->GetComponentTransform();
-	const FVector Ext = ZoneBounds->GetScaledBoxExtent();
+	const FVector Scale3D = T.GetScale3D().GetAbs();
+	const float Radius = ZoneBounds->GetUnscaledSphereRadius() * FMath::Max(Scale3D.X, Scale3D.Y);
+	const float HalfHeight = ZoneHalfHeight * Scale3D.Z;
 
 	// 월드 -> 로컬
 	FVector Local = T.InverseTransformPosition(WorldLocation);
 
-	const float MinX = -Ext.X + CapsuleRadius;
-	const float MaxX =  Ext.X - CapsuleRadius;
-	const float MinY = -Ext.Y + CapsuleRadius;
-	const float MaxY =  Ext.Y - CapsuleRadius;
-	const float MinZ = -Ext.Z + CapsuleHalfHeight;
-	const float MaxZ =  Ext.Z - CapsuleHalfHeight;
+	const float AllowedRadius = FMath::Max(0.0f, Radius - CapsuleRadius);
+	FVector2D LocalXY(Local.X, Local.Y);
 
-	Local.X = FMath::Clamp(Local.X, MinX, MaxX);
-	Local.Y = FMath::Clamp(Local.Y, MinY, MaxY);
-	Local.Z = FMath::Clamp(Local.Z, MinZ, MaxZ);
+	const float Dist2D = LocalXY.Size();
+	if (Dist2D > AllowedRadius && Dist2D > KINDA_SMALL_NUMBER)
+	{
+		LocalXY *= (AllowedRadius / Dist2D);
+		Local.X = LocalXY.X;
+		Local.Y = LocalXY.Y;
+	}
+
+	const float MinZ = -HalfHeight + CapsuleHalfHeight;
+	const float MaxZ = HalfHeight - CapsuleHalfHeight;
+
+	Local.Z = (MinZ <= MaxZ) ? FMath::Clamp(Local.Z, MinZ, MaxZ) : 0.0f;
 
 	// 로컬 -> 월드
 	return T.TransformPosition(Local);
@@ -53,20 +60,31 @@ bool ACombatZoneActor::IsCharacterInside(const FVector& WorldLocation, float Cap
 	if (!ZoneBounds) return false;
 
 	const FTransform T = ZoneBounds->GetComponentTransform();
-	const FVector Ext = ZoneBounds->GetScaledBoxExtent();
+	const FVector Scale3D = T.GetScale3D().GetAbs();
+	const float Radius = ZoneBounds->GetUnscaledSphereRadius() * FMath::Max(Scale3D.X, Scale3D.Y);
+	const float HalfHeight = ZoneHalfHeight * Scale3D.Z;
 
 	const FVector Local = T.InverseTransformPosition(WorldLocation);
 
-	const float MinX = -Ext.X + CapsuleRadius;
-	const float MaxX =  Ext.X - CapsuleRadius;
-	const float MinY = -Ext.Y + CapsuleRadius;
-	const float MaxY =  Ext.Y - CapsuleRadius;
-	const float MinZ = -Ext.Z + CapsuleHalfHeight;
-	const float MaxZ =  Ext.Z - CapsuleHalfHeight;
+	const float AllowedRadius = FMath::Max(0.0f, Radius - CapsuleRadius);
+	const float Dist2D = FVector2D(Local.X, Local.Y).Size();
 
-	return (Local.X >= MinX && Local.X <= MaxX
-		&&  Local.Y >= MinY && Local.Y <= MaxY
-		&&  Local.Z >= MinZ && Local.Z <= MaxZ);
+	const float MinZ = -HalfHeight + CapsuleHalfHeight;
+	const float MaxZ = HalfHeight - CapsuleHalfHeight;
+	const bool bInsideZ = (MinZ <= MaxZ) ? (Local.Z >= MinZ && Local.Z <= MaxZ) : false;
+
+	return Dist2D <= AllowedRadius && bInsideZ;
+}
+
+void ACombatZoneActor::SetZoneRadius(float InRadius)
+{
+	if (!ZoneBounds) return;
+	ZoneBounds->SetSphereRadius(FMath::Max(0.0f, InRadius));
+}
+
+void ACombatZoneActor::SetZoneHalfHeight(float InHalfHeight)
+{
+	ZoneHalfHeight = FMath::Max(0.0f, InHalfHeight);
 }
 
 void ACombatZoneActor::Tick(float DeltaSeconds)
@@ -76,13 +94,14 @@ void ACombatZoneActor::Tick(float DeltaSeconds)
 	if (!bDrawDebug || !ZoneBounds) return;
 
 	const FTransform T = ZoneBounds->GetComponentTransform();
-	const FVector Ext = ZoneBounds->GetScaledBoxExtent();
+	const FVector Scale3D = T.GetScale3D().GetAbs();
+	const float Radius = ZoneBounds->GetUnscaledSphereRadius() * FMath::Max(Scale3D.X, Scale3D.Y);
 
-	DrawDebugBox(
+	DrawDebugSphere(
 		GetWorld(),
 		T.GetLocation(),
-		Ext,
-		T.GetRotation(),
+		Radius,
+		48,
 		FColor::Cyan,
 		false,
 		0.0f,

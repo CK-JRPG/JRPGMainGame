@@ -45,6 +45,8 @@ public:
 	void AdjustZoom(float Delta);
 	void ResetZoom();
 	void SetArmLength(float NewArmLength, bool bApplyImmediately = true);
+	void UseFieldArmLength(bool bApplyImmediately = false);
+	void UseCombatArmLength(bool bApplyImmediately = false);
 
 private:
 	UPROPERTY()
@@ -64,15 +66,27 @@ private:
 	float ArmLengthInterpSpeed = 5.0f;
 	
 	// 카메라 설정
-	float ArmLength = 550.0f;
-	float DefaultArmLength = 550.0f;
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "1.0"))
 	float ZoomStep = 80.0f;
 	
-	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "50.0"))
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "100.0"))
 	float MinArmLength = 150.0f;
 	
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "150.0"))
+	float FieldArmLength = 550.0f;
+
 	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "100.0"))
-	float MaxArmLength = 550.0f;
+	float FieldMaxArmLength = 550.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "150.0"))
+	float CombatArmLength = 950.0f;
+
+	UPROPERTY(EditAnywhere, Category = "Camera", meta = (ClampMin = "100.0"))
+	float CombatMaxArmLength = 950.0f;
+
+	float CurrentArmLength = 550.0f;
+	float CurrentDefaultArmLength = 550.0f;
+	float CurrentMaxArmLength = 550.0f;
 	
 	// 락온 시 적의 위치에 더할 수직 오프셋 (가슴/머리 높이)
 	float LockOnVerticalOffset = 60.0f;

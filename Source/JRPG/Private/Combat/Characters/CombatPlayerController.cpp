@@ -47,14 +47,20 @@ void ACombatPlayerController::SetupInputComponent()
 		EIC->BindAction(IA_TargetLockOn, ETriggerEvent::Started, this, &ACombatPlayerController::OnTargetLockOn);
 	}
 	
-	if (IA_SwitchPrev)
-	{
-		EIC->BindAction(IA_SwitchPrev, ETriggerEvent::Started, this, &ACombatPlayerController::OnSwitchPrev);
-	}
+	//if (IA_SwitchPrev)
+	//{
+	//	EIC->BindAction(IA_SwitchPrev, ETriggerEvent::Started, this, &ACombatPlayerController::OnSwitchPrev);
+	//}
+	//
+	//if (IA_SwitchNext)
+	//{
+	//	EIC->BindAction(IA_SwitchNext, ETriggerEvent::Started, this, &ACombatPlayerController::OnSwitchNext);
+	//}
 
-	if (IA_SwitchNext)
+	if (IA_PartyWheel)
 	{
-		EIC->BindAction(IA_SwitchNext, ETriggerEvent::Started, this, &ACombatPlayerController::OnSwitchNext);
+		EIC->BindAction(IA_PartyWheel, ETriggerEvent::Started, this, &ACombatPlayerController::OnPartyWheelStarted);
+		EIC->BindAction(IA_PartyWheel, ETriggerEvent::Completed, this, &ACombatPlayerController::OnPartyWheelCompleted);
 	}
 	
 	if (IA_TacticalMode)
@@ -143,6 +149,8 @@ void ACombatPlayerController::OnLook(const FInputActionValue& Value)
 			return;
 	}
 
+	if (bIsPartyWheelActive) return;
+
 	const FVector2D LookAxisVector = Value.Get<FVector2D>();
 
 	if (LookAxisVector.X != 0.0f)
@@ -156,39 +164,39 @@ void ACombatPlayerController::OnLook(const FInputActionValue& Value)
 	}
 }
 
-void ACombatPlayerController::OnSwitchPrev(const FInputActionValue& /*Value*/)
-{
-	SwitchCombatCharacter(-1);
-}
-
-void ACombatPlayerController::OnSwitchNext(const FInputActionValue& /*Value*/)
-{
-	SwitchCombatCharacter(1);
-}
-
-void ACombatPlayerController::SwitchCombatCharacter(int32 Direction)
-{
-	if (!GetWorld() || !GetGameInstance()) return;
-
-	UCombatTransitionSubsystem* TransitionSub = GetWorld()->GetSubsystem<UCombatTransitionSubsystem>();
-	UPartySubsystem* PartySub = GetGameInstance()->GetSubsystem<UPartySubsystem>();
-
-	if (!TransitionSub || !PartySub) return;
-
-	const TArray<FName>& PartyIds = PartySub->GetPartyIds();
-	if (PartyIds.Num() <= 1) return;
-
-	const FName CurrentId = TransitionSub->GetCurrentPlayerCharacterID();
-	if (CurrentId.IsNone()) return;
-
-	const int32 CurrentIndex = PartyIds.IndexOfByKey(CurrentId);
-	if (CurrentIndex == INDEX_NONE) return;
-
-	const int32 NewIndex = (CurrentIndex + Direction + PartyIds.Num()) % PartyIds.Num();
-	const FName NewId = PartyIds[NewIndex];
-
-	TransitionSub->OnPartyMemberChanged(NewId);
-}
+//void ACombatPlayerController::OnSwitchPrev(const FInputActionValue& /*Value*/)
+//{
+//	SwitchCombatCharacter(-1);
+//}
+//
+//void ACombatPlayerController::OnSwitchNext(const FInputActionValue& /*Value*/)
+//{
+//	SwitchCombatCharacter(1);
+//}
+//
+//void ACombatPlayerController::SwitchCombatCharacter(int32 Direction)
+//{
+//	if (!GetWorld() || !GetGameInstance()) return;
+//
+//	UCombatTransitionSubsystem* TransitionSub = GetWorld()->GetSubsystem<UCombatTransitionSubsystem>();
+//	UPartySubsystem* PartySub = GetGameInstance()->GetSubsystem<UPartySubsystem>();
+//
+//	if (!TransitionSub || !PartySub) return;
+//
+//	const TArray<FName>& PartyIds = PartySub->GetPartyIds();
+//	if (PartyIds.Num() <= 1) return;
+//
+//	const FName CurrentId = TransitionSub->GetCurrentPlayerCharacterID();
+//	if (CurrentId.IsNone()) return;
+//
+//	const int32 CurrentIndex = PartyIds.IndexOfByKey(CurrentId);
+//	if (CurrentIndex == INDEX_NONE) return;
+//
+//	const int32 NewIndex = (CurrentIndex + Direction + PartyIds.Num()) % PartyIds.Num();
+//	const FName NewId = PartyIds[NewIndex];
+//
+//	TransitionSub->OnPartyMemberChanged(NewId);
+//}
 
 void ACombatPlayerController::OnCameraZoom(const FInputActionValue& Value)
 {
@@ -223,6 +231,16 @@ void ACombatPlayerController::OnTargetLockOn(const FInputActionValue& Value)
 	{
 		// 포커싱 시작 (가장 가까운 적)
 		CamSub->LockOnEnemy();
+	}
+
+	// 적 HP 표시
+	if(AJRPGHUD * HUD = Cast<AJRPGHUD>(GetHUD()))
+	{
+		if (UCombatHUDPresenter* Presenter = HUD->GetCombatPresenter())
+		{
+			Presenter->UpdateTargetEnemyUI(CamSub->GetLockedOnEnemy());
+			UE_LOG(LogTemp, Warning, TEXT("락온 된 적 HP 표시"));
+		}
 	}
 }
 
@@ -320,4 +338,53 @@ void ACombatPlayerController::OnSkill1(const FInputActionValue& Value)
 	if (Targets.Num() == 0) return;
 
 	Presentation->TryPresentSkill(SkillId, Targets);
+}
+
+void ACombatPlayerController::OnPartyWheelStarted(const FInputActionValue& Value)
+{
+	bIsPartyWheelActive = true;
+	bShowMouseCursor = true;
+
+	FInputModeGameAndUI InputMode;
+	InputMode.SetLockMouseToViewportBehavior(EMouseLockMode::DoNotLock);
+	InputMode.SetHideCursorDuringCapture(false);
+	SetInputMode(InputMode);
+
+	if (AJRPGHUD* HUD = Cast<AJRPGHUD>(GetHUD()))
+	{
+		if (UCombatHUDPresenter* Presenter = HUD->GetCombatPresenter())
+		{
+			Presenter->SetPartyWheelActive(true);
+		}
+	}
+}
+
+void ACombatPlayerController::OnPartyWheelCompleted(const FInputActionValue& Value)
+{
+	bIsPartyWheelActive = false;
+	bShowMouseCursor = false;
+
+	FInputModeGameOnly GameMode;
+	SetInputMode(GameMode);
+
+	if (AJRPGHUD* HUD = Cast<AJRPGHUD>(GetHUD()))
+	{
+		if (UCombatHUDPresenter* Presenter = HUD->GetCombatPresenter())
+		{
+			Presenter->SetPartyWheelActive(false);
+
+			FName SelectedID = Presenter->GetHoveredPartyMemberID();
+
+			if (!SelectedID.IsNone())
+			{
+				if (UCombatTransitionSubsystem* TransitionSub = GetWorld()->GetSubsystem<UCombatTransitionSubsystem>())
+				{
+					if (TransitionSub->GetCurrentPlayerCharacterID() != SelectedID)
+					{
+						TransitionSub->OnPartyMemberChanged(SelectedID);
+					}
+				}
+			}
+		}
+	}
 }

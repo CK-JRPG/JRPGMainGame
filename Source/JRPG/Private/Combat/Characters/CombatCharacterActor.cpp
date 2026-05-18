@@ -11,10 +11,12 @@
 #include "Combat/AI/CombatCharacterActorAIController.h"
 #include "Combat/AI/CombatPartyAIComponent.h"
 #include "Combat/Battle/EnemyEncounterComponent.h"
+#include "Combat/Battle/DirectionalDamageComponent.h"
 #include "Combat/AI/EnemyAIController.h"
 #include "Combat/Items/CombatItemComponent.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Presentation/CombatVFXComponent.h"
+#include "Combat/Presentation/TargetGuideLineComponent.h"
 #include "Combat/Motion/CombatMotionComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
@@ -54,11 +56,13 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 	ItemComp = CreateDefaultSubobject<UCombatItemComponent>(TEXT("CombatItemComponent"));
 	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
 	VFXComp = CreateDefaultSubobject<UCombatVFXComponent>(TEXT("CombatVFXComponent"));
+	TargetGuideLineComp = CreateDefaultSubobject<UTargetGuideLineComponent>(TEXT("TargetGuideLineComponent"));
 	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
 	LocomotionComp = CreateDefaultSubobject<ULocomotionComponent>(TEXT("LocomotionComponent"));
 	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));
 	ZoneTrackerComp = CreateDefaultSubobject<UCombatZoneTrackerComponent>(TEXT("CombatZoneTracker"));
 	CombatPartyAIComp = CreateDefaultSubobject<UCombatPartyAIComponent>(TEXT("CombatPartyAIComponent"));
+	DirectionalDamageComp = CreateDefaultSubobject<UDirectionalDamageComponent>(TEXT("DirectionalDamageComponent"));
 	// PartyAIComp는 BeginPlay에서 팀 확인 후 활성화
 	CombatPartyAIComp->PrimaryComponentTick.bStartWithTickEnabled = false;
 
@@ -218,6 +222,11 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 	{
 		HPBarWidgetComponent->SetVisibility(false);
 	}
+
+	if (TargetGuideLineComp)
+	{
+		TargetGuideLineComp->ClearAggroTarget();
+	}
 }
 
 FName ACombatCharacterActor::GetCombatantId() const
@@ -282,6 +291,11 @@ void ACombatCharacterActor::ResetEnemyRuntimeForRematch(FName ReasonTag)
 		ThreatComp->ClearAll();
 	}
 
+	if (TargetGuideLineComp)
+	{
+		TargetGuideLineComp->ClearAggroTarget();
+	}
+
 	if (GroggyComp)
 	{
 		GroggyComp->ResetGauge(ReasonTag);
@@ -329,10 +343,5 @@ FRotator ACombatCharacterActor::GetCameraTargetRotation() const
 	if (AController* C = GetController())
 		return C->GetControlRotation();
 	return GetActorRotation();
-}
-
-float ACombatCharacterActor::GetCameraTargetArmLength() const
-{
-	return CombatArmLength;
 }
 

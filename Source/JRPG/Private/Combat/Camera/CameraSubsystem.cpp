@@ -31,6 +31,11 @@ void UCameraSubsystem::OnWorldBeginPlay(UWorld& InWorld)
         );
     }
 
+    if (CameraRig.IsValid())
+    {
+        CameraRig->UseFieldArmLength(true);
+    }
+
     if (UBattleSessionSubsystem* BS = InWorld.GetSubsystem<UBattleSessionSubsystem>())
     {
         BS->OnBattleEnded.AddUObject(this, &UCameraSubsystem::OnBattleEnded);
@@ -144,7 +149,8 @@ void UCameraSubsystem::RestoreFieldSnapshot()
     CameraRig->SetActorRotation(FieldSnapshot.FRotator);
     if (CameraRig->SpringArm)
     {
-        CameraRig->SetArmLength(FieldSnapshot.ArmLength, true);
+        CameraRig->UseFieldArmLength(false);
+        CameraRig->SetArmLength(FieldSnapshot.ArmLength, false);
     }
 
     SetTargetSmooth(FieldSnapshot.Target.Get());
@@ -344,6 +350,7 @@ void UCameraSubsystem::OnBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/,
     if (CameraRig.IsValid())
     {
         CameraRig->ClearLockOnTarget();
+        CameraRig->UseFieldArmLength(false);
     }
 }
 

@@ -31,6 +31,15 @@ public:
 	UPROPERTY(EditAnywhere) float BasePower = 0.f;
 	UPROPERTY(EditAnywhere) float AttackScale = 1.0f;
 	UPROPERTY(EditAnywhere) float DefenseScale = 0.5f;
+	UPROPERTY(EditAnywhere, Category="Damage|Directional") bool bEnableDirectionalDamageBonus = false;
+	UPROPERTY(EditAnywhere, Category="Damage|Directional", meta=(ClampMin="-1.0", ClampMax="1.0", EditCondition="bEnableDirectionalDamageBonus"))
+	float DirectionalBackDotThreshold = -0.5f;
+	UPROPERTY(EditAnywhere, Category="Damage|Directional", meta=(ClampMin="0.0", ClampMax="1.0", EditCondition="bEnableDirectionalDamageBonus"))
+	float DirectionalSideDotThreshold = 0.5f;
+	UPROPERTY(EditAnywhere, Category="Damage|Directional", meta=(ClampMin="1.0", EditCondition="bEnableDirectionalDamageBonus"))
+	float DirectionalBackDamageMultiplier = 2.0f;
+	UPROPERTY(EditAnywhere, Category="Damage|Directional", meta=(ClampMin="1.0", EditCondition="bEnableDirectionalDamageBonus"))
+	float DirectionalSideDamageMultiplier = 1.5f;
 
 	UPROPERTY(EditAnywhere) bool bAllowCrit = true;
 	UPROPERTY(EditAnywhere) float VarianceMin = 0.95f;
@@ -68,5 +77,8 @@ public:
 	UPROPERTY(EditAnywhere) FGameplayTagContainer DispelAnyTags;
 	UPROPERTY(EditAnywhere) int32 DispelRemoveCount = 0;// <=0 means all
 	
+	// AI utility tags (ex: Damage, Heal, Taunt, Buff, Debuff, Shield, Escape, AOE...)
+	UPROPERTY(EditAnywhere, Category = "AI") FGameplayTagContainer AITags;
+
 	bool IsValidSkill() const { return !SkillId.IsNone(); }
 };

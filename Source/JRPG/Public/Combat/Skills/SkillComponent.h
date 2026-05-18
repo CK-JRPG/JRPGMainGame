@@ -7,6 +7,7 @@
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnSkillCast, FName /*SkillId*/, AActor* /*Caster*/, int32 /*TargetCount*/);
 DECLARE_MULTICAST_DELEGATE_FourParams(FOnSkillResolvedDetailed, FName /*SkillId*/, AActor* /*Caster*/, int32/*TargetCount*/,bool/*bFromTacticalReservation*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillCooldownFinished, FName /*SkillId*/);
 
 USTRUCT()
 struct FPreparedSkillCast
@@ -35,6 +36,7 @@ public:
 	FOnSkillCast OnSkillCast;
 	FOnSkillResolvedDetailed OnSkillResolvedDetailed;
 	FOnSkillTargetResolved OnSkillTargetResolved;
+	FOnSkillCooldownFinished OnSkillCooldownFinished;
 
 	bool HasSkill(FName SkillId) const;
 	void LearnSkill(USkillDataAsset *Skill);
