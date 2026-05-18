@@ -1,8 +1,9 @@
 ﻿#include "Graphics/FakeGIActor.h"
 #include "Engine/World.h"
 #include "Engine/StaticMesh.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
+
+
 
 AFakeGIActor::AFakeGIActor()
 {
@@ -15,13 +16,10 @@ AFakeGIActor::AFakeGIActor()
     GIMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
     GIMesh->SetCollisionResponseToAllChannels(ECR_Ignore);
     GIMesh->SetHiddenInGame(true);
+    GIMesh->SetAffectDynamicIndirectLighting(true);
     GIMesh->SetAffectIndirectLightingWhileHidden(true);
-    GIMesh->SetCullDistance(0.f);
-    GIMesh->bAllowCullDistanceVolume = false;
-    GIMesh->SetBoundsScale(GIBoundsScale);
-    GIMesh->SetVisibleInRayTracing(true);
-    GIMesh->RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_0_NEVER_CULL;
-
+    GIMesh->SetEmissiveLightSource(true);
+    ApplyCulling();
 
     static ConstructorHelpers::FObjectFinder<UStaticMesh> SphereMesh(
         TEXT("/Engine/BasicShapes/Sphere.Sphere"));
@@ -88,7 +86,6 @@ void AFakeGIActor::UpdateFakeGI()
 void AFakeGIActor::RefreshFakeGI(bool bApplyTransform)
 {
     ApplyMeshType();
-    EnsureDynamicMaterial();
     if (bApplyTransform)
     {
         ApplyAngle();
@@ -96,56 +93,40 @@ void AFakeGIActor::RefreshFakeGI(bool bApplyTransform)
     }
     ApplyCulling();
     ApplyIntensity();
-    ApplyEnabled();
-}
-
-void AFakeGIActor::EnsureDynamicMaterial()
-{
-    if (!GIMesh)
-    {
-        return;
-    }
-
-    if (DynamicMaterial && GIMesh->GetMaterial(0) == DynamicMaterial)
-    {
-        return;
-    }
-
-    if (DynamicMaterial)
-    {
-        GIMesh->SetMaterial(0, DynamicMaterial);
-        return;
-    }
-
-    if (UMaterialInterface* Material = GIMesh->GetMaterial(0))
-    {
-        DynamicMaterial = UMaterialInstanceDynamic::Create(Material, this);
-        GIMesh->SetMaterial(0, DynamicMaterial);
-    }
 }
 
 void AFakeGIActor::ApplyMeshType()
 {
     UStaticMesh* TargetMesh = nullptr;
 
-    auto LoadMesh = [](const TCHAR* Path) -> UStaticMesh*
+    auto LoadMesh = [](const TCHAR* Path, TWeakObjectPtr<UStaticMesh>& CachedMesh) -> UStaticMesh*
         {
-            return Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, Path));
+            if (!CachedMesh.IsValid())
+            {
+                CachedMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, Path));
+            }
+
+            return CachedMesh.Get();
         };
+
+    static TWeakObjectPtr<UStaticMesh> SphereMesh;
+    static TWeakObjectPtr<UStaticMesh> PlaneMesh;
+    static TWeakObjectPtr<UStaticMesh> CubeMesh;
+    static TWeakObjectPtr<UStaticMesh> CylinderMesh;
 
     switch (MeshType)
     {
     case EFakeGIMeshType::Sphere:
-        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Sphere.Sphere"), SphereMesh);
         break;
     case EFakeGIMeshType::Plane:
-        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Plane.Plane"));
+        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Plane.Plane"), PlaneMesh);
         break;
     case EFakeGIMeshType::Cube:
-        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Cube.Cube"));
+        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Cube.Cube"), CubeMesh);
         break;
     case EFakeGIMeshType::Cylinder:
-        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
+        TargetMesh = LoadMesh(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"), CylinderMesh);
         break;
     case EFakeGIMeshType::Custom:
         TargetMesh = CustomMesh;
@@ -197,33 +178,31 @@ void AFakeGIActor::ApplyCulling()
         GIMesh->SetVisibleInRayTracing(true);
         GIMesh->RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_0_NEVER_CULL;
     }
+    else
+    {
+        GIMesh->SetCullDistance(FMath::Max(GICullDistance, 0.f));
+        GIMesh->bAllowCullDistanceVolume = true;
+        GIMesh->SetVisibleInRayTracing(true);
+        GIMesh->RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_4_DEFAULT;
+    }
 
     GIMesh->SetBoundsScale(FMath::Max(GIBoundsScale, 1.f));
 }
 
 void AFakeGIActor::ApplyIntensity()
 {
-    if (DynamicMaterial)
-    {
-        DynamicMaterial->SetScalarParameterValue(FName("GI_Intensity"), GIIntensity);
-        DynamicMaterial->SetVectorParameterValue(FName("GI_Color"), GIColor);
-    }
-}
-
-// 적용 여부 
-void AFakeGIActor::ApplyEnabled()
-{
-    if (DynamicMaterial)
+    if (GIMesh)
     {
         const float FinalIntensity = bFakeGIEnabled ? GIIntensity : 0.f;
-        DynamicMaterial->SetScalarParameterValue(FName("GI_Intensity"), FinalIntensity);
+        GIMesh->SetCustomPrimitiveDataFloat(GIIntensityPrimitiveDataIndex, FinalIntensity);
+        GIMesh->SetCustomPrimitiveDataVector4(GIColorPrimitiveDataIndex, FVector4(GIColor));
     }
 }
 
 void AFakeGIActor::SetFakeGIEnabled(bool bEnabled)
 {
     bFakeGIEnabled = bEnabled;
-    ApplyEnabled();
+    ApplyIntensity();
 }
 
 void AFakeGIActor::SetGISize(const FVector& NewSize)

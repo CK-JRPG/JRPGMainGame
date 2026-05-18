@@ -7,8 +7,6 @@
 #include "Components/StaticMeshComponent.h"
 #include "FakeGIActor.generated.h"
 
-class UMaterialInstanceDynamic;
-
 UENUM(BlueprintType)
 enum class EFakeGIMeshType : uint8
 {
@@ -79,11 +77,15 @@ public:
     FVector GISize = FVector(1000.f, 1000.f, 1000.f);
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling")
-    bool bNeverCullGIProxy = true;
+    bool bNeverCullGIProxy = false;
+
+    UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling",
+        meta = (ClampMin = "0.0", EditCondition = "!bNeverCullGIProxy"))
+    float GICullDistance = 8000.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling",
         meta = (ClampMin = "1.0", ClampMax = "10000.0"))
-    float GIBoundsScale = 10.f;
+    float GIBoundsScale = 2.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Intensity",
         meta = (ClampMin = "0.0", ClampMax = "100.0"))
@@ -103,21 +105,21 @@ public:
 
 private:
     void RefreshFakeGI(bool bApplyTransform);
-    void EnsureDynamicMaterial();
     void ApplyMeshType();
     void ApplyAngle();
     void ApplyRange();
     void ApplyCulling();
     void ApplyIntensity();
-    void ApplyEnabled();
 
-    UPROPERTY()
-    TObjectPtr<UMaterialInstanceDynamic> DynamicMaterial;
+    static constexpr int32 GIIntensityPrimitiveDataIndex = 0;
+    static constexpr int32 GIColorPrimitiveDataIndex = 1;
 
 #if WITH_EDITOR
     void SyncTransformPropertiesFromActor();
     bool IsTransformPropertyChanged(const FPropertyChangedEvent& PropertyChangedEvent) const;
 
     bool bIsApplyingEditorPropertyChange = false;
+
+  
 #endif
 };
