@@ -2,9 +2,9 @@
 #include "Components/TextBlock.h"
 #include "Components/ProgressBar.h"
 
-//void UCombatTargetInfoWidget::UpdateTargetName(const FString& Name) {
-//    if (Text_TargetName) Text_TargetName->SetText(FText::FromString(Name));
-//}
+void UCombatTargetInfoWidget::UpdateTargetName(const FString& Name) {
+    if (Text_TargetName) Text_TargetName->SetText(FText::FromString(Name));
+}
 void UCombatTargetInfoWidget::UpdateTargetHP(float Percent) 
 {
     if (PB_TargetHP) PB_TargetHP->SetPercent(Percent);
