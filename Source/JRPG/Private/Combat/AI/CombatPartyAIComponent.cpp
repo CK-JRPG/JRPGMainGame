@@ -345,6 +345,21 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 {
 	if (!CurrentTarget.IsValid()) return;
+	StageOneLogAccum += DeltaTime;
+	if (StageOneLogAccum >= 1.f)
+	{
+		StageOneLogAccum = 0.f;
+		const TCHAR* ActionText = TEXT("Idle");
+		if (State == EPartyAIState::Attack)
+		{
+			ActionText = TEXT("BasicAttack");
+		}
+		else if (State == EPartyAIState::Chase || State == EPartyAIState::KeepDistance)
+		{
+			ActionText = TEXT("MoveToTarget");
+		}
+		UE_LOG(LogTemp, Log, TEXT("[PartyAI] StageOne running Owner=%s Action=%s Target=%s"), *GetNameSafe(GetOwner()), ActionText, *GetNameSafe(CurrentTarget.Get()));
+	}
 	if (RangedRepositionPauseRemaining > 0.f)
 	{
 		RangedRepositionPauseRemaining = FMath::Max(0.f, RangedRepositionPauseRemaining - DeltaTime);
@@ -613,12 +628,26 @@ void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 	AActor* EffectiveTarget = ObservedEnemyController->GetEffectiveTargetActor();
 	AActor* ForcedTarget = ObservedEnemyController->HasForcedTarget() ? EffectiveTarget : nullptr;
 	AActor* EnemyCurrentTarget = EffectiveTarget;
-	UE_LOG(LogTemp, Log, TEXT("[TankAI] TargetDebug RawCurrent=%s AggroTarget=%s ForcedTarget=%s EffectiveTarget=%s Self=%s"),
-		*GetNameSafe(RawCurrentTarget),
-		*GetNameSafe(RawCurrentTarget),
-		*GetNameSafe(ForcedTarget),
-		*GetNameSafe(EffectiveTarget),
-		*GetNameSafe(GetOwner()));
+	TankTargetDebugLogAccum += DeltaTime;
+	const bool bTargetStateChanged =
+		LastTargetDebugRawCurrent.Get() != RawCurrentTarget ||
+		LastTargetDebugAggroTarget.Get() != RawCurrentTarget ||
+		LastTargetDebugForcedTarget.Get() != ForcedTarget ||
+		LastTargetDebugEffectiveTarget.Get() != EffectiveTarget;
+	if (bTargetStateChanged || TankTargetDebugLogAccum >= 1.f)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] TargetDebug RawCurrent=%s AggroTarget=%s ForcedTarget=%s EffectiveTarget=%s Self=%s"),
+			*GetNameSafe(RawCurrentTarget),
+			*GetNameSafe(RawCurrentTarget),
+			*GetNameSafe(ForcedTarget),
+			*GetNameSafe(EffectiveTarget),
+			*GetNameSafe(GetOwner()));
+		TankTargetDebugLogAccum = 0.f;
+		LastTargetDebugRawCurrent = RawCurrentTarget;
+		LastTargetDebugAggroTarget = RawCurrentTarget;
+		LastTargetDebugForcedTarget = ForcedTarget;
+		LastTargetDebugEffectiveTarget = EffectiveTarget;
+	}
 	if (TankDebugLogAccum >= 0.75f)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[TankAI] ObservedEnemy=%s EnemyCurrentTarget=%s SelfRole=%s"), *GetNameSafe(EnemyActor), *GetNameSafe(EnemyCurrentTarget), *RoleToDebugString(Role));
@@ -635,14 +664,22 @@ void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTargetRole=%s"), TargetAI ? *RoleToDebugString(TargetAI->Role) : TEXT("NonParty"));
 	}
-	if (EffectiveTarget == GetOwner())
-	{
-		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro skipped: EffectiveTarget is self -> RunStageOneBaseAI"));
-		return;
-	}
 	if (ObservedEnemyController->HasForcedTarget() && ForcedTarget == GetOwner())
 	{
-		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro skipped: ForcedTarget already self -> RunStageOneBaseAI"));
+		if (!bTankAggroSuspendedByForcedSelf)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[TankAI] AggroReaction suspended: ForcedTarget is self"));
+			bTankAggroSuspendedByForcedSelf = true;
+		}
+		return;
+	}
+	if (bTankAggroSuspendedByForcedSelf)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] AggroReaction resumed"));
+		bTankAggroSuspendedByForcedSelf = false;
+	}
+	if (EffectiveTarget == GetOwner())
+	{
 		return;
 	}
 	if (!IsAllyActor(EnemyCurrentTarget))

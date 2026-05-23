@@ -82,6 +82,13 @@ private:
 	float TankDebugLogAccum = 0.f;
 	float TankBlockedLogAccum = 0.f;
 	FString LastRecoverAggroBlockReason;
+	bool bTankAggroSuspendedByForcedSelf = false;
+	float TankTargetDebugLogAccum = 0.f;
+	TWeakObjectPtr<AActor> LastTargetDebugRawCurrent;
+	TWeakObjectPtr<AActor> LastTargetDebugAggroTarget;
+	TWeakObjectPtr<AActor> LastTargetDebugForcedTarget;
+	TWeakObjectPtr<AActor> LastTargetDebugEffectiveTarget;
+	float StageOneLogAccum = 0.f;
 	float TempTauntForcedTargetDuration = 1.5f;
 	float MoveCallsThisSecond = 0.f;
 	float MoveCallsAccum = 0.f;

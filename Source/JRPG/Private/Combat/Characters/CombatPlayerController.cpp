@@ -319,6 +319,7 @@ void ACombatPlayerController::OnSkill1(const FInputActionValue& Value)
 	if (UCombatPresentationComponent* Presentation = ControlledPawn->FindComponentByClass<UCombatPresentationComponent>())
 	{
 		Presentation->SetAutoAttackSuppressedFor(AutoAttackSuppressWindowSec);
+		UE_LOG(LogTemp, Log, TEXT("[InputPriority] Skill input overrides auto attack"));
 	}
 
 	TryConsumeBufferedSkill();
