@@ -73,7 +73,12 @@ private:
 	void OnTacticalModePressed(const FInputActionValue& Value);
 	void OnToggleMainMenu(const FInputActionValue& Value);
 	void OnSkill1(const FInputActionValue& Value);
+	void TryConsumeBufferedSkill();
 	bool bIsPartyWheelActive = false;
+	FTimerHandle BufferedSkillTimerHandle;
+	FName BufferedSkillId = NAME_None;
+	float SkillBufferWindowSec = 0.4f;
+	float AutoAttackSuppressWindowSec = 0.4f;
 	void OnPartyWheelStarted(const FInputActionValue& Value);
 	void OnPartyWheelCompleted(const FInputActionValue& Value);
 };

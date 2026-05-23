@@ -272,11 +272,24 @@ void UCombatPresentationComponent::PlayActiveMontageOrResolve()
 	}
 } 
 
+bool UCombatPresentationComponent::IsAutoAttackSuppressed() const
+{
+	return FPlatformTime::Seconds() < AutoAttackSuppressedUntilRealSec;
+}
+
+void UCombatPresentationComponent::SetAutoAttackSuppressedFor(float DurationSec)
+{
+	AutoAttackSuppressedUntilRealSec = FMath::Max(AutoAttackSuppressedUntilRealSec, FPlatformTime::Seconds() + FMath::Max(0.f, DurationSec));
+}
+
 FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *Target)
 {
 	UBattleSessionSubsystem *Battle = GetBattle();
 	if (!Battle)
 		return FCombatActionResult::Fail("Reject.NoBattleSession");
+
+	if (IsAutoAttackSuppressed())
+		return FCombatActionResult::Fail("Reject.AutoAttackSuppressed");
 	
 	if (!Battle->BeginPresentedAction(GetOwner(),"Present.BasicAttack"))
 		return FCombatActionResult::Fail("Reject.CannotPresentAction");

@@ -24,6 +24,7 @@
 #include "UI/Presenters/CombatHUDPresenter.h"
 #include "UI/Presenters/ExplorationHUDPresenter.h"
 #include "TimerManager.h"
+#include "EngineUtils.h"
 
 
 void UCombatTransitionSubsystem::OnWorldBeginPlay(UWorld& InWorld)
@@ -1061,6 +1062,30 @@ void UCombatTransitionSubsystem::ResetTransitionState()
 void UCombatTransitionSubsystem::HandleBattleStarted(const FBattleSessionSnapshot& /*Snapshot*/)
 {
 	StopPostBattleRecovery("Battle.Started");
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PostBattleStartAIInitHandle);
+		World->GetTimerManager().SetTimer(PostBattleStartAIInitHandle, this, &UCombatTransitionSubsystem::PostBattleStartAIInit, 0.3f, false);
+	}
+}
+
+void UCombatTransitionSubsystem::PostBattleStartAIInit()
+{
+	if (!GetWorld()) return;
+	for (TActorIterator<ACombatCharacterActor> It(GetWorld()); It; ++It)
+	{
+		ACombatCharacterActor* Actor = *It;
+		if (!IsValid(Actor)) continue;
+		const bool bControlledByAI = !(Actor->GetController() && Actor->GetController()->IsPlayerController());
+		if (!bControlledByAI) continue;
+		UCombatPartyAIComponent* AIComp = Actor->FindComponentByClass<UCombatPartyAIComponent>();
+		AActor* Target = nullptr;
+		if (AIComp)
+		{
+			AIComp->SetComponentTickEnabled(true);
+		}
+		UE_LOG(LogTemp, Log, TEXT("[PartyAIInit] Owner=%s ControlledByAI=%s Target=%s StageOneStarted=%s"), *GetNameSafe(Actor), bControlledByAI ? TEXT("true") : TEXT("false"), *GetNameSafe(Target), AIComp ? TEXT("true") : TEXT("false"));
+	}
 }
 
 void UCombatTransitionSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason Reason)

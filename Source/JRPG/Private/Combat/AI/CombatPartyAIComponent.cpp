@@ -169,22 +169,10 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	if (bPlayerControlled)
 	{
-		if (!CurrentTarget.IsValid())
+		State = CurrentTarget.IsValid() ? EPartyAIState::Attack : EPartyAIState::Follow;
+		if (CurrentTarget.IsValid() && GetDistanceToTarget() <= AttackRange)
 		{
-			State = EPartyAIState::Follow;
-			return;
-		}
-
-		const float Dist = GetDistanceToTarget();
-		if (Dist <= AttackRange)
-		{
-			State = EPartyAIState::Attack;
-			FaceTarget(CurrentTarget.Get());
 			ExecuteAction(FJRPGCombatAIAction::MakeBasicAttack(CurrentTarget, 0.5f));
-		}
-		else
-		{
-			State = EPartyAIState::Chase;
 		}
 		return;
 	}

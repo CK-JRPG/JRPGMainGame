@@ -101,6 +101,7 @@ private:
 
 	// 배틀세션 델리게이트 핸들러
 	void HandleBattleStarted(const FBattleSessionSnapshot& Snapshot);
+	void PostBattleStartAIInit();
 	void HandleBattleEnded(const FBattleSessionSnapshot& Snapshot, EBattleEndReason Reason);
 
 private:
@@ -132,6 +133,7 @@ private:
 	// 승리 후 회복용 타이머
 	FTimerHandle PostBattleRecoveryTimerHandle;
 	FTimerHandle EncounterIntroTimerHandle;
+	FTimerHandle PostBattleStartAIInitHandle;
 	UPROPERTY()
 	TArray<FName> PostBattleRecoveryPartyIds;
 	UPROPERTY()

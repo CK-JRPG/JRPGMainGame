@@ -1,10 +1,13 @@
 ﻿// Source/JRPGCombat/Private/Combat/Battle/CombatTargetingSubsystem.cpp
 #include "Combat/Battle/CombatTargetingSubsystem.h"
 
+#include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/Threat/ThreatComponent.h"
+#include "GameFramework/Controller.h"
+#include "GameFramework/Pawn.h"
 
 UBattleSessionSubsystem* UCombatTargetingSubsystem :: GetBattle()const
 {
@@ -224,7 +227,47 @@ FTargetingResult UCombatTargetingSubsystem::ResolvePreferredBasicAttackTarget(AA
 	if (Opponents.Num()<=0)
 		return FTargetingResult::Fail("Reject.NoOpponent");
 
-	AActor*Chosen =PickTopThreatTarget(Requester, Opponents);
+	AActor* Chosen = nullptr;
+	if (UCameraSubsystem* CamSub = GetWorld() ? GetWorld()->GetSubsystem<UCameraSubsystem>() : nullptr)
+	{
+		if (AActor* Locked = CamSub->GetLockedOnEnemy())
+		{
+			if (Opponents.Contains(Locked))
+			{
+				Chosen = Locked;
+			}
+		}
+	}
+	if (!Chosen)
+	{
+		const FVector Origin = Requester->GetActorLocation();
+		FVector Forward = Requester->GetActorForwardVector();
+		if (const APawn* Pawn = Cast<APawn>(Requester))
+		{
+			if (const AController* C = Pawn->GetController())
+			{
+				Forward = FRotationMatrix(FRotator(0.f, C->GetControlRotation().Yaw, 0.f)).GetUnitAxis(EAxis::X);
+			}
+		}
+		float BestScore = -FLT_MAX;
+		for (AActor* Opponent : Opponents)
+		{
+			if (!IsAliveCombatant(Opponent)) continue;
+			const FVector To = (Opponent->GetActorLocation() - Origin);
+			const float Dist = FMath::Max(1.f, To.Size2D());
+			const float Align = FVector::DotProduct(Forward.GetSafeNormal2D(), To.GetSafeNormal2D());
+			const float Score = Align * 2.0f - (Dist * 0.0015f);
+			if (Score > BestScore)
+			{
+				BestScore = Score;
+				Chosen = Opponent;
+			}
+		}
+	}
+	if (!Chosen)
+	{
+		Chosen =PickTopThreatTarget(Requester, Opponents);
+	}
 	if (!Chosen)
 	{
 		Chosen =PickLowestHPActor(Opponents);
