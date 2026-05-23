@@ -19,6 +19,10 @@
 #include "Combat/Stats/HPComponent.h"
 #include "Combat/AI/EnemyAIController.h"
 #include "Kismet/GameplayStatics.h"
+#include "AIController.h"
+#include "NavigationSystem.h"
+#include "NavigationPath.h"
+#include "Navigation/PathFollowingComponent.h"
 
 UCombatPartyAIComponent::UCombatPartyAIComponent()
 {
@@ -110,21 +114,14 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 	if (!Context || !Scorer) return;
 
-	if (Context->bSelfIsDead)
+	if (IsPlayerControlledNow())
 	{
 		return;
 	}
 
-	bool bPlayerControlled = false;
-	if (APawn* P = Cast<APawn>(GetOwner()))
+	if (Context->bSelfIsDead)
 	{
-		if (AController* C = P->GetController())
-		{
-			if (C->IsPlayerController())
-			{
-				bPlayerControlled = true;
-			}
-		}
+		return;
 	}
 
 	RefreshContext();
@@ -160,11 +157,8 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	DecisionAccum += DeltaTime;
 	if (DecisionAccum < Interval)
 	{
-		// 결정 주기 사이에도 이동은 계속
-		if (!bPlayerControlled)
-		{
-			TickMovementAndAction(DeltaTime);
-		}
+		TickMovementAndAction(DeltaTime);
+		LogMoveDebug(DeltaTime);
 		return;
 	}
 	DecisionAccum = 0.f;
@@ -172,21 +166,12 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	// 타겟 갱신
 	RefreshTarget();
 
-	if (bPlayerControlled)
-	{
-		State = CurrentTarget.IsValid() ? EPartyAIState::Attack : EPartyAIState::Follow;
-		if (CurrentTarget.IsValid() && GetDistanceToTarget() <= AttackRange)
-		{
-			ExecuteAction(FJRPGCombatAIAction::MakeBasicAttack(CurrentTarget, 0.5f));
-		}
-		return;
-	}
-
 	// FSM 업데이트
 	UpdateStateMachine();
 
 	// 이동 + 행동
 	TickMovementAndAction(DeltaTime);
+	LogMoveDebug(DeltaTime);
 
 	// 결정 주기마다 스킬 판단
 	const FJRPGCombatAIAction Best = ChooseBestAction();
@@ -345,6 +330,36 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 {
 	if (!CurrentTarget.IsValid()) return;
+	if (Role == EJRPGPartyRole::Defender)
+	{
+		TankStageOneLogAccum += DeltaTime;
+		if (TankStageOneLogAccum >= 1.0f)
+		{
+			TankStageOneLogAccum = 0.f;
+			const float DistanceToTarget = GetDistanceToTarget();
+			const float AcceptanceRadius = FMath::Max(AttackRange * 0.8f, 10.0f);
+			const bool bMoveRequestActive = (State == EPartyAIState::Chase) || (State == EPartyAIState::KeepDistance);
+			const bool bHasReachedAttackRange = (DistanceToTarget <= AttackRange);
+			const TCHAR* ActionName = TEXT("Unknown");
+			switch (State)
+			{
+			case EPartyAIState::Chase: ActionName = TEXT("MoveToTarget"); break;
+			case EPartyAIState::Attack: ActionName = TEXT("Attack"); break;
+			case EPartyAIState::KeepDistance: ActionName = TEXT("KeepDistance"); break;
+			case EPartyAIState::Follow: ActionName = TEXT("Follow"); break;
+			default: break;
+			}
+			UE_LOG(LogTemp, Log, TEXT("[TankAI][StageOne] Owner=%s Action=%s Target=%s DistanceToTarget=%.1f AttackRange=%.1f AcceptanceRadius=%.1f MoveRequestActive=%s HasReachedAttackRange=%s"),
+				*GetNameSafe(GetOwner()),
+				ActionName,
+				*GetNameSafe(CurrentTarget.Get()),
+				DistanceToTarget,
+				AttackRange,
+				AcceptanceRadius,
+				bMoveRequestActive ? TEXT("true") : TEXT("false"),
+				bHasReachedAttackRange ? TEXT("true") : TEXT("false"));
+		}
+	}
 	StageOneLogAccum += DeltaTime;
 	if (StageOneLogAccum >= 1.f)
 	{
@@ -498,23 +513,54 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 {
 	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
-	if (!MyChar) return;
-
-	FVector Dir = Destination - MyChar->GetActorLocation();
-	Dir.Z = 0.f;
-
-	const float Dist = Dir.Size();
-	if (Dist < 10.0f) return;
-
-	Dir /= Dist;
-	if (FVector::DotProduct(LastMoveDirection, Dir) > 0.999f)
+	AAIController* AIController = MyChar ? Cast<AAIController>(MyChar->GetController()) : nullptr;
+	if (!MyChar || !AIController)
 	{
 		return;
 	}
-	LastMoveDirection = Dir;
+
+	const FVector CurrentLocation = MyChar->GetActorLocation();
+	FVector ProjectedGoal = Destination;
+	bool bProjected = false;
+	if (UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+	{
+		FNavLocation NavLoc;
+		bProjected = NavSys->ProjectPointToNavigation(Destination, NavLoc, FVector(200.f, 200.f, 300.f));
+		if (bProjected)
+		{
+			ProjectedGoal = NavLoc.Location;
+		}
+
+		FNavLocation OwnerNav;
+		FNavLocation TargetNav;
+		const bool bOwnerOnNavMesh = NavSys->ProjectPointToNavigation(CurrentLocation, OwnerNav, FVector(100.f, 100.f, 200.f));
+		const bool bTargetOnNavMesh = NavSys->ProjectPointToNavigation(Destination, TargetNav, FVector(100.f, 100.f, 200.f));
+		UE_LOG(LogTemp, Log, TEXT("[PartyAI][NavCheck] Owner=%s OwnerOnNavMesh=%s TargetOnNavMesh=%s GoalProjected=%s ProjectedGoal=%s"),
+			*GetNameSafe(GetOwner()), bOwnerOnNavMesh ? TEXT("true") : TEXT("false"), bTargetOnNavMesh ? TEXT("true") : TEXT("false"), bProjected ? TEXT("true") : TEXT("false"), *ProjectedGoal.ToString());
+	}
+
+	const float AcceptanceRadius = FMath::Max(100.f, AttackRange * 0.8f);
+	const EPathFollowingRequestResult::Type MoveResult = AIController->MoveToLocation(ProjectedGoal, AcceptanceRadius, true, true, false, false, nullptr, true);
+	LastMoveRequestActive = (MoveResult == EPathFollowingRequestResult::RequestSuccessful || MoveResult == EPathFollowingRequestResult::AlreadyAtGoal);
+	LastMoveRequestResult = MoveResult;
 	MoveCallsThisSecond += 1.f;
 	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
-	MyChar->AddMovementInput(Dir, 1.0f);
+	UE_LOG(LogTemp, Log, TEXT("[PartyAI][MoveRequest] Owner=%s MoveMethod=MoveToLocation Target=%s GoalLocation=%s AcceptanceRadius=%.1f Result=%d PathFollowingStatus=%s Controller=%s ProjectedToNavMesh=%s"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(CurrentTarget.Get()),
+		*ProjectedGoal.ToString(),
+		AcceptanceRadius,
+		(int32)MoveResult,
+		*GetPathFollowingStatusString(),
+		*GetNameSafe(AIController),
+		bProjected ? TEXT("true") : TEXT("false"));
+	if (MoveResult == EPathFollowingRequestResult::Failed)
+	{
+		const int32 MovementModeValue = MyChar->GetCharacterMovement() ? (int32)MyChar->GetCharacterMovement()->MovementMode.GetValue() : (int32)MOVE_None;
+		UE_LOG(LogTemp, Warning, TEXT("[PartyAI][MoveFailed] Owner=%s Reason=MoveToLocationFailed PathFollowingStatus=%s CurrentLocation=%s GoalLocation=%s DistanceToGoal=%.1f Controller=%s MovementMode=%d Velocity=%s NavMeshValid=%s"),
+			*GetNameSafe(GetOwner()), *GetPathFollowingStatusString(), *CurrentLocation.ToString(), *ProjectedGoal.ToString(), FVector::Dist2D(CurrentLocation, ProjectedGoal), *GetNameSafe(AIController),
+			MovementModeValue, *MyChar->GetVelocity().ToString(), bProjected ? TEXT("true") : TEXT("false"));
+	}
 }
 
 void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale)
@@ -695,7 +741,7 @@ void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 	UE_LOG(LogTemp, Log, TEXT("[TankAI] Enter RecoverAggro"));
 	if (TryTempTaunt(ObservedEnemyController))
 	{
-		TankReactionCooldownRemaining = TempTauntForcedTargetDuration;
+		TankReactionCooldownRemaining = TempTauntForcedTargetDuration + TempTauntRecoveryGracePeriod;
 	}
 }
 
@@ -749,6 +795,64 @@ float UCombatPartyAIComponent::GetDistanceToTarget() const
 {
 	if (!CurrentTarget.IsValid() || !GetOwner()) return MAX_FLT;
 	return FVector::Dist2D(GetOwner()->GetActorLocation(), CurrentTarget->GetActorLocation());
+}
+
+bool UCombatPartyAIComponent::IsPlayerControlledNow() const
+{
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	const AController* Controller = Pawn ? Pawn->GetController() : nullptr;
+	return Controller && Controller->IsPlayerController();
+}
+
+FString UCombatPartyAIComponent::GetPathFollowingStatusString() const
+{
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	const AAIController* AIController = Pawn ? Cast<AAIController>(Pawn->GetController()) : nullptr;
+	const UPathFollowingComponent* PathComp = AIController ? AIController->GetPathFollowingComponent() : nullptr;
+	return PathComp ? UEnum::GetValueAsString(PathComp->GetStatus()) : TEXT("NoPathFollowing");
+}
+
+void UCombatPartyAIComponent::LogMoveDebug(float DeltaTime)
+{
+	MoveDebugAccum += DeltaTime;
+	if (MoveDebugAccum < 1.0f)
+	{
+		return;
+	}
+	MoveDebugAccum = 0.f;
+
+	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
+	if (!MyChar) return;
+
+	const FVector CurrentLocation = MyChar->GetActorLocation();
+	const FVector PreviousDebugLocation = LastDebugLocation;
+	const float LocationDelta = bHasLastDebugLocation ? FVector::Dist2D(CurrentLocation, PreviousDebugLocation) : 0.f;
+	LastDebugLocation = CurrentLocation;
+	bHasLastDebugLocation = true;
+
+	const float DistanceToTarget = GetDistanceToTarget();
+	const float DistanceDelta = bHasLastDistanceToTarget ? (LastDistanceToTarget - DistanceToTarget) : 0.f;
+	LastDistanceToTarget = DistanceToTarget;
+	bHasLastDistanceToTarget = true;
+
+	const FVector Velocity = MyChar->GetVelocity();
+	const float Speed = Velocity.Size2D();
+	const UCharacterMovementComponent* MoveComp = MyChar->GetCharacterMovement();
+	const bool bCanMove = MoveComp && MoveComp->MovementMode != MOVE_None && MoveComp->UpdatedComponent != nullptr;
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	const AController* Controller = Pawn ? Pawn->GetController() : nullptr;
+
+	UE_LOG(LogTemp, Log, TEXT("[PartyAI][MoveDebug] Owner=%s Target=%s CurrentLocation=%s LastLocation=%s LocationDelta=%.1f DistanceToTarget=%.1f DistanceDelta=%.1f Velocity=%s Speed=%.1f MovementMode=%d MaxWalkSpeed=%.1f ControllerName=%s IsPlayerControlled=%s IsAIControlled=%s PathFollowingStatus=%s MoveRequestActive=%s LastMoveRequestResult=%d bCanMove=%s bIsActionLocked=%s bIsAttacking=%s bIsCastingSkill=%s bUseControllerDesiredRotation=%s bOrientRotationToMovement=%s"),
+		*GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), *CurrentLocation.ToString(), *PreviousDebugLocation.ToString(), LocationDelta, DistanceToTarget, DistanceDelta, *Velocity.ToString(), Speed,
+		MoveComp ? (int32)MoveComp->MovementMode : -1, MoveComp ? MoveComp->MaxWalkSpeed : 0.f, *GetNameSafe(Controller),
+		IsPlayerControlledNow() ? TEXT("true") : TEXT("false"), Cast<AAIController>(Controller) ? TEXT("true") : TEXT("false"),
+		*GetPathFollowingStatusString(), LastMoveRequestActive ? TEXT("true") : TEXT("false"), (int32)LastMoveRequestResult,
+		bCanMove ? TEXT("true") : TEXT("false"),
+		Context && Context->bInChainSequence ? TEXT("true") : TEXT("false"),
+		TEXT("false"),
+		CachedPresentation.IsValid() && CachedPresentation->HasActivePresentation() ? TEXT("true") : TEXT("false"),
+		MoveComp && MoveComp->bUseControllerDesiredRotation ? TEXT("true") : TEXT("false"),
+		MoveComp && MoveComp->bOrientRotationToMovement ? TEXT("true") : TEXT("false"));
 }
 
 TArray<AActor*> UCombatPartyAIComponent::BuildSkillTargets(const USkillDataAsset* SkillDef) const

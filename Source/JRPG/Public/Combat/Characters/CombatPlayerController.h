@@ -79,6 +79,9 @@ private:
 	FName BufferedSkillId = NAME_None;
 	float SkillBufferWindowSec = 0.4f;
 	float AutoAttackSuppressWindowSec = 0.4f;
+	bool bMovementOverrideActive = false;
+	float LastBufferedSkillLogTime = -1000.f;
+	float BufferedSkillLogCooldownSec = 0.25f;
 	void OnPartyWheelStarted(const FInputActionValue& Value);
 	void OnPartyWheelCompleted(const FInputActionValue& Value);
 };

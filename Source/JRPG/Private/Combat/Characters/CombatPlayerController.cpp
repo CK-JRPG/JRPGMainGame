@@ -121,9 +121,11 @@ void ACombatPlayerController::OnUnPossess()
 void ACombatPlayerController::OnMove(const FInputActionValue& Value)
 {
 	const FVector2D Move = Value.Get<FVector2D>();
-	if (!Move.IsNearlyZero())
+	const bool bHasMovementInput = !Move.IsNearlyZero();
+	if (bHasMovementInput != bMovementOverrideActive)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[InputPriority] Player movement overrides auto attack correction"));
+		bMovementOverrideActive = bHasMovementInput;
+		UE_LOG(LogTemp, Log, TEXT("[InputPriority] Player movement override %s"), bMovementOverrideActive ? TEXT("started") : TEXT("ended"));
 	}
 
 	APawn* ControlledPawn = GetPawn();
@@ -308,8 +310,14 @@ void ACombatPlayerController::OnSkill1(const FInputActionValue& Value)
 	SkillComp->GetOwnedSkillIds(SkillIds);
 	if (SkillIds.Num() == 0) return;
 
+	const bool bHasSameBufferedSkill = (BufferedSkillId == SkillIds[0]);
 	BufferedSkillId = SkillIds[0];
-	UE_LOG(LogTemp, Log, TEXT("[InputBuffer] Skill input buffered SkillIndex=1"));
+	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	if ((Now - LastBufferedSkillLogTime) >= BufferedSkillLogCooldownSec)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[InputBuffer] %s SkillIndex=1"), bHasSameBufferedSkill ? TEXT("BufferedSkillUpdated") : TEXT("NewBufferedSkill"));
+		LastBufferedSkillLogTime = Now;
+	}
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(BufferedSkillTimerHandle);

@@ -349,7 +349,7 @@ void UCombatTransitionSubsystem::OnPartyMemberChanged(const FName& NewCharacterI
 	
 	if (UCombatPartyAIComponent* NewPartyAI = TargetActor->FindComponentByClass<UCombatPartyAIComponent>())
 	{
-		NewPartyAI->SetComponentTickEnabled(true);
+		NewPartyAI->SetComponentTickEnabled(false);
 	}	
 	
 	CurrentPlayerCharacterID = NewCharacterID;
