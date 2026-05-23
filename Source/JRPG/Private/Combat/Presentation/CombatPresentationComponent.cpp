@@ -289,7 +289,11 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 		return FCombatActionResult::Fail("Reject.NoBattleSession");
 
 	if (IsAutoAttackSuppressed())
+	{
+		const double Remaining = FMath::Max(0.0, AutoAttackSuppressedUntilRealSec - FPlatformTime::Seconds());
+		UE_LOG(LogTemp, Log, TEXT("[InputPriority] AutoAttack suppressed by skill input Remaining=%.2f"), Remaining);
 		return FCombatActionResult::Fail("Reject.AutoAttackSuppressed");
+	}
 	
 	if (!Battle->BeginPresentedAction(GetOwner(),"Present.BasicAttack"))
 		return FCombatActionResult::Fail("Reject.CannotPresentAction");

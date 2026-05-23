@@ -99,6 +99,11 @@ void UCombatPartyAIComponent::NotifyDamagedBy(AActor* Attacker)
 	}
 }
 
+void UCombatPartyAIComponent::SetCurrentTarget(AActor* NewTarget)
+{
+	CurrentTarget = NewTarget;
+}
+
 void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
@@ -604,7 +609,16 @@ void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 		LogBlocked(TEXT("No observed enemy"));
 		return;
 	}
-	AActor* EnemyCurrentTarget = ObservedEnemyController->GetEffectiveTargetActor();
+	AActor* RawCurrentTarget = ObservedEnemyController->GetCurrentTargetActor();
+	AActor* EffectiveTarget = ObservedEnemyController->GetEffectiveTargetActor();
+	AActor* ForcedTarget = ObservedEnemyController->HasForcedTarget() ? EffectiveTarget : nullptr;
+	AActor* EnemyCurrentTarget = EffectiveTarget;
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] TargetDebug RawCurrent=%s AggroTarget=%s ForcedTarget=%s EffectiveTarget=%s Self=%s"),
+		*GetNameSafe(RawCurrentTarget),
+		*GetNameSafe(RawCurrentTarget),
+		*GetNameSafe(ForcedTarget),
+		*GetNameSafe(EffectiveTarget),
+		*GetNameSafe(GetOwner()));
 	if (TankDebugLogAccum >= 0.75f)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[TankAI] ObservedEnemy=%s EnemyCurrentTarget=%s SelfRole=%s"), *GetNameSafe(EnemyActor), *GetNameSafe(EnemyCurrentTarget), *RoleToDebugString(Role));
@@ -621,15 +635,14 @@ void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTargetRole=%s"), TargetAI ? *RoleToDebugString(TargetAI->Role) : TEXT("NonParty"));
 	}
-	if (ObservedEnemyController->HasForcedTarget())
+	if (EffectiveTarget == GetOwner())
 	{
-		LogBlocked(TEXT("Already forced target"));
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro skipped: EffectiveTarget is self -> RunStageOneBaseAI"));
 		return;
 	}
-
-	if (EnemyCurrentTarget == GetOwner())
+	if (ObservedEnemyController->HasForcedTarget() && ForcedTarget == GetOwner())
 	{
-		LogBlocked(TEXT("EnemyCurrentTarget is self"));
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro skipped: ForcedTarget already self -> RunStageOneBaseAI"));
 		return;
 	}
 	if (!IsAllyActor(EnemyCurrentTarget))

@@ -121,6 +121,10 @@ void ACombatPlayerController::OnUnPossess()
 void ACombatPlayerController::OnMove(const FInputActionValue& Value)
 {
 	const FVector2D Move = Value.Get<FVector2D>();
+	if (!Move.IsNearlyZero())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[InputPriority] Player movement overrides auto attack correction"));
+	}
 
 	APawn* ControlledPawn = GetPawn();
 	if (!ControlledPawn) return;
@@ -305,6 +309,7 @@ void ACombatPlayerController::OnSkill1(const FInputActionValue& Value)
 	if (SkillIds.Num() == 0) return;
 
 	BufferedSkillId = SkillIds[0];
+	UE_LOG(LogTemp, Log, TEXT("[InputBuffer] Skill input buffered SkillIndex=1"));
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(BufferedSkillTimerHandle);
@@ -355,6 +360,7 @@ void ACombatPlayerController::TryConsumeBufferedSkill()
 	const FSkillCastResult Result = Presentation->TryPresentSkill(BufferedSkillId, Targets);
 	if (Result.bOk)
 	{
+		UE_LOG(LogTemp, Log, TEXT("[InputBuffer] Consume buffered skill SkillIndex=1"));
 		BufferedSkillId = NAME_None;
 		if (GetWorld())
 		{

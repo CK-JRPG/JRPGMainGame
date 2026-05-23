@@ -34,6 +34,7 @@ public:
 
 	/** 피격 시 호출 - 자기를 때린 적을 우선 타겟으로 설정 */
 	void NotifyDamagedBy(AActor* Attacker);
+	void SetCurrentTarget(AActor* NewTarget);
 
 private:
 	UPROPERTY() TObjectPtr<UCombatAIContext> Context;

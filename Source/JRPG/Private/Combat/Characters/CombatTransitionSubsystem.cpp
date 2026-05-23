@@ -1072,19 +1072,45 @@ void UCombatTransitionSubsystem::HandleBattleStarted(const FBattleSessionSnapsho
 void UCombatTransitionSubsystem::PostBattleStartAIInit()
 {
 	if (!GetWorld()) return;
+	UBattleSessionSubsystem* Battle = GetWorld()->GetSubsystem<UBattleSessionSubsystem>();
+	UPartySubsystem* PartySub = GetWorld()->GetGameInstance() ? GetWorld()->GetGameInstance()->GetSubsystem<UPartySubsystem>() : nullptr;
+	TArray<AActor*> PartyMembers;
+	if (PartySub)
+	{
+		PartySub->GetPartyMembers(PartyMembers);
+	}
 	for (TActorIterator<ACombatCharacterActor> It(GetWorld()); It; ++It)
 	{
 		ACombatCharacterActor* Actor = *It;
 		if (!IsValid(Actor)) continue;
+		if (!PartyMembers.Contains(Actor)) continue;
 		const bool bControlledByAI = !(Actor->GetController() && Actor->GetController()->IsPlayerController());
 		if (!bControlledByAI) continue;
 		UCombatPartyAIComponent* AIComp = Actor->FindComponentByClass<UCombatPartyAIComponent>();
 		AActor* Target = nullptr;
-		if (AIComp)
+		if (AIComp && Battle)
 		{
-			AIComp->SetComponentTickEnabled(true);
+			TArray<AActor*> Enemies;
+			Battle->GetOpponentsFor(Actor, Enemies);
+			for (AActor* Enemy : Enemies)
+			{
+				if (IsValid(Enemy))
+				{
+					Target = Enemy;
+					break;
+				}
+			}
 		}
-		UE_LOG(LogTemp, Log, TEXT("[PartyAIInit] Owner=%s ControlledByAI=%s Target=%s StageOneStarted=%s"), *GetNameSafe(Actor), bControlledByAI ? TEXT("true") : TEXT("false"), *GetNameSafe(Target), AIComp ? TEXT("true") : TEXT("false"));
+		if (AIComp && Target)
+		{
+			AIComp->SetCurrentTarget(Target);
+			AIComp->SetComponentTickEnabled(true);
+			UE_LOG(LogTemp, Log, TEXT("[PartyAIInit] Owner=%s ControlledByAI=%s Target=%s StageOneStarted=true"), *GetNameSafe(Actor), bControlledByAI ? TEXT("true") : TEXT("false"), *GetNameSafe(Target));
+		}
+		else if (AIComp)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[PartyAIInit] Owner=%s ControlledByAI=%s Target=None StageOneStarted=false Reason=TargetAssignFailed"), *GetNameSafe(Actor), bControlledByAI ? TEXT("true") : TEXT("false"));
+		}
 	}
 }
 
