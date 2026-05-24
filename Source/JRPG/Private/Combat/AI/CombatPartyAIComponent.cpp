@@ -23,6 +23,7 @@
 #include "NavigationSystem.h"
 #include "NavigationPath.h"
 #include "Navigation/PathFollowingComponent.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
 
 UCombatPartyAIComponent::UCombatPartyAIComponent()
 {
@@ -46,6 +47,8 @@ void UCombatPartyAIComponent::BeginPlay()
 	RangedRepositionDirection = FMath::RandBool() ? 1.f : -1.f;
 
 	LoadRangeParams();
+	NavFailureRetryBlockRemaining = 0.f;
+    NavFailureLogCooldownRemaining = 0.f;
 
 	UE_LOG(LogTemp, Log, TEXT("[RoleDebug] %s RoleType=%s"), *GetNameSafe(GetOwner()), *RoleToDebugString(Role));
 
@@ -113,7 +116,9 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	if (!Context || !Scorer) return;
-
+	NavFailureRetryBlockRemaining = FMath::Max(0.f, NavFailureRetryBlockRemaining - DeltaTime);
+	NavFailureLogCooldownRemaining = FMath::Max(0.f, NavFailureLogCooldownRemaining - DeltaTime);
+ 
 	if (IsPlayerControlledNow())
 	{
 		return;
@@ -522,8 +527,15 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 	const FVector CurrentLocation = MyChar->GetActorLocation();
 	FVector ProjectedGoal = Destination;
 	bool bProjected = false;
+	bool bOwnerOnNavMesh = false;
+	bool bTargetOnNavMesh = false;
+	bool bHasNavBoundsVolume = false;
 	if (UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
 	{
+		TArray<AActor*> NavBoundsActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANavMeshBoundsVolume::StaticClass(), NavBoundsActors);
+		bHasNavBoundsVolume = NavBoundsActors.Num() > 0;
+		
 		FNavLocation NavLoc;
 		bProjected = NavSys->ProjectPointToNavigation(Destination, NavLoc, FVector(200.f, 200.f, 300.f));
 		if (bProjected)
@@ -533,12 +545,48 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 
 		FNavLocation OwnerNav;
 		FNavLocation TargetNav;
-		const bool bOwnerOnNavMesh = NavSys->ProjectPointToNavigation(CurrentLocation, OwnerNav, FVector(100.f, 100.f, 200.f));
-		const bool bTargetOnNavMesh = NavSys->ProjectPointToNavigation(Destination, TargetNav, FVector(100.f, 100.f, 200.f));
-		UE_LOG(LogTemp, Log, TEXT("[PartyAI][NavCheck] Owner=%s OwnerOnNavMesh=%s TargetOnNavMesh=%s GoalProjected=%s ProjectedGoal=%s"),
-			*GetNameSafe(GetOwner()), bOwnerOnNavMesh ? TEXT("true") : TEXT("false"), bTargetOnNavMesh ? TEXT("true") : TEXT("false"), bProjected ? TEXT("true") : TEXT("false"), *ProjectedGoal.ToString());
+		bOwnerOnNavMesh = NavSys->ProjectPointToNavigation(CurrentLocation, OwnerNav, FVector(100.f, 100.f, 200.f));
+		bTargetOnNavMesh = NavSys->ProjectPointToNavigation(Destination, TargetNav, FVector(100.f, 100.f, 200.f));
+		if (NavFailureLogCooldownRemaining <= 0.f)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PartyAI][NavCheck] Owner=%s OwnerOnNavMesh=%s TargetOnNavMesh=%s GoalProjected=%s HasNavBoundsVolume=%s ProjectedGoal=%s"),
+				*GetNameSafe(GetOwner()), bOwnerOnNavMesh ? TEXT("true") : TEXT("false"), bTargetOnNavMesh ? TEXT("true") : TEXT("false"), bProjected ? TEXT("true") : TEXT("false"), bHasNavBoundsVolume ? TEXT("true") : TEXT("false"), *ProjectedGoal.ToString());
+		}
+	}
+	
+	const bool bNavMeshValidForMove = bProjected && (bOwnerOnNavMesh || bTargetOnNavMesh);
+	if (!bNavMeshValidForMove)
+	{
+		if (NavFailureLogCooldownRemaining <= 0.f)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[PartyAI][MoveBlockedByNavMesh] Owner=%s Reason=NoNavMesh RetryAfter=1.0 OwnerOnNavMesh=%s TargetOnNavMesh=%s GoalProjected=%s HasNavBoundsVolume=%s"),
+				*GetNameSafe(GetOwner()),
+				bOwnerOnNavMesh ? TEXT("true") : TEXT("false"),
+				bTargetOnNavMesh ? TEXT("true") : TEXT("false"),
+				bProjected ? TEXT("true") : TEXT("false"),
+				bHasNavBoundsVolume ? TEXT("true") : TEXT("false"));
+			NavFailureLogCooldownRemaining = 1.0f;
+		}
+
+		NavFailureRetryBlockRemaining = 1.0f;
+		LastMoveRequestActive = false;
+		LastMoveRequestResult = EPathFollowingRequestResult::Failed;
+		if (bEnableNonNavMeshFallbackMovement)
+		{
+			const FVector ToGoal = (Destination - CurrentLocation).GetSafeNormal2D();
+			if (!ToGoal.IsNearlyZero())
+			{
+				MyChar->AddMovementInput(ToGoal, 1.0f);
+			}
+		}
+		return;
 	}
 
+	if (NavFailureRetryBlockRemaining > 0.f)
+	{
+		return;
+	}
+	
 	const float AcceptanceRadius = FMath::Max(100.f, AttackRange * 0.8f);
 	const EPathFollowingRequestResult::Type MoveResult = AIController->MoveToLocation(ProjectedGoal, AcceptanceRadius, true, true, false, false, nullptr, true);
 	LastMoveRequestActive = (MoveResult == EPathFollowingRequestResult::RequestSuccessful || MoveResult == EPathFollowingRequestResult::AlreadyAtGoal);
@@ -554,12 +602,13 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 		*GetPathFollowingStatusString(),
 		*GetNameSafe(AIController),
 		bProjected ? TEXT("true") : TEXT("false"));
-	if (MoveResult == EPathFollowingRequestResult::Failed)
+	if (MoveResult == EPathFollowingRequestResult::Failed && NavFailureLogCooldownRemaining <= 0.f)
 	{
 		const int32 MovementModeValue = MyChar->GetCharacterMovement() ? (int32)MyChar->GetCharacterMovement()->MovementMode.GetValue() : (int32)MOVE_None;
 		UE_LOG(LogTemp, Warning, TEXT("[PartyAI][MoveFailed] Owner=%s Reason=MoveToLocationFailed PathFollowingStatus=%s CurrentLocation=%s GoalLocation=%s DistanceToGoal=%.1f Controller=%s MovementMode=%d Velocity=%s NavMeshValid=%s"),
 			*GetNameSafe(GetOwner()), *GetPathFollowingStatusString(), *CurrentLocation.ToString(), *ProjectedGoal.ToString(), FVector::Dist2D(CurrentLocation, ProjectedGoal), *GetNameSafe(AIController),
 			MovementModeValue, *MyChar->GetVelocity().ToString(), bProjected ? TEXT("true") : TEXT("false"));
+		NavFailureLogCooldownRemaining = 1.0f;
 	}
 }
 

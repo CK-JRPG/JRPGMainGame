@@ -106,4 +106,7 @@ private:
 	bool bHasLastDebugLocation = false;
 	bool LastMoveRequestActive = false;
 	EPathFollowingRequestResult::Type LastMoveRequestResult = EPathFollowingRequestResult::Failed;
+	float NavFailureRetryBlockRemaining = 0.f;
+	float NavFailureLogCooldownRemaining = 0.f;
+	bool bEnableNonNavMeshFallbackMovement = true;
 };
