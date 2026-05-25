@@ -43,6 +43,8 @@ public:
 	void CancelActivePresentation(FName ReasonTag,bool bRefundPreparedSkill);
 
 	void EmitCue(FName CueTag);
+	void SetAutoAttackSuppressedFor(float DurationSec);
+	bool IsAutoAttackSuppressed() const;
 
 protected:
 	virtual void BeginPlay()override;
@@ -73,6 +75,7 @@ private:
 		FJRPGHandle InputLockHandle;
 		bool bHasInputLock = false;
 	};
+	double AutoAttackSuppressedUntilRealSec = 0.0;
 
 	FActivePresentationState Active;
 

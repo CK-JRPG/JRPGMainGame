@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "Combat/AI/CombatAIPresetAsset.h"
 #include "Combat/AI/CombatAIActionTypes.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "CombatPartyAIComponent.generated.h"
 
 class UCombatAIContext;
@@ -11,6 +12,7 @@ class UCombatAIScorer;
 class USkillComponent;
 class USkillDataAsset;
 class UCombatPresentationComponent;
+class AEnemyAIController;
 
 //NavMesh 미사용 및 FSM 로직으로 구현.
 
@@ -33,6 +35,7 @@ public:
 
 	/** 피격 시 호출 - 자기를 때린 적을 우선 타겟으로 설정 */
 	void NotifyDamagedBy(AActor* Attacker);
+	void SetCurrentTarget(AActor* NewTarget);
 
 private:
 	UPROPERTY() TObjectPtr<UCombatAIContext> Context;
@@ -57,11 +60,18 @@ private:
 	void ExecuteAction(const FJRPGCombatAIAction& Action);
 
 	void RefreshTarget();
+	void TryRecoverAggro(float DeltaTime);
+	bool TryTempTaunt(AEnemyAIController* EnemyController);
+	FString RoleToDebugString(EJRPGPartyRole InRole) const;
+	bool IsAllyActor(AActor* Candidate) const;
 	void MoveDirectlyToward(const FVector& Destination);
 	void MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale = 1.0f);
 	void MoveLaterallyAround(const FVector& FocusLocation, float Scale = 1.0f);
 	void FaceTarget(AActor* Target);
 	float GetDistanceToTarget() const;
+	bool IsPlayerControlledNow() const;
+	void LogMoveDebug(float DeltaTime);
+	FString GetPathFollowingStatusString() const;
 	void LoadRangeParams();
 	TArray<AActor*> BuildSkillTargets(const USkillDataAsset* SkillDef) const;
 	AActor * FindLowestHpAlly() const;
@@ -71,4 +81,38 @@ private:
 	float RangedRepositionPauseRemaining = 0.f;
 	float RangedRepositionDirection = 1.f;
 	float KeepDistanceTolerance = 60.f;
+	float TankReactionCooldownRemaining = 0.f;
+	float TankTickLogAccum = 0.f;
+	float TankDebugLogAccum = 0.f;
+	float TankBlockedLogAccum = 0.f;
+	float TankStageOneLogAccum = 0.f;
+	FString LastRecoverAggroBlockReason;
+	bool bTankAggroSuspendedByForcedSelf = false;
+	float TankTargetDebugLogAccum = 0.f;
+	TWeakObjectPtr<AActor> LastTargetDebugRawCurrent;
+	TWeakObjectPtr<AActor> LastTargetDebugAggroTarget;
+	TWeakObjectPtr<AActor> LastTargetDebugForcedTarget;
+	TWeakObjectPtr<AActor> LastTargetDebugEffectiveTarget;
+	float StageOneLogAccum = 0.f;
+	float TempTauntForcedTargetDuration = 1.5f;
+	float TempTauntRecoveryGracePeriod = 0.0f;
+	float MoveCallsThisSecond = 0.f;
+	float MoveCallsAccum = 0.f;
+	FVector LastMoveDirection = FVector::ZeroVector;
+	FVector LastDebugLocation = FVector::ZeroVector;
+	float MoveDebugAccum = 0.f;
+	float LastDistanceToTarget = 0.f;
+	bool bHasLastDistanceToTarget = false;
+	bool bHasLastDebugLocation = false;
+	bool LastMoveRequestActive = false;
+	EPathFollowingRequestResult::Type LastMoveRequestResult = EPathFollowingRequestResult::Failed;
+	float NavFailureRetryBlockRemaining = 0.f;
+	float NavFailureLogCooldownRemaining = 0.f;
+	bool bEnableNonNavMeshFallbackMovement = true;
+	bool bPrevPlayerControlled = false;
+	float NextAutoAttackTime = 0.f;
+	float RetryDelayUntilTime = 0.f;
+	float AutoAttackBusyUntilTime = 0.f;
+	float PlayerAutoAttackDebugLogRemaining = 0.f;
+	float CannotPresentLogCooldownRemaining = 0.f;
 };
