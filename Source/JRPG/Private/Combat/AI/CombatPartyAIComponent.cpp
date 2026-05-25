@@ -11,12 +11,20 @@
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
+#include "Combat/Characters/CombatPlayerController.h"
 
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
 #include "Combat/Stats/HPComponent.h"
+#include "Combat/AI/EnemyAIController.h"
+#include "Kismet/GameplayStatics.h"
+#include "AIController.h"
+#include "NavigationSystem.h"
+#include "NavigationPath.h"
+#include "Navigation/PathFollowingComponent.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
 
 UCombatPartyAIComponent::UCombatPartyAIComponent()
 {
@@ -40,6 +48,24 @@ void UCombatPartyAIComponent::BeginPlay()
 	RangedRepositionDirection = FMath::RandBool() ? 1.f : -1.f;
 
 	LoadRangeParams();
+	NavFailureRetryBlockRemaining = 0.f;
+    NavFailureLogCooldownRemaining = 0.f;
+
+	UE_LOG(LogTemp, Log, TEXT("[RoleDebug] %s RoleType=%s"), *GetNameSafe(GetOwner()), *RoleToDebugString(Role));
+
+	if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+	{
+		TArray<AActor*> Allies;
+		Battle->GetAlliesFor(GetOwner(), Allies);
+		for (AActor* Ally : Allies)
+		{
+			if (!IsValid(Ally)) continue;
+			if (UCombatPartyAIComponent* AllyAI = Ally->FindComponentByClass<UCombatPartyAIComponent>())
+			{
+				UE_LOG(LogTemp, Log, TEXT("[RoleDebug] %s RoleType=%s"), *GetNameSafe(Ally), *RoleToDebugString(AllyAI->Role));
+			}
+		}
+	}
 }
 
 void UCombatPartyAIComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
@@ -81,30 +107,172 @@ void UCombatPartyAIComponent::NotifyDamagedBy(AActor* Attacker)
 	}
 }
 
+void UCombatPartyAIComponent::SetCurrentTarget(AActor* NewTarget)
+{
+	CurrentTarget = NewTarget;
+}
+
 void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	if (!Context || !Scorer) return;
+	NavFailureRetryBlockRemaining = FMath::Max(0.f, NavFailureRetryBlockRemaining - DeltaTime);
+	NavFailureLogCooldownRemaining = FMath::Max(0.f, NavFailureLogCooldownRemaining - DeltaTime);
+	PlayerAutoAttackDebugLogRemaining = FMath::Max(0.f, PlayerAutoAttackDebugLogRemaining - DeltaTime);
+	CannotPresentLogCooldownRemaining = FMath::Max(0.f, CannotPresentLogCooldownRemaining - DeltaTime);
+
+	const bool bPlayerControlledNow = IsPlayerControlledNow();
+	if (bPlayerControlledNow != bPrevPlayerControlled)
+	{
+		if (bPlayerControlledNow)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Enabled Owner=%s"), *GetNameSafe(GetOwner()));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Disabled Owner=%s Reason=PossessionChangedToAI"), *GetNameSafe(GetOwner()));
+		}
+		bPrevPlayerControlled = bPlayerControlledNow;
+	}
+ 
+	if (bPlayerControlledNow)
+	{
+		RefreshTarget();
+		const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+		const ACombatPlayerController* PlayerController = OwnerPawn ? Cast<ACombatPlayerController>(OwnerPawn->GetController()) : nullptr;
+		const float NowTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+		FString Decision = TEXT("WaitCooldown");
+
+		if (!CurrentTarget.IsValid())
+		{
+			Decision = TEXT("NoTarget");
+			return;
+		}
+
+		if (!CachedPresentation.IsValid())
+		{
+			CachedPresentation = GetOwner() ? GetOwner()->FindComponentByClass<UCombatPresentationComponent>() : nullptr;
+		}
+		if (!CachedPresentation.IsValid())
+		{
+			return;
+		}
+
+		if (PlayerController && PlayerController->HasBufferedSkillPending())
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Skipped Reason=BufferedSkillPending Owner=%s"), *GetNameSafe(GetOwner()));
+			return;
+		}
+
+		if (CachedPresentation->IsAutoAttackSuppressed())
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Suppressed Reason=SkillInput Owner=%s"), *GetNameSafe(GetOwner()));
+			return;
+		}
+
+		const float Distance = GetDistanceToTarget();
+		const bool bInRange = Distance <= AttackRange;
+		const bool bIsMovingInput = PlayerController && PlayerController->IsMovementOverrideActive();
+		if (bIsMovingInput && !bInRange)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[InputPriority] Player movement blocks auto-move correction only"));
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Suppressed Reason=PlayerMovingOutOfRange Owner=%s Target=%s Distance=%.1f AttackRange=%.1f"),
+				*GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), Distance, AttackRange);
+			Decision = TEXT("SuppressMovingOutOfRange");
+			return;
+		}
+		if (bIsMovingInput && bInRange)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] AttackAllowedWhileMoving InRange=true"));
+		}
+		if (!bInRange)
+		{
+			Decision = TEXT("OutOfRange");
+			return;
+		}
+		if (NowTime < AutoAttackBusyUntilTime || NowTime < NextAutoAttackTime || NowTime < RetryDelayUntilTime)
+		{
+			Decision = TEXT("WaitCooldown");
+			return;
+		}
+
+		const FCombatActionResult AttackResult = CachedPresentation->TryPresentBasicAttack(CurrentTarget.Get());
+		if (AttackResult.bOk)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] RequestBasicAttack Owner=%s Target=%s"), *GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()));
+			NextAutoAttackTime = NowTime + 0.5f;
+			AutoAttackBusyUntilTime = NowTime + 0.75f;
+			Decision = TEXT("Attack");
+		}
+		else
+		{
+			if (AttackResult.ReasonTag == "Reject.CannotPresentAction")
+			{
+				RetryDelayUntilTime = NowTime + 0.2f;
+				Decision = TEXT("RejectCannotPresent");
+				if (CannotPresentLogCooldownRemaining <= 0.f)
+				{
+					UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Skipped Reason=Reject.CannotPresentAction Owner=%s"), *GetNameSafe(GetOwner()));
+					CannotPresentLogCooldownRemaining = 0.5f;
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Skipped Reason=%s Owner=%s"), *AttackResult.ReasonTag.ToString(), *GetNameSafe(GetOwner()));
+			}
+		}
+
+		if (PlayerAutoAttackDebugLogRemaining <= 0.f)
+		{
+			const float RetryDelayRemaining = FMath::Max(0.f, RetryDelayUntilTime - NowTime);
+			const float NextAttackRemaining = FMath::Max(0.f, NextAutoAttackTime - NowTime);
+			const bool bCanPresentAction = (AttackResult.bOk || AttackResult.ReasonTag != "Reject.CannotPresentAction");
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack][Debug] Owner=%s Target=%s DistanceToTarget=%.1f AttackRange=%.1f IsMovingInput=%s CanPresentAction=%s IsActionLocked=%s IsAttacking=%s IsCastingSkill=%s BufferedSkillPending=%s NextAutoAttackTime=%.2f RetryDelayRemaining=%.2f Decision=%s"),
+				*GetNameSafe(GetOwner()),
+				*GetNameSafe(CurrentTarget.Get()),
+				Distance,
+				AttackRange,
+				bIsMovingInput ? TEXT("true") : TEXT("false"),
+				bCanPresentAction ? TEXT("true") : TEXT("false"),
+				CachedPresentation->HasActivePresentation() ? TEXT("true") : TEXT("false"),
+				CachedPresentation->HasActivePresentation() ? TEXT("true") : TEXT("false"),
+				TEXT("false"),
+				(PlayerController && PlayerController->HasBufferedSkillPending()) ? TEXT("true") : TEXT("false"),
+				NextAttackRemaining,
+				RetryDelayRemaining,
+				*Decision);
+			PlayerAutoAttackDebugLogRemaining = 0.75f;
+		}
+		return;
+	}
 
 	if (Context->bSelfIsDead)
 	{
 		return;
 	}
 
-	bool bPlayerControlled = false;
-	if (APawn* P = Cast<APawn>(GetOwner()))
+	RefreshContext();
+	if (Role == EJRPGPartyRole::Defender)
 	{
-		if (AController* C = P->GetController())
+		TankTickLogAccum += DeltaTime;
+		if (TankTickLogAccum >= 1.0f)
 		{
-			if (C->IsPlayerController())
-			{
-				bPlayerControlled = true;
-			}
+			TankTickLogAccum = 0.f;
+			UE_LOG(LogTemp, Log, TEXT("[TankAI] TickAlive Owner=%s Role=Tank BattleActive=%s"), *GetNameSafe(GetOwner()), Context->bSessionActive ? TEXT("true") : TEXT("false"));
+		}
+		TryRecoverAggro(DeltaTime);
+	}
+	if (MoveCallsAccum > 0.f)
+	{
+		MoveCallsAccum += DeltaTime;
+		if (MoveCallsAccum >= 1.f)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PartyAI] MoveCallsPerSec Owner=%s Calls=%.0f"), *GetNameSafe(GetOwner()), MoveCallsThisSecond);
+			MoveCallsThisSecond = 0.f;
+			MoveCallsAccum = 0.f;
 		}
 	}
-
-	RefreshContext();
 
 	// Chain 시퀀스 중 이라면 작동안함
 	if (Context->bInChainSequence)
@@ -117,11 +285,8 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	DecisionAccum += DeltaTime;
 	if (DecisionAccum < Interval)
 	{
-		// 결정 주기 사이에도 이동은 계속
-		if (!bPlayerControlled)
-		{
-			TickMovementAndAction(DeltaTime);
-		}
+		TickMovementAndAction(DeltaTime);
+		LogMoveDebug(DeltaTime);
 		return;
 	}
 	DecisionAccum = 0.f;
@@ -129,33 +294,12 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	// 타겟 갱신
 	RefreshTarget();
 
-	if (bPlayerControlled)
-	{
-		if (!CurrentTarget.IsValid())
-		{
-			State = EPartyAIState::Follow;
-			return;
-		}
-
-		const float Dist = GetDistanceToTarget();
-		if (Dist <= AttackRange)
-		{
-			State = EPartyAIState::Attack;
-			FaceTarget(CurrentTarget.Get());
-			ExecuteAction(FJRPGCombatAIAction::MakeBasicAttack(CurrentTarget, 0.5f));
-		}
-		else
-		{
-			State = EPartyAIState::Chase;
-		}
-		return;
-	}
-
 	// FSM 업데이트
 	UpdateStateMachine();
 
 	// 이동 + 행동
 	TickMovementAndAction(DeltaTime);
+	LogMoveDebug(DeltaTime);
 
 	// 결정 주기마다 스킬 판단
 	const FJRPGCombatAIAction Best = ChooseBestAction();
@@ -314,6 +458,51 @@ void UCombatPartyAIComponent::UpdateStateMachine()
 void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 {
 	if (!CurrentTarget.IsValid()) return;
+	if (Role == EJRPGPartyRole::Defender)
+	{
+		TankStageOneLogAccum += DeltaTime;
+		if (TankStageOneLogAccum >= 1.0f)
+		{
+			TankStageOneLogAccum = 0.f;
+			const float DistanceToTarget = GetDistanceToTarget();
+			const float AcceptanceRadius = FMath::Max(AttackRange * 0.8f, 10.0f);
+			const bool bMoveRequestActive = (State == EPartyAIState::Chase) || (State == EPartyAIState::KeepDistance);
+			const bool bHasReachedAttackRange = (DistanceToTarget <= AttackRange);
+			const TCHAR* ActionName = TEXT("Unknown");
+			switch (State)
+			{
+			case EPartyAIState::Chase: ActionName = TEXT("MoveToTarget"); break;
+			case EPartyAIState::Attack: ActionName = TEXT("Attack"); break;
+			case EPartyAIState::KeepDistance: ActionName = TEXT("KeepDistance"); break;
+			case EPartyAIState::Follow: ActionName = TEXT("Follow"); break;
+			default: break;
+			}
+			UE_LOG(LogTemp, Log, TEXT("[TankAI][StageOne] Owner=%s Action=%s Target=%s DistanceToTarget=%.1f AttackRange=%.1f AcceptanceRadius=%.1f MoveRequestActive=%s HasReachedAttackRange=%s"),
+				*GetNameSafe(GetOwner()),
+				ActionName,
+				*GetNameSafe(CurrentTarget.Get()),
+				DistanceToTarget,
+				AttackRange,
+				AcceptanceRadius,
+				bMoveRequestActive ? TEXT("true") : TEXT("false"),
+				bHasReachedAttackRange ? TEXT("true") : TEXT("false"));
+		}
+	}
+	StageOneLogAccum += DeltaTime;
+	if (StageOneLogAccum >= 1.f)
+	{
+		StageOneLogAccum = 0.f;
+		const TCHAR* ActionText = TEXT("Idle");
+		if (State == EPartyAIState::Attack)
+		{
+			ActionText = TEXT("BasicAttack");
+		}
+		else if (State == EPartyAIState::Chase || State == EPartyAIState::KeepDistance)
+		{
+			ActionText = TEXT("MoveToTarget");
+		}
+		UE_LOG(LogTemp, Log, TEXT("[PartyAI] StageOne running Owner=%s Action=%s Target=%s"), *GetNameSafe(GetOwner()), ActionText, *GetNameSafe(CurrentTarget.Get()));
+	}
 	if (RangedRepositionPauseRemaining > 0.f)
 	{
 		RangedRepositionPauseRemaining = FMath::Max(0.f, RangedRepositionPauseRemaining - DeltaTime);
@@ -452,16 +641,98 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 {
 	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
-	if (!MyChar) return;
+	AAIController* AIController = MyChar ? Cast<AAIController>(MyChar->GetController()) : nullptr;
+	if (!MyChar || !AIController)
+	{
+		return;
+	}
 
-	FVector Dir = Destination - MyChar->GetActorLocation();
-	Dir.Z = 0.f;
+	const FVector CurrentLocation = MyChar->GetActorLocation();
+	FVector ProjectedGoal = Destination;
+	bool bProjected = false;
+	bool bOwnerOnNavMesh = false;
+	bool bTargetOnNavMesh = false;
+	bool bHasNavBoundsVolume = false;
+	if (UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+	{
+		TArray<AActor*> NavBoundsActors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANavMeshBoundsVolume::StaticClass(), NavBoundsActors);
+		bHasNavBoundsVolume = NavBoundsActors.Num() > 0;
+		
+		FNavLocation NavLoc;
+		bProjected = NavSys->ProjectPointToNavigation(Destination, NavLoc, FVector(200.f, 200.f, 300.f));
+		if (bProjected)
+		{
+			ProjectedGoal = NavLoc.Location;
+		}
 
-	const float Dist = Dir.Size();
-	if (Dist < 10.0f) return;
+		FNavLocation OwnerNav;
+		FNavLocation TargetNav;
+		bOwnerOnNavMesh = NavSys->ProjectPointToNavigation(CurrentLocation, OwnerNav, FVector(100.f, 100.f, 200.f));
+		bTargetOnNavMesh = NavSys->ProjectPointToNavigation(Destination, TargetNav, FVector(100.f, 100.f, 200.f));
+		if (NavFailureLogCooldownRemaining <= 0.f)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PartyAI][NavCheck] Owner=%s OwnerOnNavMesh=%s TargetOnNavMesh=%s GoalProjected=%s HasNavBoundsVolume=%s ProjectedGoal=%s"),
+				*GetNameSafe(GetOwner()), bOwnerOnNavMesh ? TEXT("true") : TEXT("false"), bTargetOnNavMesh ? TEXT("true") : TEXT("false"), bProjected ? TEXT("true") : TEXT("false"), bHasNavBoundsVolume ? TEXT("true") : TEXT("false"), *ProjectedGoal.ToString());
+		}
+	}
+	
+	const bool bNavMeshValidForMove = bProjected && (bOwnerOnNavMesh || bTargetOnNavMesh);
+	if (!bNavMeshValidForMove)
+	{
+		if (NavFailureLogCooldownRemaining <= 0.f)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[PartyAI][MoveBlockedByNavMesh] Owner=%s Reason=NoNavMesh RetryAfter=1.0 OwnerOnNavMesh=%s TargetOnNavMesh=%s GoalProjected=%s HasNavBoundsVolume=%s"),
+				*GetNameSafe(GetOwner()),
+				bOwnerOnNavMesh ? TEXT("true") : TEXT("false"),
+				bTargetOnNavMesh ? TEXT("true") : TEXT("false"),
+				bProjected ? TEXT("true") : TEXT("false"),
+				bHasNavBoundsVolume ? TEXT("true") : TEXT("false"));
+			NavFailureLogCooldownRemaining = 1.0f;
+		}
 
-	Dir /= Dist;
-	MyChar->AddMovementInput(Dir, 1.0f);
+		NavFailureRetryBlockRemaining = 1.0f;
+		LastMoveRequestActive = false;
+		LastMoveRequestResult = EPathFollowingRequestResult::Failed;
+		if (bEnableNonNavMeshFallbackMovement)
+		{
+			const FVector ToGoal = (Destination - CurrentLocation).GetSafeNormal2D();
+			if (!ToGoal.IsNearlyZero())
+			{
+				MyChar->AddMovementInput(ToGoal, 1.0f);
+			}
+		}
+		return;
+	}
+
+	if (NavFailureRetryBlockRemaining > 0.f)
+	{
+		return;
+	}
+	
+	const float AcceptanceRadius = FMath::Max(100.f, AttackRange * 0.8f);
+	const EPathFollowingRequestResult::Type MoveResult = AIController->MoveToLocation(ProjectedGoal, AcceptanceRadius, true, true, false, false, nullptr, true);
+	LastMoveRequestActive = (MoveResult == EPathFollowingRequestResult::RequestSuccessful || MoveResult == EPathFollowingRequestResult::AlreadyAtGoal);
+	LastMoveRequestResult = MoveResult;
+	MoveCallsThisSecond += 1.f;
+	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
+	UE_LOG(LogTemp, Log, TEXT("[PartyAI][MoveRequest] Owner=%s MoveMethod=MoveToLocation Target=%s GoalLocation=%s AcceptanceRadius=%.1f Result=%d PathFollowingStatus=%s Controller=%s ProjectedToNavMesh=%s"),
+		*GetNameSafe(GetOwner()),
+		*GetNameSafe(CurrentTarget.Get()),
+		*ProjectedGoal.ToString(),
+		AcceptanceRadius,
+		(int32)MoveResult,
+		*GetPathFollowingStatusString(),
+		*GetNameSafe(AIController),
+		bProjected ? TEXT("true") : TEXT("false"));
+	if (MoveResult == EPathFollowingRequestResult::Failed && NavFailureLogCooldownRemaining <= 0.f)
+	{
+		const int32 MovementModeValue = MyChar->GetCharacterMovement() ? (int32)MyChar->GetCharacterMovement()->MovementMode.GetValue() : (int32)MOVE_None;
+		UE_LOG(LogTemp, Warning, TEXT("[PartyAI][MoveFailed] Owner=%s Reason=MoveToLocationFailed PathFollowingStatus=%s CurrentLocation=%s GoalLocation=%s DistanceToGoal=%.1f Controller=%s MovementMode=%d Velocity=%s NavMeshValid=%s"),
+			*GetNameSafe(GetOwner()), *GetPathFollowingStatusString(), *CurrentLocation.ToString(), *ProjectedGoal.ToString(), FVector::Dist2D(CurrentLocation, ProjectedGoal), *GetNameSafe(AIController),
+			MovementModeValue, *MyChar->GetVelocity().ToString(), bProjected ? TEXT("true") : TEXT("false"));
+		NavFailureLogCooldownRemaining = 1.0f;
+	}
 }
 
 void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale)
@@ -481,8 +752,15 @@ void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation
 	{
 		Dir /= Dist;
 	}
+	if (FVector::DotProduct(LastMoveDirection, Dir) > 0.999f)
+	{
+		return;
+	}
+	LastMoveDirection = Dir;
 
 	MyChar->AddMovementInput(Dir, Scale);
+	MoveCallsThisSecond += 1.f;
+	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
 }
 
 void UCombatPartyAIComponent::MoveLaterallyAround(const FVector& FocusLocation, float Scale)
@@ -504,7 +782,173 @@ void UCombatPartyAIComponent::MoveLaterallyAround(const FVector& FocusLocation, 
 		return;
 	}
 
+	if (FVector::DotProduct(LastMoveDirection, Right * FMath::Sign(Scale)) > 0.999f)
+	{
+		return;
+	}
+	LastMoveDirection = Right * FMath::Sign(Scale);
+
 	MyChar->AddMovementInput(Right, Scale);
+	MoveCallsThisSecond += 1.f;
+	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
+}
+
+void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
+{
+	TankReactionCooldownRemaining = FMath::Max(0.f, TankReactionCooldownRemaining - DeltaTime);
+	TankDebugLogAccum += DeltaTime;
+	TankBlockedLogAccum += DeltaTime;
+	auto LogBlocked = [this](const TCHAR* Reason)
+		{
+			if (TankBlockedLogAccum >= 0.75f || LastRecoverAggroBlockReason != Reason)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[TankAI] RecoverAggro blocked: %s"), Reason);
+				LastRecoverAggroBlockReason = Reason;
+				TankBlockedLogAccum = 0.f;
+			}
+		};
+	if (Role != EJRPGPartyRole::Defender)
+	{
+		LogBlocked(TEXT("SelfRole is not Tank"));
+		return;
+	}
+	if (!Context || !Context->bSessionActive)
+	{
+		return;
+	}
+
+	AEnemyAIController* ObservedEnemyController = nullptr;
+	AActor* EnemyActor = nullptr;
+	TArray<AActor*> Enemies;
+	if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+	{
+		Battle->GetOpponentsFor(GetOwner(), Enemies);
+		for (AActor* Enemy : Enemies)
+		{
+			if (!IsValid(Enemy)) continue;
+			if (APawn* EnemyPawn = Cast<APawn>(Enemy))
+			{
+				if (AEnemyAIController* EnemyController = Cast<AEnemyAIController>(EnemyPawn->GetController()))
+				{
+					ObservedEnemyController = EnemyController;
+					EnemyActor = Enemy;
+					break;
+				}
+			}
+		}
+	}
+	if (!ObservedEnemyController)
+	{
+		LogBlocked(TEXT("No observed enemy"));
+		return;
+	}
+	AActor* RawCurrentTarget = ObservedEnemyController->GetCurrentTargetActor();
+	AActor* EffectiveTarget = ObservedEnemyController->GetEffectiveTargetActor();
+	AActor* ForcedTarget = ObservedEnemyController->HasForcedTarget() ? EffectiveTarget : nullptr;
+	AActor* EnemyCurrentTarget = EffectiveTarget;
+	TankTargetDebugLogAccum += DeltaTime;
+	const bool bTargetStateChanged =
+		LastTargetDebugRawCurrent.Get() != RawCurrentTarget ||
+		LastTargetDebugAggroTarget.Get() != RawCurrentTarget ||
+		LastTargetDebugForcedTarget.Get() != ForcedTarget ||
+		LastTargetDebugEffectiveTarget.Get() != EffectiveTarget;
+	if (bTargetStateChanged || TankTargetDebugLogAccum >= 1.f)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] TargetDebug RawCurrent=%s AggroTarget=%s ForcedTarget=%s EffectiveTarget=%s Self=%s"),
+			*GetNameSafe(RawCurrentTarget),
+			*GetNameSafe(RawCurrentTarget),
+			*GetNameSafe(ForcedTarget),
+			*GetNameSafe(EffectiveTarget),
+			*GetNameSafe(GetOwner()));
+		TankTargetDebugLogAccum = 0.f;
+		LastTargetDebugRawCurrent = RawCurrentTarget;
+		LastTargetDebugAggroTarget = RawCurrentTarget;
+		LastTargetDebugForcedTarget = ForcedTarget;
+		LastTargetDebugEffectiveTarget = EffectiveTarget;
+	}
+	if (TankDebugLogAccum >= 0.75f)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] ObservedEnemy=%s EnemyCurrentTarget=%s SelfRole=%s"), *GetNameSafe(EnemyActor), *GetNameSafe(EnemyCurrentTarget), *RoleToDebugString(Role));
+		TankDebugLogAccum = 0.f;
+	}
+
+	if (!EnemyCurrentTarget)
+	{
+		LogBlocked(TEXT("EnemyCurrentTarget is null"));
+		return;
+	}
+	UCombatPartyAIComponent* TargetAI = EnemyCurrentTarget->FindComponentByClass<UCombatPartyAIComponent>();
+	if (TankDebugLogAccum <= KINDA_SMALL_NUMBER)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTargetRole=%s"), TargetAI ? *RoleToDebugString(TargetAI->Role) : TEXT("NonParty"));
+	}
+	if (ObservedEnemyController->HasForcedTarget() && ForcedTarget == GetOwner())
+	{
+		if (!bTankAggroSuspendedByForcedSelf)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[TankAI] AggroReaction suspended: ForcedTarget is self"));
+			bTankAggroSuspendedByForcedSelf = true;
+		}
+		return;
+	}
+	if (bTankAggroSuspendedByForcedSelf)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] AggroReaction resumed"));
+		bTankAggroSuspendedByForcedSelf = false;
+	}
+	if (EffectiveTarget == GetOwner())
+	{
+		return;
+	}
+	if (!IsAllyActor(EnemyCurrentTarget))
+	{
+		LogBlocked(TEXT("Target is not ally"));
+		return;
+	}
+	if (TankReactionCooldownRemaining > 0.f)
+	{
+		LogBlocked(*FString::Printf(TEXT("Cooldown %.1fs remaining"), TankReactionCooldownRemaining));
+		return;
+	}
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] Enter RecoverAggro"));
+	if (TryTempTaunt(ObservedEnemyController))
+	{
+		TankReactionCooldownRemaining = TempTauntForcedTargetDuration + TempTauntRecoveryGracePeriod;
+	}
+}
+
+bool UCombatPartyAIComponent::TryTempTaunt(AEnemyAIController* EnemyController)
+{
+	if (!EnemyController || !GetOwner()) return false;
+	AActor* Prev = EnemyController->GetCurrentTargetActor();
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] Use TempTaunt"));
+	EnemyController->ApplyForcedTarget(GetOwner(), TempTauntForcedTargetDuration);
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTarget changed: %s -> %s"), *GetNameSafe(Prev), *GetNameSafe(GetOwner()));
+	return true;
+}
+
+FString UCombatPartyAIComponent::RoleToDebugString(EJRPGPartyRole InRole) const
+{
+	switch (InRole)
+	{
+	case EJRPGPartyRole::Attacker: return TEXT("Dealer");
+	case EJRPGPartyRole::Defender: return TEXT("Tank");
+	case EJRPGPartyRole::Supporter: return TEXT("Supporter");
+	case EJRPGPartyRole::Healer: return TEXT("Healer");
+	default: return TEXT("Unknown");
+	}
+}
+
+bool UCombatPartyAIComponent::IsAllyActor(AActor* Candidate) const
+{
+	if (!IsValid(Candidate) || !GetOwner()) return false;
+	if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+	{
+		TArray<AActor*> Allies;
+		Battle->GetAlliesFor(GetOwner(), Allies);
+		return Allies.Contains(Candidate);
+	}
+	return false;
 }
 
 void UCombatPartyAIComponent::FaceTarget(AActor* Target)
@@ -523,6 +967,64 @@ float UCombatPartyAIComponent::GetDistanceToTarget() const
 {
 	if (!CurrentTarget.IsValid() || !GetOwner()) return MAX_FLT;
 	return FVector::Dist2D(GetOwner()->GetActorLocation(), CurrentTarget->GetActorLocation());
+}
+
+bool UCombatPartyAIComponent::IsPlayerControlledNow() const
+{
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	const AController* Controller = Pawn ? Pawn->GetController() : nullptr;
+	return Controller && Controller->IsPlayerController();
+}
+
+FString UCombatPartyAIComponent::GetPathFollowingStatusString() const
+{
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	const AAIController* AIController = Pawn ? Cast<AAIController>(Pawn->GetController()) : nullptr;
+	const UPathFollowingComponent* PathComp = AIController ? AIController->GetPathFollowingComponent() : nullptr;
+	return PathComp ? UEnum::GetValueAsString(PathComp->GetStatus()) : TEXT("NoPathFollowing");
+}
+
+void UCombatPartyAIComponent::LogMoveDebug(float DeltaTime)
+{
+	MoveDebugAccum += DeltaTime;
+	if (MoveDebugAccum < 1.0f)
+	{
+		return;
+	}
+	MoveDebugAccum = 0.f;
+
+	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
+	if (!MyChar) return;
+
+	const FVector CurrentLocation = MyChar->GetActorLocation();
+	const FVector PreviousDebugLocation = LastDebugLocation;
+	const float LocationDelta = bHasLastDebugLocation ? FVector::Dist2D(CurrentLocation, PreviousDebugLocation) : 0.f;
+	LastDebugLocation = CurrentLocation;
+	bHasLastDebugLocation = true;
+
+	const float DistanceToTarget = GetDistanceToTarget();
+	const float DistanceDelta = bHasLastDistanceToTarget ? (LastDistanceToTarget - DistanceToTarget) : 0.f;
+	LastDistanceToTarget = DistanceToTarget;
+	bHasLastDistanceToTarget = true;
+
+	const FVector Velocity = MyChar->GetVelocity();
+	const float Speed = Velocity.Size2D();
+	const UCharacterMovementComponent* MoveComp = MyChar->GetCharacterMovement();
+	const bool bCanMove = MoveComp && MoveComp->MovementMode != MOVE_None && MoveComp->UpdatedComponent != nullptr;
+	const APawn* Pawn = Cast<APawn>(GetOwner());
+	const AController* Controller = Pawn ? Pawn->GetController() : nullptr;
+
+	UE_LOG(LogTemp, Log, TEXT("[PartyAI][MoveDebug] Owner=%s Target=%s CurrentLocation=%s LastLocation=%s LocationDelta=%.1f DistanceToTarget=%.1f DistanceDelta=%.1f Velocity=%s Speed=%.1f MovementMode=%d MaxWalkSpeed=%.1f ControllerName=%s IsPlayerControlled=%s IsAIControlled=%s PathFollowingStatus=%s MoveRequestActive=%s LastMoveRequestResult=%d bCanMove=%s bIsActionLocked=%s bIsAttacking=%s bIsCastingSkill=%s bUseControllerDesiredRotation=%s bOrientRotationToMovement=%s"),
+		*GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), *CurrentLocation.ToString(), *PreviousDebugLocation.ToString(), LocationDelta, DistanceToTarget, DistanceDelta, *Velocity.ToString(), Speed,
+		MoveComp ? (int32)MoveComp->MovementMode : -1, MoveComp ? MoveComp->MaxWalkSpeed : 0.f, *GetNameSafe(Controller),
+		IsPlayerControlledNow() ? TEXT("true") : TEXT("false"), Cast<AAIController>(Controller) ? TEXT("true") : TEXT("false"),
+		*GetPathFollowingStatusString(), LastMoveRequestActive ? TEXT("true") : TEXT("false"), (int32)LastMoveRequestResult,
+		bCanMove ? TEXT("true") : TEXT("false"),
+		Context && Context->bInChainSequence ? TEXT("true") : TEXT("false"),
+		TEXT("false"),
+		CachedPresentation.IsValid() && CachedPresentation->HasActivePresentation() ? TEXT("true") : TEXT("false"),
+		MoveComp && MoveComp->bUseControllerDesiredRotation ? TEXT("true") : TEXT("false"),
+		MoveComp && MoveComp->bOrientRotationToMovement ? TEXT("true") : TEXT("false"));
 }
 
 TArray<AActor*> UCombatPartyAIComponent::BuildSkillTargets(const USkillDataAsset* SkillDef) const

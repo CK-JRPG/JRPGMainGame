@@ -61,6 +61,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_Skill1;
 
+public:
+	bool IsMovementOverrideActive() const { return bMovementOverrideActive; }
+	bool HasBufferedSkillPending() const { return !BufferedSkillId.IsNone(); }
+
 private:
 	void OnMove(const FInputActionValue& Value);
 	void OnLook(const FInputActionValue& Value);
@@ -73,7 +77,15 @@ private:
 	void OnTacticalModePressed(const FInputActionValue& Value);
 	void OnToggleMainMenu(const FInputActionValue& Value);
 	void OnSkill1(const FInputActionValue& Value);
+	void TryConsumeBufferedSkill();
 	bool bIsPartyWheelActive = false;
+	FTimerHandle BufferedSkillTimerHandle;
+	FName BufferedSkillId = NAME_None;
+	float SkillBufferWindowSec = 0.4f;
+	float AutoAttackSuppressWindowSec = 0.4f;
+	bool bMovementOverrideActive = false;
+	float LastBufferedSkillLogTime = -1000.f;
+	float BufferedSkillLogCooldownSec = 0.25f;
 	void OnPartyWheelStarted(const FInputActionValue& Value);
 	void OnPartyWheelCompleted(const FInputActionValue& Value);
 };

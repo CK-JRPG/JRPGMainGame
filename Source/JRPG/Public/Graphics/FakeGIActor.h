@@ -81,7 +81,7 @@ public:
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling",
         meta = (ClampMin = "0.0", EditCondition = "!bNeverCullGIProxy"))
-    float GICullDistance = 8000.f;
+    float GICullDistance = 100000.f;
 
     UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fake GI|Culling",
         meta = (ClampMin = "1.0", ClampMax = "10000.0"))

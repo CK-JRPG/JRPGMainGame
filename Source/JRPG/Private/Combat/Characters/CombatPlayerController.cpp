@@ -18,6 +18,7 @@
 #include "GameFramework/Pawn.h"
 #include "InputCoreTypes.h"
 #include "Combat/Skills/SkillComponent.h"
+#include "TimerManager.h"
 
 void ACombatPlayerController::SetupInputComponent()
 {
@@ -120,6 +121,12 @@ void ACombatPlayerController::OnUnPossess()
 void ACombatPlayerController::OnMove(const FInputActionValue& Value)
 {
 	const FVector2D Move = Value.Get<FVector2D>();
+	const bool bHasMovementInput = !Move.IsNearlyZero();
+	if (bHasMovementInput != bMovementOverrideActive)
+	{
+		bMovementOverrideActive = bHasMovementInput;
+		UE_LOG(LogTemp, Log, TEXT("[InputPriority] Player movement override %s"), bMovementOverrideActive ? TEXT("started") : TEXT("ended"));
+	}
 
 	APawn* ControlledPawn = GetPawn();
 	if (!ControlledPawn) return;
@@ -297,47 +304,78 @@ void ACombatPlayerController::OnSkill1(const FInputActionValue& Value)
 	if (!ControlledPawn) return;
 
 	USkillComponent* SkillComp = ControlledPawn->FindComponentByClass<USkillComponent>();
-	UCombatPresentationComponent* Presentation = ControlledPawn->FindComponentByClass<UCombatPresentationComponent>();
-	if (!SkillComp || !Presentation) return;
+	if (!SkillComp) return;
 
-	// 보유 스킬 목록의 첫 번째 스킬
 	TArray<FName> SkillIds;
 	SkillComp->GetOwnedSkillIds(SkillIds);
 	if (SkillIds.Num() == 0) return;
 
-	const FName SkillId = SkillIds[0];
-	const USkillDataAsset* SkillDef = SkillComp->GetSkillDef(SkillId);
+	const bool bHasSameBufferedSkill = (BufferedSkillId == SkillIds[0]);
+	BufferedSkillId = SkillIds[0];
+	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	if ((Now - LastBufferedSkillLogTime) >= BufferedSkillLogCooldownSec)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[InputBuffer] %s SkillIndex=1"), bHasSameBufferedSkill ? TEXT("BufferedSkillUpdated") : TEXT("NewBufferedSkill"));
+		LastBufferedSkillLogTime = Now;
+	}
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(BufferedSkillTimerHandle);
+		GetWorld()->GetTimerManager().SetTimer(BufferedSkillTimerHandle, this, &ACombatPlayerController::TryConsumeBufferedSkill, SkillBufferWindowSec, false);
+	}
+
+	if (UCombatPresentationComponent* Presentation = ControlledPawn->FindComponentByClass<UCombatPresentationComponent>())
+	{
+		Presentation->SetAutoAttackSuppressedFor(AutoAttackSuppressWindowSec);
+		UE_LOG(LogTemp, Log, TEXT("[InputPriority] Skill input overrides auto attack"));
+	}
+
+	TryConsumeBufferedSkill();
+}
+
+void ACombatPlayerController::TryConsumeBufferedSkill()
+{
+	if (BufferedSkillId.IsNone()) return;
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn) return;
+
+	USkillComponent* SkillComp = ControlledPawn->FindComponentByClass<USkillComponent>();
+	UCombatPresentationComponent* Presentation = ControlledPawn->FindComponentByClass<UCombatPresentationComponent>();
+	if (!SkillComp || !Presentation) return;
+
+	const USkillDataAsset* SkillDef = SkillComp->GetSkillDef(BufferedSkillId);
 	if (!SkillDef) return;
 
-	// 락온 중인 적을 우선 타겟으로, 없으면 스킬 타겟팅 자동 선택
 	TArray<AActor*> Targets;
-
 	AActor* LockedTarget = nullptr;
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
 	{
 		LockedTarget = CamSub->GetLockedOnEnemy();
 	}
-
 	if (LockedTarget)
 	{
 		Targets.Add(LockedTarget);
 	}
-	else
+	else if (UCombatTargetingSubsystem* TargetSub = GetWorld()->GetSubsystem<UCombatTargetingSubsystem>())
 	{
-		if (UCombatTargetingSubsystem* TargetSub = GetWorld()->GetSubsystem<UCombatTargetingSubsystem>())
+		const FTargetingResult Result = TargetSub->ResolvePreferredTargetsForSkill(ControlledPawn, SkillDef);
+		for (const TWeakObjectPtr<AActor>& T : Result.Targets)
 		{
-			const FTargetingResult Result = TargetSub->ResolvePreferredTargetsForSkill(ControlledPawn, SkillDef);
-			for (const TWeakObjectPtr<AActor>& T : Result.Targets)
-			{
-				if (T.IsValid())
-					Targets.Add(T.Get());
-			}
+			if (T.IsValid()) Targets.Add(T.Get());
 		}
 	}
-
 	if (Targets.Num() == 0) return;
 
-	Presentation->TryPresentSkill(SkillId, Targets);
+	const FSkillCastResult Result = Presentation->TryPresentSkill(BufferedSkillId, Targets);
+	if (Result.bOk)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[InputBuffer] Consume buffered skill SkillIndex=1"));
+		BufferedSkillId = NAME_None;
+		if (GetWorld())
+		{
+			GetWorld()->GetTimerManager().ClearTimer(BufferedSkillTimerHandle);
+		}
+	}
 }
 
 void ACombatPlayerController::OnPartyWheelStarted(const FInputActionValue& Value)
