@@ -109,4 +109,10 @@ private:
 	float NavFailureRetryBlockRemaining = 0.f;
 	float NavFailureLogCooldownRemaining = 0.f;
 	bool bEnableNonNavMeshFallbackMovement = true;
+	bool bPrevPlayerControlled = false;
+	float NextAutoAttackTime = 0.f;
+	float RetryDelayUntilTime = 0.f;
+	float AutoAttackBusyUntilTime = 0.f;
+	float PlayerAutoAttackDebugLogRemaining = 0.f;
+	float CannotPresentLogCooldownRemaining = 0.f;
 };

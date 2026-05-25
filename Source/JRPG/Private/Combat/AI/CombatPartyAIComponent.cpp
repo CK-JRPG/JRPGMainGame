@@ -119,16 +119,34 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	if (!Context || !Scorer) return;
 	NavFailureRetryBlockRemaining = FMath::Max(0.f, NavFailureRetryBlockRemaining - DeltaTime);
 	NavFailureLogCooldownRemaining = FMath::Max(0.f, NavFailureLogCooldownRemaining - DeltaTime);
+	PlayerAutoAttackDebugLogRemaining = FMath::Max(0.f, PlayerAutoAttackDebugLogRemaining - DeltaTime);
+	CannotPresentLogCooldownRemaining = FMath::Max(0.f, CannotPresentLogCooldownRemaining - DeltaTime);
+
+	const bool bPlayerControlledNow = IsPlayerControlledNow();
+	if (bPlayerControlledNow != bPrevPlayerControlled)
+	{
+		if (bPlayerControlledNow)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Enabled Owner=%s"), *GetNameSafe(GetOwner()));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Disabled Owner=%s Reason=PossessionChangedToAI"), *GetNameSafe(GetOwner()));
+		}
+		bPrevPlayerControlled = bPlayerControlledNow;
+	}
  
-	if (IsPlayerControlledNow())
+	if (bPlayerControlledNow)
 	{
 		RefreshTarget();
 		const APawn* OwnerPawn = Cast<APawn>(GetOwner());
 		const ACombatPlayerController* PlayerController = OwnerPawn ? Cast<ACombatPlayerController>(OwnerPawn->GetController()) : nullptr;
+		const float NowTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+		FString Decision = TEXT("WaitCooldown");
 
 		if (!CurrentTarget.IsValid())
 		{
-			UE_LOG(LogTemp, Verbose, TEXT("[PlayerAutoAttack] Skipped Reason=NoTarget Owner=%s"), *GetNameSafe(GetOwner()));
+			Decision = TEXT("NoTarget");
 			return;
 		}
 
@@ -147,12 +165,6 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 			return;
 		}
 
-		if (PlayerController && PlayerController->IsMovementOverrideActive())
-		{
-			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Suppressed Reason=PlayerMoving Owner=%s"), *GetNameSafe(GetOwner()));
-			return;
-		}
-
 		if (CachedPresentation->IsAutoAttackSuppressed())
 		{
 			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Suppressed Reason=SkillInput Owner=%s"), *GetNameSafe(GetOwner()));
@@ -160,11 +172,28 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		}
 
 		const float Distance = GetDistanceToTarget();
-		const bool bCanAttack = Distance <= AttackRange;
-		UE_LOG(LogTemp, Verbose, TEXT("[PlayerAutoAttack] Tick Owner=%s Target=%s Distance=%.1f AttackRange=%.1f CanAttack=%s"), *GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), Distance, AttackRange, bCanAttack ? TEXT("true") : TEXT("false"));
-		if (!bCanAttack)
+		const bool bInRange = Distance <= AttackRange;
+		const bool bIsMovingInput = PlayerController && PlayerController->IsMovementOverrideActive();
+		if (bIsMovingInput && !bInRange)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Skipped Reason=OutOfRange Owner=%s Target=%s Distance=%.1f AttackRange=%.1f"), *GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), Distance, AttackRange);
+			UE_LOG(LogTemp, Log, TEXT("[InputPriority] Player movement blocks auto-move correction only"));
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Suppressed Reason=PlayerMovingOutOfRange Owner=%s Target=%s Distance=%.1f AttackRange=%.1f"),
+				*GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), Distance, AttackRange);
+			Decision = TEXT("SuppressMovingOutOfRange");
+			return;
+		}
+		if (bIsMovingInput && bInRange)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] AttackAllowedWhileMoving InRange=true"));
+		}
+		if (!bInRange)
+		{
+			Decision = TEXT("OutOfRange");
+			return;
+		}
+		if (NowTime < AutoAttackBusyUntilTime || NowTime < NextAutoAttackTime || NowTime < RetryDelayUntilTime)
+		{
+			Decision = TEXT("WaitCooldown");
 			return;
 		}
 
@@ -172,10 +201,48 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		if (AttackResult.bOk)
 		{
 			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] RequestBasicAttack Owner=%s Target=%s"), *GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()));
+			NextAutoAttackTime = NowTime + 0.5f;
+			AutoAttackBusyUntilTime = NowTime + 0.75f;
+			Decision = TEXT("Attack");
 		}
 		else
 		{
-			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Skipped Reason=%s Owner=%s"), *AttackResult.ReasonTag.ToString(), *GetNameSafe(GetOwner()));
+			if (AttackResult.ReasonTag == "Reject.CannotPresentAction")
+			{
+				RetryDelayUntilTime = NowTime + 0.2f;
+				Decision = TEXT("RejectCannotPresent");
+				if (CannotPresentLogCooldownRemaining <= 0.f)
+				{
+					UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Skipped Reason=Reject.CannotPresentAction Owner=%s"), *GetNameSafe(GetOwner()));
+					CannotPresentLogCooldownRemaining = 0.5f;
+				}
+			}
+			else
+			{
+				UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Skipped Reason=%s Owner=%s"), *AttackResult.ReasonTag.ToString(), *GetNameSafe(GetOwner()));
+			}
+		}
+
+		if (PlayerAutoAttackDebugLogRemaining <= 0.f)
+		{
+			const float RetryDelayRemaining = FMath::Max(0.f, RetryDelayUntilTime - NowTime);
+			const float NextAttackRemaining = FMath::Max(0.f, NextAutoAttackTime - NowTime);
+			const bool bCanPresentAction = (AttackResult.bOk || AttackResult.ReasonTag != "Reject.CannotPresentAction");
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack][Debug] Owner=%s Target=%s DistanceToTarget=%.1f AttackRange=%.1f IsMovingInput=%s CanPresentAction=%s IsActionLocked=%s IsAttacking=%s IsCastingSkill=%s BufferedSkillPending=%s NextAutoAttackTime=%.2f RetryDelayRemaining=%.2f Decision=%s"),
+				*GetNameSafe(GetOwner()),
+				*GetNameSafe(CurrentTarget.Get()),
+				Distance,
+				AttackRange,
+				bIsMovingInput ? TEXT("true") : TEXT("false"),
+				bCanPresentAction ? TEXT("true") : TEXT("false"),
+				CachedPresentation->HasActivePresentation() ? TEXT("true") : TEXT("false"),
+				CachedPresentation->HasActivePresentation() ? TEXT("true") : TEXT("false"),
+				TEXT("false"),
+				(PlayerController && PlayerController->HasBufferedSkillPending()) ? TEXT("true") : TEXT("false"),
+				NextAttackRemaining,
+				RetryDelayRemaining,
+				*Decision);
+			PlayerAutoAttackDebugLogRemaining = 0.75f;
 		}
 		return;
 	}
