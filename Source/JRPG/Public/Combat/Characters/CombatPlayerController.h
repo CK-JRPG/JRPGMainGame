@@ -61,6 +61,10 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Input")
 	TObjectPtr<UInputAction> IA_Skill1;
 
+public:
+	bool IsMovementOverrideActive() const { return bMovementOverrideActive; }
+	bool HasBufferedSkillPending() const { return !BufferedSkillId.IsNone(); }
+
 private:
 	void OnMove(const FInputActionValue& Value);
 	void OnLook(const FInputActionValue& Value);

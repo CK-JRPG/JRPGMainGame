@@ -11,6 +11,7 @@
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
+#include "Combat/Characters/CombatPlayerController.h"
 
 #include "GameFramework/Pawn.h"
 #include "GameFramework/Character.h"
@@ -121,6 +122,61 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
  
 	if (IsPlayerControlledNow())
 	{
+		RefreshTarget();
+		const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+		const ACombatPlayerController* PlayerController = OwnerPawn ? Cast<ACombatPlayerController>(OwnerPawn->GetController()) : nullptr;
+
+		if (!CurrentTarget.IsValid())
+		{
+			UE_LOG(LogTemp, Verbose, TEXT("[PlayerAutoAttack] Skipped Reason=NoTarget Owner=%s"), *GetNameSafe(GetOwner()));
+			return;
+		}
+
+		if (!CachedPresentation.IsValid())
+		{
+			CachedPresentation = GetOwner() ? GetOwner()->FindComponentByClass<UCombatPresentationComponent>() : nullptr;
+		}
+		if (!CachedPresentation.IsValid())
+		{
+			return;
+		}
+
+		if (PlayerController && PlayerController->HasBufferedSkillPending())
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Skipped Reason=BufferedSkillPending Owner=%s"), *GetNameSafe(GetOwner()));
+			return;
+		}
+
+		if (PlayerController && PlayerController->IsMovementOverrideActive())
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Suppressed Reason=PlayerMoving Owner=%s"), *GetNameSafe(GetOwner()));
+			return;
+		}
+
+		if (CachedPresentation->IsAutoAttackSuppressed())
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Suppressed Reason=SkillInput Owner=%s"), *GetNameSafe(GetOwner()));
+			return;
+		}
+
+		const float Distance = GetDistanceToTarget();
+		const bool bCanAttack = Distance <= AttackRange;
+		UE_LOG(LogTemp, Verbose, TEXT("[PlayerAutoAttack] Tick Owner=%s Target=%s Distance=%.1f AttackRange=%.1f CanAttack=%s"), *GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), Distance, AttackRange, bCanAttack ? TEXT("true") : TEXT("false"));
+		if (!bCanAttack)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Skipped Reason=OutOfRange Owner=%s Target=%s Distance=%.1f AttackRange=%.1f"), *GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), Distance, AttackRange);
+			return;
+		}
+
+		const FCombatActionResult AttackResult = CachedPresentation->TryPresentBasicAttack(CurrentTarget.Get());
+		if (AttackResult.bOk)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] RequestBasicAttack Owner=%s Target=%s"), *GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()));
+		}
+		else
+		{
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Skipped Reason=%s Owner=%s"), *AttackResult.ReasonTag.ToString(), *GetNameSafe(GetOwner()));
+		}
 		return;
 	}
 
