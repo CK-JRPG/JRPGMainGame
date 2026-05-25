@@ -115,4 +115,7 @@ private:
 	float AutoAttackBusyUntilTime = 0.f;
 	float PlayerAutoAttackDebugLogRemaining = 0.f;
 	float CannotPresentLogCooldownRemaining = 0.f;
+	FName LastCannotPresentReasonTag = NAME_None;
+	float LastAutoAttackSuccessTime = -1000.f;
+	float AttackKeepRange = 650.f;
 };
