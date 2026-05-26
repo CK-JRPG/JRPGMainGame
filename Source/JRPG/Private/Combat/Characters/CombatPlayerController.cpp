@@ -313,6 +313,7 @@ void ACombatPlayerController::OnSkill1(const FInputActionValue& Value)
 	const bool bHasSameBufferedSkill = (BufferedSkillId == SkillIds[0]);
 	BufferedSkillId = SkillIds[0];
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	BufferedSkillExpireWorldTime = Now + SkillBufferWindowSec;
 	if ((Now - LastBufferedSkillLogTime) >= BufferedSkillLogCooldownSec)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[InputBuffer] %s SkillIndex=1"), bHasSameBufferedSkill ? TEXT("BufferedSkillUpdated") : TEXT("NewBufferedSkill"));
@@ -336,15 +337,30 @@ void ACombatPlayerController::OnSkill1(const FInputActionValue& Value)
 void ACombatPlayerController::TryConsumeBufferedSkill()
 {
 	if (BufferedSkillId.IsNone()) return;
+	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	const bool bBufferExpired = BufferedSkillExpireWorldTime > 0.f && Now >= BufferedSkillExpireWorldTime;
+
 	APawn* ControlledPawn = GetPawn();
-	if (!ControlledPawn) return;
+	if (!ControlledPawn)
+	{
+		ClearBufferedSkill("InputBuffer.NoPawn");
+		return;
+	}
 
 	USkillComponent* SkillComp = ControlledPawn->FindComponentByClass<USkillComponent>();
 	UCombatPresentationComponent* Presentation = ControlledPawn->FindComponentByClass<UCombatPresentationComponent>();
-	if (!SkillComp || !Presentation) return;
+	if (!SkillComp || !Presentation)
+	{
+		ClearBufferedSkill("InputBuffer.MissingComponent");
+		return;
+	}
 
 	const USkillDataAsset* SkillDef = SkillComp->GetSkillDef(BufferedSkillId);
-	if (!SkillDef) return;
+	if (!SkillDef)
+	{
+		ClearBufferedSkill("InputBuffer.SkillNotFound");
+		return;
+	}
 
 	TArray<AActor*> Targets;
 	AActor* LockedTarget = nullptr;
@@ -364,17 +380,39 @@ void ACombatPlayerController::TryConsumeBufferedSkill()
 			if (T.IsValid()) Targets.Add(T.Get());
 		}
 	}
-	if (Targets.Num() == 0) return;
+	if (Targets.Num() == 0)
+	{
+		if (bBufferExpired)
+		{
+			ClearBufferedSkill("InputBuffer.NoTarget");
+		}
+		return;
+	}
 
 	const FSkillCastResult Result = Presentation->TryPresentSkill(BufferedSkillId, Targets);
 	if (Result.bOk)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[InputBuffer] Consume buffered skill SkillIndex=1"));
-		BufferedSkillId = NAME_None;
-		if (GetWorld())
-		{
-			GetWorld()->GetTimerManager().ClearTimer(BufferedSkillTimerHandle);
-		}
+		ClearBufferedSkill("InputBuffer.Consumed");
+	}
+	else if (bBufferExpired)
+	{
+		ClearBufferedSkill(Result.ReasonTag.IsNone() ? FName("InputBuffer.Expired") : Result.ReasonTag);
+	}
+}
+
+void ACombatPlayerController::ClearBufferedSkill(FName ReasonTag)
+{
+	if (!BufferedSkillId.IsNone())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[InputBuffer] Clear buffered skill Reason=%s"), *ReasonTag.ToString());
+	}
+
+	BufferedSkillId = NAME_None;
+	BufferedSkillExpireWorldTime = 0.f;
+	if (GetWorld())
+	{
+		GetWorld()->GetTimerManager().ClearTimer(BufferedSkillTimerHandle);
 	}
 }
 

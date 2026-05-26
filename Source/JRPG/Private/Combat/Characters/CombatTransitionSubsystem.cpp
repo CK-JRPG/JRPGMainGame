@@ -349,7 +349,20 @@ void UCombatTransitionSubsystem::OnPartyMemberChanged(const FName& NewCharacterI
 	
 	if (UCombatPartyAIComponent* NewPartyAI = TargetActor->FindComponentByClass<UCombatPartyAIComponent>())
 	{
-		NewPartyAI->SetComponentTickEnabled(false);
+		if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
+		{
+			TArray<AActor*> Enemies;
+			Battle->GetOpponentsFor(TargetActor, Enemies);
+			for (AActor* Enemy : Enemies)
+			{
+				if (IsValid(Enemy))
+				{
+					NewPartyAI->SetCurrentTarget(Enemy);
+					break;
+				}
+			}
+		}
+		NewPartyAI->SetComponentTickEnabled(true);
 	}	
 	
 	CurrentPlayerCharacterID = NewCharacterID;
