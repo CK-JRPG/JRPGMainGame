@@ -2,6 +2,8 @@
 
 #include "Camera/CameraComponent.h"
 #include "Combat/Camera/CameraTargetInterface.h"
+#include "Camera/PlayerCameraManager.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 
 
@@ -22,9 +24,21 @@ ACameraRigActor::ACameraRigActor()
 	Camera->bUsePawnControlRotation = false;
 }
 
+void ACameraRigActor::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (Camera)
+	{
+		CameraDefaultRelativeLocation = Camera->GetRelativeLocation();
+	}
+}
+
 void ACameraRigActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	UpdateManualPlayerHitCameraShake(DeltaTime);
 	
 	if (!TargetActor.IsValid()) return;
 	
@@ -119,4 +133,71 @@ void ACameraRigActor::UseCombatArmLength(bool bApplyImmediately)
 	CurrentDefaultArmLength = CombatArmLength;
 	CurrentMaxArmLength = CombatMaxArmLength;
 	SetArmLength(CombatArmLength, bApplyImmediately);
+}
+
+void ACameraRigActor::PlayPlayerHitCameraShake(float DamageAmount, bool bCriticalHit)
+{
+	if (DamageAmount <= 0.f)
+	{
+		return;
+	}
+
+	StartManualPlayerHitCameraShake(bCriticalHit);
+
+	if (!PlayerHitCameraShakeClass)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+	if (!PC || !PC->PlayerCameraManager)
+	{
+		return;
+	}
+
+	const float Scale = bCriticalHit ? PlayerCriticalHitCameraShakeScale : PlayerHitCameraShakeScale;
+	if (Scale > 0.f)
+	{
+		PC->PlayerCameraManager->StartCameraShake(PlayerHitCameraShakeClass, Scale);
+	}
+}
+
+void ACameraRigActor::StartManualPlayerHitCameraShake(bool bCriticalHit)
+{
+	if (!bUseManualPlayerHitCameraShake || !Camera)
+	{
+		return;
+	}
+
+	const float CriticalMultiplier = bCriticalHit ? PlayerHitShakeCriticalMultiplier : 1.0f;
+	PlayerHitShakeElapsed = 0.0f;
+	ActivePlayerHitShakeDuration = FMath::Max(0.01f, PlayerHitShakeDuration);
+	ActivePlayerHitShakeHorizontalAmplitude = PlayerHitShakeHorizontalAmplitude * CriticalMultiplier;
+	ActivePlayerHitShakeVerticalAmplitude = PlayerHitShakeVerticalAmplitude * CriticalMultiplier;
+	bPlayerHitShakeActive = true;
+}
+
+void ACameraRigActor::UpdateManualPlayerHitCameraShake(float DeltaTime)
+{
+	if (!bPlayerHitShakeActive || !Camera)
+	{
+		return;
+	}
+
+	PlayerHitShakeElapsed += DeltaTime;
+	const float NormalizedTime = PlayerHitShakeElapsed / ActivePlayerHitShakeDuration;
+	if (NormalizedTime >= 1.0f)
+	{
+		bPlayerHitShakeActive = false;
+		Camera->SetRelativeLocation(CameraDefaultRelativeLocation);
+		return;
+	}
+
+	const float Decay = FMath::Square(1.0f - NormalizedTime);
+	const float Phase = PlayerHitShakeElapsed * PlayerHitShakeSpeed;
+	const float Horizontal = FMath::Sin(Phase) * ActivePlayerHitShakeHorizontalAmplitude * Decay;
+	const float Vertical = FMath::Cos(Phase * 1.37f) * ActivePlayerHitShakeVerticalAmplitude * Decay;
+
+	Camera->SetRelativeLocation(CameraDefaultRelativeLocation + FVector(0.0f, Horizontal, Vertical));
 }

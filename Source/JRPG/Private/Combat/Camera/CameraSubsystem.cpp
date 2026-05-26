@@ -1,8 +1,11 @@
 ﻿#include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Camera/CameraRigActor.h"
 #include "Combat/Camera/CameraTargetInterface.h"
+#include "Combat/Battle/BasicCombatSubsystem.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Battle/BattleSessionTypes.h"
+#include "Combat/Characters/CombatCharacterActor.h"
+#include "Combat/Characters/CombatParticipantInterface.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -40,6 +43,29 @@ void UCameraSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     {
         BS->OnBattleEnded.AddUObject(this, &UCameraSubsystem::OnBattleEnded);
     }
+
+    if (UBasicCombatSubsystem* BasicCombat = InWorld.GetSubsystem<UBasicCombatSubsystem>())
+    {
+        BasicCombat->OnBasicAttackResolved.AddUObject(this, &UCameraSubsystem::HandleBasicAttackResolved);
+    }
+}
+
+void UCameraSubsystem::Deinitialize()
+{
+    if (UWorld* World = GetWorld())
+    {
+        if (UBasicCombatSubsystem* BasicCombat = World->GetSubsystem<UBasicCombatSubsystem>())
+        {
+            BasicCombat->OnBasicAttackResolved.RemoveAll(this);
+        }
+
+        if (UBattleSessionSubsystem* BS = World->GetSubsystem<UBattleSessionSubsystem>())
+        {
+            BS->OnBattleEnded.RemoveAll(this);
+        }
+    }
+
+    Super::Deinitialize();
 }
 
 void UCameraSubsystem::SetTarget(AActor* NewTarget)
@@ -360,4 +386,32 @@ void UCameraSubsystem::OnCharacterPossessed(AActor* NewCharacter)
         return;
 
     SetTargetSmooth(NewCharacter);
+}
+
+void UCameraSubsystem::HandleBasicAttackResolved(const FCombatActionResult& Result)
+{
+    // 플레이어가 직접 조작 중인 파티원이 적에게 실제 데미지를 넣은 기본 공격만 쉐이크 처리.
+    if (!Result.bOk || Result.Breakdown.FinalDamage <= 0.f)
+    {
+        return;
+    }
+
+    ACombatCharacterActor* Attacker = Cast<ACombatCharacterActor>(Result.Attacker.Get());
+    ICombatParticipantInterface* Target = Cast<ICombatParticipantInterface>(Result.Target.Get());
+    if (!Attacker || !Target)
+    {
+        return;
+    }
+
+    if (Attacker->GetCombatTeam() != ECombatTeam::Player
+        || !Attacker->IsPlayerControlledCombatant()
+        || Target->GetCombatTeam() != ECombatTeam::Enemy)
+    {
+        return;
+    }
+
+    if (CameraRig.IsValid())
+    {
+        CameraRig->PlayPlayerHitCameraShake(Result.Breakdown.FinalDamage, Result.Breakdown.bCritical);
+    }
 }
