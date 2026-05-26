@@ -78,10 +78,12 @@ private:
 	void OnToggleMainMenu(const FInputActionValue& Value);
 	void OnSkill1(const FInputActionValue& Value);
 	void TryConsumeBufferedSkill();
+	void ClearBufferedSkill(FName ReasonTag);
 	bool bIsPartyWheelActive = false;
 	FTimerHandle BufferedSkillTimerHandle;
 	FName BufferedSkillId = NAME_None;
 	float SkillBufferWindowSec = 0.4f;
+	float BufferedSkillExpireWorldTime = 0.f;
 	float AutoAttackSuppressWindowSec = 0.4f;
 	bool bMovementOverrideActive = false;
 	float LastBufferedSkillLogTime = -1000.f;
