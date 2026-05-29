@@ -6,6 +6,7 @@
 #include "Animation/AnimMontage.h"
 
 #include "Combat/Presentation/CombatPresentationTypes.h"
+#include "Combat/Battle/BasicCombatTypes.h"
 #include "Combat/Skills/SkillTypes.h"
 #include "Combat/Items/CombatItemTypes.h"
 #include "Combat/Motion/CombatMotionTypes.h"
@@ -44,6 +45,7 @@ public:
 
 	void EmitCue(FName CueTag);
 	void SetAutoAttackSuppressedFor(float DurationSec);
+	void ClearAutoAttackSuppression();
 	bool IsAutoAttackSuppressed() const;
 
 protected:

@@ -45,6 +45,10 @@ void UCombatPartyAIComponent::BeginPlay()
 	));
 
 	CachedPresentation = GetOwner() ? GetOwner()->FindComponentByClass<UCombatPresentationComponent>() : nullptr;
+	if (CachedPresentation.IsValid())
+	{
+		CachedPresentation->OnPresentationFinished.AddUObject(this, &UCombatPartyAIComponent::HandlePresentationFinished);
+	}
 	RangedRepositionDirection = FMath::RandBool() ? 1.f : -1.f;
 
 	LoadRangeParams();
@@ -99,6 +103,28 @@ void UCombatPartyAIComponent::LoadRangeParams()
 	}
 }
 
+void UCombatPartyAIComponent::HandlePresentationFinished(EPresentedCombatActionType Type, FName ActionId)
+{
+	if (!IsPlayerControlledNow())
+	{
+		return;
+	}
+
+	const float NowTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	NextAutoAttackTime = NowTime;
+	RetryDelayUntilTime = 0.f;
+	AutoAttackBusyUntilTime = 0.f;
+	LastCannotPresentReasonTag = NAME_None;
+	CannotPresentLogCooldownRemaining = 0.f;
+
+	if (Type == EPresentedCombatActionType::Skill)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] ResumeAfterPresentation Owner=%s Action=Skill.%s"), *GetNameSafe(GetOwner()), *ActionId.ToString());
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] ReadyForNextAttack Owner=%s"), *GetNameSafe(GetOwner()));
+}
+
 void UCombatPartyAIComponent::NotifyDamagedBy(AActor* Attacker)
 {
 	if (IsValid(Attacker))
@@ -147,7 +173,6 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		const ACombatPlayerController* PlayerController = OwnerPawn ? Cast<ACombatPlayerController>(OwnerPawn->GetController()) : nullptr;
 		const float NowTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 		FString Decision = TEXT("WaitCooldown");
-		const bool bRecentAttackSuccess = (NowTime - LastAutoAttackSuccessTime) <= 1.0f;
 
 		if (!CurrentTarget.IsValid())
 		{
@@ -179,7 +204,7 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		const float Distance = GetDistanceToTarget();
 		const bool bInStartRange = Distance <= AttackRange;
 		const bool bInKeepRange = Distance <= AttackKeepRange;
-		const bool bInRange = bInStartRange || bRecentAttackSuccess;
+		const bool bInRange = bInStartRange;
 		const bool bIsMovingInput = PlayerController && PlayerController->IsMovementOverrideActive();
 		if (bIsMovingInput && !bInKeepRange)
 		{
@@ -208,8 +233,8 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		if (AttackResult.bOk)
 		{
 			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] RequestBasicAttack Owner=%s Target=%s"), *GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()));
-			NextAutoAttackTime = NowTime + 0.5f;
-			AutoAttackBusyUntilTime = NowTime + 1.0f;
+			NextAutoAttackTime = NowTime + 0.15f;
+			AutoAttackBusyUntilTime = NowTime + 0.15f;
 			LastAutoAttackSuccessTime = NowTime;
 			Decision = TEXT("Attack");
 			LastCannotPresentReasonTag = NAME_None;
@@ -232,7 +257,7 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 					else if (CachedPresentation->HasActivePresentation()) CannotPresentReason = "Reject.CannotPresentAction.PresentationBusy";
 					else CannotPresentReason = "Reject.CannotPresentAction.Unknown";
 				}
-				RetryDelayUntilTime = NowTime + 0.2f;
+				RetryDelayUntilTime = NowTime + 0.08f;
 				Decision = CannotPresentReason.ToString();
 				if (CannotPresentLogCooldownRemaining <= 0.f || LastCannotPresentReasonTag != CannotPresentReason)
 				{

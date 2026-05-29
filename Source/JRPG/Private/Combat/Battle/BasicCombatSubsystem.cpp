@@ -13,6 +13,12 @@
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Groggy/GroggyComponent.h"
 #include "Combat/AI/CombatPartyAIComponent.h"
+#include "Combat/Characters/CombatCharacterComponent.h"
+#include "Combat/Characters/CombatCharacterDataAsset.h"
+#include "Combat/Motion/CombatMotionComponent.h"
+
+#include "GameFramework/Character.h"
+#include "TimerManager.h"
 
 bool UBasicCombatSubsystem::IsFriendlyTarget(AActor* Attacker, AActor* Target) const
 {
@@ -27,6 +33,94 @@ bool UBasicCombatSubsystem::IsFriendlyTarget(AActor* Attacker, AActor* Target) c
 
 	if (TA == ECombatTeam::Neutral || TT == ECombatTeam::Neutral) return false;
 	return TA == TT;
+}
+
+void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, float DamageAmount, bool bCritical, bool bSkillOrHeavyHit)
+{
+	if (!IsValid(Target) || DamageAmount <= 0.f)
+	{
+		return;
+	}
+
+	const UHPComponent* TargetHP = Target->FindComponentByClass<UHPComponent>();
+	const float MaxHP = TargetHP ? FMath::Max(1.f, TargetHP->GetMaxHP()) : 100.f;
+	const float DamageRatio = DamageAmount / MaxHP;
+
+	float HitStopSec = bSkillOrHeavyHit ? 0.05f : 0.03f;
+	if (bCritical || DamageRatio >= 0.15f)
+	{
+		HitStopSec = FMath::Clamp(0.07f + DamageRatio * 0.15f, 0.07f, 0.10f);
+	}
+
+	auto ApplyActorHitStop = [this, HitStopSec](AActor* Actor)
+	{
+		if (!IsValid(Actor) || HitStopSec <= 0.f)
+		{
+			return;
+		}
+
+		const float PreviousDilation = Actor->CustomTimeDilation;
+		Actor->CustomTimeDilation = 0.05f;
+
+		FTimerHandle RestoreHandle;
+		TWeakObjectPtr<AActor> WeakActor = Actor;
+		GetWorld()->GetTimerManager().SetTimer(
+			RestoreHandle,
+			[WeakActor, PreviousDilation]()
+			{
+				if (WeakActor.IsValid())
+				{
+					WeakActor->CustomTimeDilation = PreviousDilation;
+				}
+			},
+			HitStopSec,
+			false);
+	};
+
+	ApplyActorHitStop(Attacker);
+	ApplyActorHitStop(Target);
+
+	if (DamageRatio < 0.03f)
+	{
+		return;
+	}
+
+	if (ACharacter* TargetCharacter = Cast<ACharacter>(Target))
+	{
+		if (const UCombatCharacterComponent* CharacterComp = Target->FindComponentByClass<UCombatCharacterComponent>())
+		{
+			if (const UCombatCharacterDataAsset* CharacterData = CharacterComp->GetCharacterData())
+			{
+				if (CharacterData->HitReactMontage)
+				{
+					TargetCharacter->PlayAnimMontage(CharacterData->HitReactMontage);
+				}
+			}
+		}
+	}
+
+	if (UCombatMotionComponent* Motion = Target->FindComponentByClass<UCombatMotionComponent>())
+	{
+		FVector PushDir = Target->GetActorLocation() - (IsValid(Attacker) ? Attacker->GetActorLocation() : Target->GetActorLocation() - Target->GetActorForwardVector());
+		PushDir.Z = 0.f;
+		PushDir = PushDir.GetSafeNormal();
+		if (!PushDir.IsNearlyZero())
+		{
+			FJRPGCombatMotionRequest HitMove;
+			HitMove.Type = EJRPGCombatMotionType::HitMove;
+			HitMove.ExecMode = EJRPGCombatMotionExecMode::VelocityCurve;
+			HitMove.Priority = 220;
+			HitMove.Instigator = Attacker;
+			HitMove.Target = Target;
+			HitMove.Direction = PushDir;
+			HitMove.Distance = FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(18.f, 70.f), DamageRatio);
+			HitMove.Duration = FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.08f, 0.16f), DamageRatio);
+			HitMove.bCancelable = true;
+			HitMove.OwnerTag = "HitReact";
+			HitMove.DebugTag = bSkillOrHeavyHit ? "HitReact.Skill" : "HitReact.Basic";
+			Motion->RequestCombatMotion(HitMove);
+		}
+	}
 }
 
 FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttackRequest& Req)
@@ -84,6 +178,7 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 		);
 
 	TargetHP->ApplyDamage(Out.Breakdown.FinalDamage, Attacker, Req.ReasonTag);
+	ApplyHitFeedback(Attacker, Target, Out.Breakdown.FinalDamage, Out.Breakdown.bCritical, false);
 
 	if (UCombatPartyAIComponent* PartyAI = Target->FindComponentByClass<UCombatPartyAIComponent>())
 	{

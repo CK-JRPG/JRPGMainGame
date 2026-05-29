@@ -216,10 +216,13 @@ void UCombatPresentationComponent::PlayActiveMontageOrResolve()
 		FinishActivePresentation();
 		return;
 	}
- 
+
 	const float MontageLengthSec = FMath::Max(0.05f, Active.Montage->GetPlayLength());
-	Active.AutoResolveAtRealSec = Active.StartedAtRealSec + (MontageLengthSec * 0.6f);
-	Active.AutoFinishAtRealSec = Active.StartedAtRealSec + MontageLengthSec + 0.1;
+	const bool bPlayerBasicAttack = Active.Type == EPresentedCombatActionType::BasicAttack
+		&& Cast<APawn>(GetOwner())
+		&& Cast<APawn>(GetOwner())->IsPlayerControlled();
+	Active.AutoResolveAtRealSec = Active.StartedAtRealSec + (bPlayerBasicAttack ? FMath::Min(0.12f, MontageLengthSec * 0.35f) : (MontageLengthSec * 0.6f));
+	Active.AutoFinishAtRealSec = Active.StartedAtRealSec + (bPlayerBasicAttack ? FMath::Min(MontageLengthSec, 0.20f) : (MontageLengthSec + 0.1f));
 
 	if (ACharacter *C = Cast<ACharacter>(GetOwner()))
 	{
@@ -280,6 +283,11 @@ bool UCombatPresentationComponent::IsAutoAttackSuppressed() const
 void UCombatPresentationComponent::SetAutoAttackSuppressedFor(float DurationSec)
 {
 	AutoAttackSuppressedUntilRealSec = FMath::Max(AutoAttackSuppressedUntilRealSec, FPlatformTime::Seconds() + FMath::Max(0.f, DurationSec));
+}
+
+void UCombatPresentationComponent::ClearAutoAttackSuppression()
+{
+	AutoAttackSuppressedUntilRealSec = 0.0;
 }
 
 FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *Target)
@@ -547,6 +555,20 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 					}
 
 					Active.bResolved = Result.bOk;
+					if (Result.bOk)
+					{
+						const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+						if (OwnerPawn && OwnerPawn->IsPlayerControlled())
+						{
+							ReleaseInputLockForPresentation();
+							if (UBattleSessionSubsystem* BattleForCancelWindow = GetBattle())
+							{
+								BattleForCancelWindow->CompletePresentedAction(GetOwner(), "Present.BasicAttack.CancelWindow", 0.05f);
+							}
+							Active.AutoFinishAtRealSec = FPlatformTime::Seconds() + 0.05;
+							UE_LOG(LogTemp, Log, TEXT("[InputPriority] BasicAttack CancelWindowOpen Owner=%s"), *GetNameSafe(GetOwner()));
+						}
+					}
 				}
 			}
 			break;
@@ -631,23 +653,12 @@ void UCombatPresentationComponent::FinishActivePresentation()
 
 			if (Active.Type == EPresentedCombatActionType::BasicAttack)
 			{
-				if (CharacterComp.IsValid()&&CharacterComp->CharacterDef && CharacterComp->CharacterDef->BasicAttackMontage)
-				{
-					RecoverySec = CharacterComp->CharacterDef->BasicAttackMontage->GetPlayLength();
-				}
+				const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+				RecoverySec = (OwnerPawn && OwnerPawn->IsPlayerControlled()) ? 0.05f : 0.6f;
 			}
 			else if (Active.Type == EPresentedCombatActionType::Skill)
 			{
-				if (SkillComp.IsValid())
-				{
-					if (USkillDataAsset* Def = SkillComp->GetSkillDef(Active.ActionId))
-					{
-						if (Def->CastMontage)
-						{
-							RecoverySec = Def->CastMontage->GetPlayLength();
-						}
-					}
-				}
+				RecoverySec = 0.05f;
 			}
 
 			Battle->CompletePresentedAction(GetOwner(),"Present.Finish",RecoverySec);
@@ -660,6 +671,11 @@ void UCombatPresentationComponent::FinishActivePresentation()
 				SkillComp->CancelPreparedSkillCast(true, "Present.Unresolved");
 			}
 		}
+	}
+
+	if (Active.Type == EPresentedCombatActionType::Skill)
+	{
+		ClearAutoAttackSuppression();
 	}
 
 	OnPresentationFinished.Broadcast(Active.Type, Active.ActionId);
@@ -696,6 +712,11 @@ void UCombatPresentationComponent::CancelActivePresentation(FName ReasonTag, boo
 	if (UBattleSessionSubsystem *Battle = GetBattle())
 	{
 		Battle->AbortPresentedAction(GetOwner(),ReasonTag);
+	}
+
+	if (Active.Type == EPresentedCombatActionType::Skill)
+	{
+		ClearAutoAttackSuppression();
 	}
 
 	OnPresentationFinished.Broadcast(Active.Type, Active.ActionId);

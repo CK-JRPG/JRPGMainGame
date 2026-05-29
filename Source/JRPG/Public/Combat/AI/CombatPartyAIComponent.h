@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "Combat/AI/CombatAIPresetAsset.h"
 #include "Combat/AI/CombatAIActionTypes.h"
+#include "Combat/Presentation/CombatPresentationTypes.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "CombatPartyAIComponent.generated.h"
 
@@ -73,6 +74,7 @@ private:
 	void LogMoveDebug(float DeltaTime);
 	FString GetPathFollowingStatusString() const;
 	void LoadRangeParams();
+	void HandlePresentationFinished(EPresentedCombatActionType Type, FName ActionId);
 	TArray<AActor*> BuildSkillTargets(const USkillDataAsset* SkillDef) const;
 	AActor * FindLowestHpAlly() const;
 
