@@ -5,6 +5,8 @@
 #include "Combat/Items/CombatItemExecutionSubsystem.h"
 
 #include "Combat/Characters/CombatCharacterComponent.h"
+#include "Combat/Characters/CombatPlayerController.h"
+#include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Skills/SkillComponent.h"
 #include "Combat/Skills/SkillDataAsset.h"
@@ -290,6 +292,37 @@ void UCombatPresentationComponent::ClearAutoAttackSuppression()
 	AutoAttackSuppressedUntilRealSec = 0.0;
 }
 
+float UCombatPresentationComponent::GetMinBasicAttackStartInterval() const
+{
+	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (OwnerPawn && OwnerPawn->IsPlayerControlled())
+	{
+		float Interval = 0.75f;
+		const ACombatPlayerController* PC = Cast<ACombatPlayerController>(OwnerPawn->GetController());
+		if (PC && PC->IsMovementOverrideActive())
+		{
+			Interval *= 1.4f;
+		}
+		return Interval;
+	}
+
+	if (const ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(GetOwner()))
+	{
+		if (Participant->GetCombatTeam() == ECombatTeam::Enemy)
+		{
+			return 1.65f;
+		}
+	}
+
+	return 1.0f;
+}
+
+float UCombatPresentationComponent::GetRemainingBasicAttackStartCooldown() const
+{
+	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	return FMath::Max(0.f, static_cast<float>((LastBasicAttackStartWorldTime + GetMinBasicAttackStartInterval()) - Now));
+}
+
 FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *Target)
 {
 	UBattleSessionSubsystem *Battle = GetBattle();
@@ -301,6 +334,16 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 		const double Remaining = FMath::Max(0.0, AutoAttackSuppressedUntilRealSec - FPlatformTime::Seconds());
 		UE_LOG(LogTemp, Log, TEXT("[InputPriority] AutoAttack suppressed by skill input Remaining=%.2f"), Remaining);
 		return FCombatActionResult::Fail("Reject.AutoAttackSuppressed");
+	}
+
+	const double NowTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	const float MinInterval = GetMinBasicAttackStartInterval();
+	const float DeltaSinceLastStart = static_cast<float>(NowTime - LastBasicAttackStartWorldTime);
+	if (DeltaSinceLastStart < MinInterval)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[AttackTempo] Owner=%s LastAttackStart=%.2f CurrentAttackStart=%.2f Delta=%.2f MinInterval=%.2f Allowed=false"),
+			*GetNameSafe(GetOwner()), LastBasicAttackStartWorldTime, NowTime, DeltaSinceLastStart, MinInterval);
+		return FCombatActionResult::Fail("Reject.BasicAttackTempoCooldown");
 	}
 	
 	if (!Battle->BeginPresentedAction(GetOwner(),"Present.BasicAttack"))
@@ -328,6 +371,10 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 		ClearActiveState();
 		return FCombatActionResult::Fail("Reject.BasicAttackMotionFailed");
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("[AttackTempo] Owner=%s LastAttackStart=%.2f CurrentAttackStart=%.2f Delta=%.2f MinInterval=%.2f Allowed=true"),
+		*GetNameSafe(GetOwner()), LastBasicAttackStartWorldTime, NowTime, DeltaSinceLastStart, MinInterval);
+	LastBasicAttackStartWorldTime = NowTime;
 	
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
 	AcquireInputLockForPresentation();

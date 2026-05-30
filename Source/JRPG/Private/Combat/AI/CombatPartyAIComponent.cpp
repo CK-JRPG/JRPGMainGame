@@ -111,9 +111,10 @@ void UCombatPartyAIComponent::HandlePresentationFinished(EPresentedCombatActionT
 	}
 
 	const float NowTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
-	NextAutoAttackTime = NowTime;
+	const float MinInterval = CachedPresentation.IsValid() ? CachedPresentation->GetMinBasicAttackStartInterval() : PlayerAutoAttackInterval;
+	NextAutoAttackTime = FMath::Max(NextAutoAttackTime, LastAutoAttackSuccessTime + MinInterval);
 	RetryDelayUntilTime = 0.f;
-	AutoAttackBusyUntilTime = 0.f;
+	AutoAttackBusyUntilTime = FMath::Max(AutoAttackBusyUntilTime, NowTime);
 	LastCannotPresentReasonTag = NAME_None;
 	CannotPresentLogCooldownRemaining = 0.f;
 
@@ -122,7 +123,7 @@ void UCombatPartyAIComponent::HandlePresentationFinished(EPresentedCombatActionT
 		UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] ResumeAfterPresentation Owner=%s Action=Skill.%s"), *GetNameSafe(GetOwner()), *ActionId.ToString());
 	}
 
-	UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] ReadyForNextAttack Owner=%s"), *GetNameSafe(GetOwner()));
+	UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] ReadyForNextAttack Owner=%s CooldownRemaining=%.2f"), *GetNameSafe(GetOwner()), FMath::Max(0.f, NextAutoAttackTime - NowTime));
 }
 
 void UCombatPartyAIComponent::NotifyDamagedBy(AActor* Attacker)
@@ -216,7 +217,7 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 		}
 		if (bIsMovingInput && bInKeepRange)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] AttackAllowedWhileMoving InRange=true"));
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] AttackAllowedWhileMoving InRange=true IntervalMultiplier=%.2f"), MovingAutoAttackIntervalMultiplier);
 		}
 		if (!bInRange)
 		{
@@ -229,12 +230,15 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 			return;
 		}
 
+		const float EffectivePlayerInterval = CachedPresentation.IsValid()
+			? CachedPresentation->GetMinBasicAttackStartInterval()
+			: PlayerAutoAttackInterval * (bIsMovingInput ? MovingAutoAttackIntervalMultiplier : 1.0f);
 		const FCombatActionResult AttackResult = CachedPresentation->TryPresentBasicAttack(CurrentTarget.Get());
 		if (AttackResult.bOk)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] RequestBasicAttack Owner=%s Target=%s"), *GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()));
-			NextAutoAttackTime = NowTime + 0.15f;
-			AutoAttackBusyUntilTime = NowTime + 0.15f;
+			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] RequestBasicAttack Owner=%s Target=%s Interval=%.2f"), *GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), EffectivePlayerInterval);
+			NextAutoAttackTime = NowTime + EffectivePlayerInterval;
+			AutoAttackBusyUntilTime = NowTime + FMath::Min(EffectivePlayerInterval, 0.35f);
 			LastAutoAttackSuccessTime = NowTime;
 			Decision = TEXT("Attack");
 			LastCannotPresentReasonTag = NAME_None;
@@ -588,17 +592,24 @@ void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 		break;
 
 	case EPartyAIState::KeepDistance:
-
-		// 원거리: 뒤로만 도망가지 않게 거리 + 측면 이동을 매 틱 적용해 부드러운 이동 유지
-		/*if (RangedRepositionPauseRemaining <= 0.f)
 		{
-			MoveDirectlyAwayFrom(CurrentTarget->GetActorLocation(), 0.8f);
-			MoveLaterallyAround(CurrentTarget->GetActorLocation(), RangedRepositionDirection * 0.55f);
-			RangedRepositionPauseRemaining = 0.2f;
-		}*/
-		MoveDirectlyAwayFrom(CurrentTarget->GetActorLocation(), 0.8f);
-		MoveLaterallyAround(CurrentTarget->GetActorLocation(), RangedRepositionDirection * 0.55f);
-		FaceTarget(CurrentTarget.Get());
+			// 원거리 거리 유지는 직접 AddMovementInput 대신 NavMesh 목적지를 투영해 이동시킨다.
+			AActor* OwnerActor = GetOwner();
+			AActor* TargetActor = CurrentTarget.Get();
+			if (OwnerActor && TargetActor)
+			{
+				FVector Away = OwnerActor->GetActorLocation() - TargetActor->GetActorLocation();
+				Away.Z = 0.f;
+				Away = Away.GetSafeNormal();
+				if (!Away.IsNearlyZero())
+				{
+					const FVector Right = FVector::CrossProduct(FVector::UpVector, Away).GetSafeNormal() * RangedRepositionDirection;
+					const FVector DesiredLocation = OwnerActor->GetActorLocation() + Away * 220.f + Right * 120.f;
+					MoveDirectlyToward(DesiredLocation);
+				}
+			}
+			FaceTarget(CurrentTarget.Get());
+		}
 		break;
 
 	default:
@@ -653,7 +664,20 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 	{
 		if (CachedPresentation.IsValid() && Action.Target.IsValid())
 		{
-			CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
+			const float NowTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+			const float MinInterval = FMath::Max(AIAutoAttackInterval, CachedPresentation->GetMinBasicAttackStartInterval());
+			const float Delta = NowTime - LastAIBasicAttackStartTime;
+			if (Delta < MinInterval)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[AttackTempo] Owner=%s LastAttackStart=%.2f CurrentAttackStart=%.2f Delta=%.2f MinInterval=%.2f Allowed=false"),
+					*GetNameSafe(GetOwner()), LastAIBasicAttackStartTime, NowTime, Delta, MinInterval);
+				return;
+			}
+			const FCombatActionResult R = CachedPresentation->TryPresentBasicAttack(Action.Target.Get());
+			if (R.bOk)
+			{
+				LastAIBasicAttackStartTime = NowTime;
+			}
 		}		
 		return;
 	}
@@ -729,7 +753,7 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 		}
 	}
 	
-	const bool bNavMeshValidForMove = bProjected && (bOwnerOnNavMesh || bTargetOnNavMesh);
+	const bool bNavMeshValidForMove = bHasNavBoundsVolume && bProjected && bOwnerOnNavMesh && bTargetOnNavMesh;
 	if (!bNavMeshValidForMove)
 	{
 		if (NavFailureLogCooldownRemaining <= 0.f)
@@ -748,11 +772,7 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 		LastMoveRequestResult = EPathFollowingRequestResult::Failed;
 		if (bEnableNonNavMeshFallbackMovement)
 		{
-			const FVector ToGoal = (Destination - CurrentLocation).GetSafeNormal2D();
-			if (!ToGoal.IsNearlyZero())
-			{
-				MyChar->AddMovementInput(ToGoal, 1.0f);
-			}
+			UE_LOG(LogTemp, Warning, TEXT("[PartyAI][FallbackMoveDisabled] Owner=%s Reason=NonNavMeshFallbackDisabledForCombatStability"), *GetNameSafe(GetOwner()));
 		}
 		return;
 	}

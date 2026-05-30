@@ -110,7 +110,7 @@ private:
 	EPathFollowingRequestResult::Type LastMoveRequestResult = EPathFollowingRequestResult::Failed;
 	float NavFailureRetryBlockRemaining = 0.f;
 	float NavFailureLogCooldownRemaining = 0.f;
-	bool bEnableNonNavMeshFallbackMovement = true;
+	bool bEnableNonNavMeshFallbackMovement = false;
 	bool bPrevPlayerControlled = false;
 	float NextAutoAttackTime = 0.f;
 	float RetryDelayUntilTime = 0.f;
@@ -119,5 +119,9 @@ private:
 	float CannotPresentLogCooldownRemaining = 0.f;
 	FName LastCannotPresentReasonTag = NAME_None;
 	float LastAutoAttackSuccessTime = -1000.f;
+	float PlayerAutoAttackInterval = 0.75f;
+	float AIAutoAttackInterval = 1.0f;
+	float MovingAutoAttackIntervalMultiplier = 1.4f;
+	float LastAIBasicAttackStartTime = -1000.f;
 	float AttackKeepRange = 650.f;
 };

@@ -47,6 +47,8 @@ public:
 	void SetAutoAttackSuppressedFor(float DurationSec);
 	void ClearAutoAttackSuppression();
 	bool IsAutoAttackSuppressed() const;
+	float GetMinBasicAttackStartInterval() const;
+	float GetRemainingBasicAttackStartCooldown() const;
 
 protected:
 	virtual void BeginPlay()override;
@@ -78,6 +80,7 @@ private:
 		bool bHasInputLock = false;
 	};
 	double AutoAttackSuppressedUntilRealSec = 0.0;
+	double LastBasicAttackStartWorldTime = -1000.0;
 
 	FActivePresentationState Active;
 
