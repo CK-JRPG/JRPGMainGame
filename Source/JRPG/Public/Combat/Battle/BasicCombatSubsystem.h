@@ -15,7 +15,7 @@ public:
 	FOnCombatantDefeated OnCombatantDefeated;
 
 	FCombatActionResult ExecuteBasicAttack(const FBasicAttackRequest& Req);
-	void ApplyHitFeedback(AActor* Attacker, AActor* Target, float DamageAmount, bool bCritical, bool bSkillOrHeavyHit);
+	void ApplyHitFeedback(AActor* Attacker, AActor* Target, float DamageAmount, bool bCritical, bool bSkillOrHeavyHit, FName SourceTag = NAME_None);
 
 private:
 	bool IsFriendlyTarget(AActor* Attacker, AActor* Target) const;

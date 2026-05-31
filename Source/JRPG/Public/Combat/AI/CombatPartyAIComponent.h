@@ -66,6 +66,7 @@ private:
 	FString RoleToDebugString(EJRPGPartyRole InRole) const;
 	bool IsAllyActor(AActor* Candidate) const;
 	void MoveDirectlyToward(const FVector& Destination);
+	void StopActiveMove(FName ReasonTag);
 	void MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale = 1.0f);
 	void MoveLaterallyAround(const FVector& FocusLocation, float Scale = 1.0f);
 	void FaceTarget(AActor* Target);
@@ -107,6 +108,11 @@ private:
 	bool bHasLastDistanceToTarget = false;
 	bool bHasLastDebugLocation = false;
 	bool LastMoveRequestActive = false;
+	bool bHasLastMoveGoal = false;
+	FVector LastMoveGoal = FVector::ZeroVector;
+	float LastMoveRequestWorldTime = -1000.f;
+	float RepathThreshold = 125.f;
+	float MinRepathInterval = 0.4f;
 	EPathFollowingRequestResult::Type LastMoveRequestResult = EPathFollowingRequestResult::Failed;
 	float NavFailureRetryBlockRemaining = 0.f;
 	float NavFailureLogCooldownRemaining = 0.f;
@@ -124,4 +130,5 @@ private:
 	float MovingAutoAttackIntervalMultiplier = 1.4f;
 	float LastAIBasicAttackStartTime = -1000.f;
 	float AttackKeepRange = 650.f;
+	float HealRange = 700.f;
 };

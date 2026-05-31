@@ -92,14 +92,22 @@ void UCombatPartyAIComponent::LoadRangeParams()
 	PreferredMinRange = Data->PreferredMinRange;
 	ChaseLeashRange = Data->ChaseLeashRange;
 
-	// Supporter는 기본적으로 원거리 -- 데이터에 설정이 없으면 안전한 기본값 적용
+	// Supporter는 힐 거리 / 공격 거리 / 선호 거리를 명시적으로 분리해 디버깅한다.
+	// - HealRange: 향후 힐 액션 판단용 정책 거리 (현재 전투 표현 안정화 작업에서는 새 힐 AI를 추가하지 않음)
+	// - AttackRange: 기본 공격 시작 가능 거리
+	// - PreferredMinRange: 원거리 유지용 최소 선호 거리
 	constexpr float DefaultSupporterAttackRange = 600.f;
 	constexpr float DefaultSupporterMinRange = 300.f;
-	if (Role == EJRPGPartyRole::Supporter && !bIsRanged)
+	constexpr float DefaultSupporterHealRange = 700.f;
+	if (Role == EJRPGPartyRole::Supporter)
 	{
 		bIsRanged = true;
 		if (AttackRange < DefaultSupporterAttackRange) AttackRange = DefaultSupporterAttackRange;
 		if (PreferredMinRange < DefaultSupporterMinRange) PreferredMinRange = DefaultSupporterMinRange;
+		HealRange = DefaultSupporterHealRange;
+
+		UE_LOG(LogTemp, Log, TEXT("[PartyAI][SupporterRangePolicy] Owner=%s AttackRange=%.1f HealRange=%.1f PreferredDistance=%.1f"),
+			*GetNameSafe(GetOwner()), AttackRange, HealRange, PreferredMinRange);
 	}
 }
 
@@ -522,7 +530,7 @@ void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 			TankStageOneLogAccum = 0.f;
 			const float DistanceToTarget = GetDistanceToTarget();
 			const float AcceptanceRadius = FMath::Max(AttackRange * 0.8f, 10.0f);
-			const bool bMoveRequestActive = (State == EPartyAIState::Chase) || (State == EPartyAIState::KeepDistance);
+			const bool bMoveRequestActive = LastMoveRequestActive;
 			const bool bHasReachedAttackRange = (DistanceToTarget <= AttackRange);
 			const TCHAR* ActionName = TEXT("Unknown");
 			switch (State)
@@ -578,17 +586,8 @@ void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 		break;
 
 	case EPartyAIState::Attack:
+		StopActiveMove("AttackRangeReached");
 		FaceTarget(CurrentTarget.Get());
-		// 근거리는 타겟에 붙어있기
-		if (!bIsRanged)
-		{
-			const float Dist = GetDistanceToTarget();
-			// 근거리는 공격 범위의 80퍼센트까지는 접근 유지
-			if (Dist > AttackRange * 0.8f)
-			{
-				MoveDirectlyToward(CurrentTarget->GetActorLocation());
-			}
-		}
 		break;
 
 	case EPartyAIState::KeepDistance:
@@ -664,6 +663,7 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 	{
 		if (CachedPresentation.IsValid() && Action.Target.IsValid())
 		{
+			StopActiveMove("BeforeBasicAttack");
 			const float NowTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
 			const float MinInterval = FMath::Max(AIAutoAttackInterval, CachedPresentation->GetMinBasicAttackStartInterval());
 			const float Delta = NowTime - LastAIBasicAttackStartTime;
@@ -686,6 +686,7 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 	{
 		if (CachedPresentation.IsValid())
 		{
+			StopActiveMove("BeforeSkill");
 			TArray<AActor*> Targets;
 			if (IsValid(Context) && Context->SkillComp.IsValid())
 			{
@@ -713,6 +714,37 @@ void UCombatPartyAIComponent::ExecuteAction(const FJRPGCombatAIAction& Action)
 	}
 }
 
+
+void UCombatPartyAIComponent::StopActiveMove(FName ReasonTag)
+{
+	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
+	AAIController* AIController = MyChar ? Cast<AAIController>(MyChar->GetController()) : nullptr;
+	if (!MyChar || !AIController)
+	{
+		LastMoveRequestActive = false;
+		bHasLastMoveGoal = false;
+		return;
+	}
+
+	const EPathFollowingStatus::Type MoveStatus = AIController->GetMoveStatus();
+	const FString PreviousStatusString = GetPathFollowingStatusString();
+	if (LastMoveRequestActive || MoveStatus == EPathFollowingStatus::Moving)
+	{
+		AIController->StopMovement();
+		if (UCharacterMovementComponent* MoveComp = MyChar->GetCharacterMovement())
+		{
+			MoveComp->StopMovementImmediately();
+		}
+		UE_LOG(LogTemp, Log, TEXT("[PartyAI][StopMovement] Owner=%s Reason=%s PreviousPathFollowingStatus=%s"),
+			*GetNameSafe(GetOwner()),
+			ReasonTag.IsNone() ? TEXT("None") : *ReasonTag.ToString(),
+			*PreviousStatusString);
+	}
+
+	LastMoveRequestActive = false;
+	LastMoveRequestResult = EPathFollowingRequestResult::Failed;
+	bHasLastMoveGoal = false;
+}
 
 void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 {
@@ -769,6 +801,7 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 
 		NavFailureRetryBlockRemaining = 1.0f;
 		LastMoveRequestActive = false;
+		bHasLastMoveGoal = false;
 		LastMoveRequestResult = EPathFollowingRequestResult::Failed;
 		if (bEnableNonNavMeshFallbackMovement)
 		{
@@ -783,9 +816,26 @@ void UCombatPartyAIComponent::MoveDirectlyToward(const FVector& Destination)
 	}
 	
 	const float AcceptanceRadius = FMath::Max(100.f, AttackRange * 0.8f);
+	const float NowTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
+	const EPathFollowingStatus::Type MoveStatus = AIController->GetMoveStatus();
+	const float GoalDelta = bHasLastMoveGoal ? FVector::Dist2D(ProjectedGoal, LastMoveGoal) : MAX_FLT;
+	const float TimeSinceLastMove = NowTime - LastMoveRequestWorldTime;
+	if ((LastMoveRequestActive || MoveStatus == EPathFollowingStatus::Moving)
+		&& bHasLastMoveGoal
+		&& (GoalDelta < RepathThreshold || TimeSinceLastMove < MinRepathInterval))
+	{
+		return;
+	}
+
 	const EPathFollowingRequestResult::Type MoveResult = AIController->MoveToLocation(ProjectedGoal, AcceptanceRadius, true, true, false, false, nullptr, true);
 	LastMoveRequestActive = (MoveResult == EPathFollowingRequestResult::RequestSuccessful || MoveResult == EPathFollowingRequestResult::AlreadyAtGoal);
 	LastMoveRequestResult = MoveResult;
+	if (LastMoveRequestActive)
+	{
+		LastMoveGoal = ProjectedGoal;
+		bHasLastMoveGoal = true;
+		LastMoveRequestWorldTime = NowTime;
+	}
 	MoveCallsThisSecond += 1.f;
 	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
 	UE_LOG(LogTemp, Log, TEXT("[PartyAI][MoveRequest] Owner=%s MoveMethod=MoveToLocation Target=%s GoalLocation=%s AcceptanceRadius=%.1f Result=%d PathFollowingStatus=%s Controller=%s ProjectedToNavMesh=%s"),

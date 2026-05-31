@@ -18,6 +18,8 @@
 
 #include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "AIController.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "TimerManager.h"
 
@@ -201,6 +203,28 @@ void UCombatPresentationComponent::ReleaseInputLockForPresentation()
 			Active.bHasInputLock = false;
 		}
 	}
+}
+
+void UCombatPresentationComponent::StopPathFollowingForPresentation(FName ReasonTag)
+{
+	ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner());
+	AAIController* AIController = CharacterOwner ? Cast<AAIController>(CharacterOwner->GetController()) : nullptr;
+	if (!CharacterOwner || !AIController)
+	{
+		return;
+	}
+
+	const EPathFollowingStatus::Type PreviousStatus = AIController->GetMoveStatus();
+	AIController->StopMovement();
+	if (UCharacterMovementComponent* MoveComp = CharacterOwner->GetCharacterMovement())
+	{
+		MoveComp->StopMovementImmediately();
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Presentation][StopMovement] Owner=%s Reason=%s PreviousPathFollowingStatus=%d"),
+		*GetNameSafe(GetOwner()),
+		ReasonTag.IsNone() ? TEXT("None") : *ReasonTag.ToString(),
+		(int32)PreviousStatus);
 }
 
 void UCombatPresentationComponent::ApplyMovingBasicAttackSlowIfNeeded()
@@ -472,6 +496,7 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 		*GetNameSafe(GetOwner()), LastBasicAttackStartWorldTime, NowTime, DeltaSinceLastStart, MinInterval);
 	LastBasicAttackStartWorldTime = NowTime;
 	
+	StopPathFollowingForPresentation("BeforeBasicAttack");
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
 	ApplyMovingBasicAttackSlowIfNeeded();
 	AcquireInputLockForPresentation();
@@ -541,6 +566,7 @@ FSkillCastResult UCombatPresentationComponent::TryPresentSkill(FName SkillId, co
 		return FSkillCastResult::Fail("Reject.SkillMotionFailed");
 	}
 	
+	StopPathFollowingForPresentation("BeforeSkill");
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
 	AcquireInputLockForPresentation();
 	PlayActiveMontageOrResolve();
@@ -701,13 +727,7 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 					Active.bResolved = Result.bOk;
 					if (Result.bOk)
 					{
-						const APawn* OwnerPawn = Cast<APawn>(GetOwner());
-						if (OwnerPawn && OwnerPawn->IsPlayerControlled())
-						{
-							RestoreMovingBasicAttackSlowIfNeeded();
-							ReleaseInputLockForPresentation();
-							UE_LOG(LogTemp, Log, TEXT("[InputPriority] BasicAttack HitResolvedMovementRestored Owner=%s"), *GetNameSafe(GetOwner()));
-						}
+						UE_LOG(LogTemp, Log, TEXT("[InputPriority] BasicAttack HitResolvedMovementSlowHeldUntilFinish Owner=%s"), *GetNameSafe(GetOwner()));
 					}
 				}
 			}

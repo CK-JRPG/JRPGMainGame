@@ -35,7 +35,7 @@ bool UBasicCombatSubsystem::IsFriendlyTarget(AActor* Attacker, AActor* Target) c
 	return TA == TT;
 }
 
-void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, float DamageAmount, bool bCritical, bool bSkillOrHeavyHit)
+void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, float DamageAmount, bool bCritical, bool bSkillOrHeavyHit, FName SourceTag)
 {
 	if (!IsValid(Target) || DamageAmount <= 0.f)
 	{
@@ -99,6 +99,13 @@ void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, f
 		}
 	}
 
+	const bool bAggroSkillHitReact = SourceTag == "Aggro" || SourceTag == "Skill.Aggro" || SourceTag.ToString().Contains(TEXT("Aggro"));
+	if (bAggroSkillHitReact)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[HitReact] SkipMotion Owner=%s SourceTag=%s Reason=AggroSkillUsesInPlaceReact"), *GetNameSafe(Target), *SourceTag.ToString());
+		return;
+	}
+
 	if (UCombatMotionComponent* Motion = Target->FindComponentByClass<UCombatMotionComponent>())
 	{
 		FVector PushDir = Target->GetActorLocation() - (IsValid(Attacker) ? Attacker->GetActorLocation() : Target->GetActorLocation() - Target->GetActorForwardVector());
@@ -114,7 +121,7 @@ void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, f
 			HitMove.Target = Target;
 			HitMove.Direction = PushDir;
 			HitMove.Distance = bSkillOrHeavyHit
-				? FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(20.f, 60.f), DamageRatio)
+				? FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(10.f, 20.f), DamageRatio)
 				: FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.f, 5.f), DamageRatio);
 			HitMove.Duration = bSkillOrHeavyHit
 				? FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.12f, 0.20f), DamageRatio)

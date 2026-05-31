@@ -230,7 +230,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 			THP->ApplyDamage(DamageDone,GetOwner(), Skill.SkillId);
 			if (UBasicCombatSubsystem* BasicCombat = GetWorld() ? GetWorld()->GetSubsystem<UBasicCombatSubsystem>() : nullptr)
 			{
-				BasicCombat->ApplyHitFeedback(GetOwner(), T, DamageDone, bCritical, true);
+				BasicCombat->ApplyHitFeedback(GetOwner(), T, DamageDone, bCritical, true, Skill.SkillId);
 			}
 
 			if (IsHostileTarget(T))

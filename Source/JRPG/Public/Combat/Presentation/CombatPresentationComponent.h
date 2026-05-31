@@ -106,5 +106,6 @@ private:
 	void ReleaseInputLockForPresentation();
 	void ApplyMovingBasicAttackSlowIfNeeded();
 	void RestoreMovingBasicAttackSlowIfNeeded();
+	void StopPathFollowingForPresentation(FName ReasonTag);
 	void ConfigureAutoPresentationTiming(bool bNoPlayableMontage);
 };

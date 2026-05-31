@@ -337,7 +337,7 @@ FJRPGCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FJRP
 	if (Req.Type == EJRPGCombatMotionType::HitMove)
 	{
 		const double Now = FPlatformTime::Seconds();
-		if (Now - LastHitMoveRequestRealSec < 0.35)
+		if (Now - LastHitMoveRequestRealSec < 0.4)
 		{
 			return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, FJRPGCombatMotionHandle(), "Reject.HitReactCooldown");
 		}
