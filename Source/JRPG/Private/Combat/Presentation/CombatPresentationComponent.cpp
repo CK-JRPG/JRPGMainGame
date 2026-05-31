@@ -17,6 +17,7 @@
 #include "Combat/Stats/HPComponent.h"
 
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "TimerManager.h"
 
@@ -166,6 +167,15 @@ void UCombatPresentationComponent::AcquireInputLockForPresentation()
 {
 	if (APawn* P = Cast<APawn>(GetOwner()))
 	{
+		if (Active.Type == EPresentedCombatActionType::BasicAttack && P->IsPlayerControlled())
+		{
+			const ACombatPlayerController* PC = Cast<ACombatPlayerController>(P->GetController());
+			if (PC && PC->IsMovementOverrideActive())
+			{
+				return;
+			}
+		}
+
 		if (ULocomotionComponent* Loco = P->FindComponentByClass<ULocomotionComponent>())
 		{
 			const TJRPGResult<FJRPGHandle> Result = Loco->AcquireInputLock("Present.Action");
@@ -193,6 +203,57 @@ void UCombatPresentationComponent::ReleaseInputLockForPresentation()
 	}
 }
 
+void UCombatPresentationComponent::ApplyMovingBasicAttackSlowIfNeeded()
+{
+	if (Active.Type != EPresentedCombatActionType::BasicAttack)
+	{
+		return;
+	}
+
+	APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (!OwnerPawn || !OwnerPawn->IsPlayerControlled())
+	{
+		return;
+	}
+
+	const ACombatPlayerController* PC = Cast<ACombatPlayerController>(OwnerPawn->GetController());
+	if (!PC || !PC->IsMovementOverrideActive())
+	{
+		return;
+	}
+
+	ACharacter* CharacterOwner = Cast<ACharacter>(OwnerPawn);
+	UCharacterMovementComponent* MoveComp = CharacterOwner ? CharacterOwner->GetCharacterMovement() : nullptr;
+	if (!MoveComp || Active.bHasMovementSlow)
+	{
+		return;
+	}
+
+	Active.SavedMaxWalkSpeed = MoveComp->MaxWalkSpeed;
+	MoveComp->MaxWalkSpeed = FMath::Max(10.f, Active.SavedMaxWalkSpeed * 0.50f);
+	Active.bHasMovementSlow = true;
+	UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] MovingAttackSpeedSlow Owner=%s MaxWalkSpeed=%.1f SlowMaxWalkSpeed=%.1f"),
+		*GetNameSafe(GetOwner()), Active.SavedMaxWalkSpeed, MoveComp->MaxWalkSpeed);
+}
+
+void UCombatPresentationComponent::RestoreMovingBasicAttackSlowIfNeeded()
+{
+	if (!Active.bHasMovementSlow)
+	{
+		return;
+	}
+
+	if (ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner()))
+	{
+		if (UCharacterMovementComponent* MoveComp = CharacterOwner->GetCharacterMovement())
+		{
+			MoveComp->MaxWalkSpeed = Active.SavedMaxWalkSpeed;
+		}
+	}
+
+	Active.bHasMovementSlow = false;
+}
+
 void UCombatPresentationComponent::EmitCue(FName CueTag)
 {
 	if (CueTag.IsNone())
@@ -205,26 +266,53 @@ void UCombatPresentationComponent::EmitCue(FName CueTag)
 	OnCombatCueEvent.Broadcast(Evt);
 }
 
-void UCombatPresentationComponent::PlayActiveMontageOrResolve()
+void UCombatPresentationComponent::ConfigureAutoPresentationTiming(bool bNoPlayableMontage)
 {
-	EmitCue(Active.StartCueTag);
-	Active.StartedAtRealSec = FPlatformTime::Seconds();
- 
-	if (Active.ResolveTiming == ECombatResolveTiming::Immediate || !Active.Montage)
+	const bool bBasicAttack = Active.Type == EPresentedCombatActionType::BasicAttack;
+	const bool bPlayerBasicAttack = bBasicAttack
+		&& Cast<APawn>(GetOwner())
+		&& Cast<APawn>(GetOwner())->IsPlayerControlled();
+
+	if (bBasicAttack)
+	{
+		const float MontageLengthSec = Active.Montage ? FMath::Max(0.05f, Active.Montage->GetPlayLength()) : 0.75f;
+		const float DesiredTotalSec = FMath::Clamp(MontageLengthSec, 0.65f, 0.90f);
+		const float DesiredHitSec = FMath::Clamp(DesiredTotalSec * 0.40f, 0.25f, 0.35f);
+		Active.AutoResolveAtRealSec = Active.StartedAtRealSec + DesiredHitSec;
+		Active.AutoFinishAtRealSec = Active.StartedAtRealSec + DesiredTotalSec;
+		return;
+	}
+
+	if (bNoPlayableMontage || Active.ResolveTiming == ECombatResolveTiming::Immediate || !Active.Montage)
 	{
 		Active.AutoResolveAtRealSec = Active.StartedAtRealSec;
 		Active.AutoFinishAtRealSec = Active.StartedAtRealSec;
-		ResolveActivePresentation();
-		FinishActivePresentation();
 		return;
 	}
 
 	const float MontageLengthSec = FMath::Max(0.05f, Active.Montage->GetPlayLength());
-	const bool bPlayerBasicAttack = Active.Type == EPresentedCombatActionType::BasicAttack
-		&& Cast<APawn>(GetOwner())
-		&& Cast<APawn>(GetOwner())->IsPlayerControlled();
-	Active.AutoResolveAtRealSec = Active.StartedAtRealSec + (bPlayerBasicAttack ? FMath::Min(0.12f, MontageLengthSec * 0.35f) : (MontageLengthSec * 0.6f));
-	Active.AutoFinishAtRealSec = Active.StartedAtRealSec + (bPlayerBasicAttack ? FMath::Min(MontageLengthSec, 0.20f) : (MontageLengthSec + 0.1f));
+	Active.AutoResolveAtRealSec = Active.StartedAtRealSec + (bPlayerBasicAttack ? FMath::Clamp(MontageLengthSec * 0.40f, 0.25f, 0.35f) : MontageLengthSec * 0.6f);
+	Active.AutoFinishAtRealSec = Active.StartedAtRealSec + (bPlayerBasicAttack ? FMath::Clamp(MontageLengthSec, 0.65f, 0.90f) : MontageLengthSec + 0.1f);
+}
+
+void UCombatPresentationComponent::PlayActiveMontageOrResolve()
+{
+	EmitCue(Active.StartCueTag);
+	Active.StartedAtRealSec = FPlatformTime::Seconds();
+
+	ConfigureAutoPresentationTiming(!Active.Montage);
+ 
+	if (Active.ResolveTiming == ECombatResolveTiming::Immediate || !Active.Montage)
+	{
+		if (Active.Type != EPresentedCombatActionType::BasicAttack)
+		{
+			ResolveActivePresentation();
+			FinishActivePresentation();
+		}
+		return;
+	}
+
+	const float MontageLengthSec = FMath::Max(0.05f, Active.Montage->GetPlayLength());
 
 	if (ACharacter *C = Cast<ACharacter>(GetOwner()))
 	{
@@ -266,14 +354,22 @@ void UCombatPresentationComponent::PlayActiveMontageOrResolve()
 
 		if (PlayedLen <= 0.f)
 		{
-			ResolveActivePresentation();
-			FinishActivePresentation();
+			ConfigureAutoPresentationTiming(true);
+			if (Active.Type != EPresentedCombatActionType::BasicAttack)
+			{
+				ResolveActivePresentation();
+				FinishActivePresentation();
+			}
 		}
 	}
 	else
 	{
-		ResolveActivePresentation();
-		FinishActivePresentation();
+		ConfigureAutoPresentationTiming(true);
+		if (Active.Type != EPresentedCombatActionType::BasicAttack)
+		{
+			ResolveActivePresentation();
+			FinishActivePresentation();
+		}
 	}
 } 
 
@@ -377,6 +473,7 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 	LastBasicAttackStartWorldTime = NowTime;
 	
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
+	ApplyMovingBasicAttackSlowIfNeeded();
 	AcquireInputLockForPresentation();
 	PlayActiveMontageOrResolve();
 	
@@ -607,13 +704,9 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 						const APawn* OwnerPawn = Cast<APawn>(GetOwner());
 						if (OwnerPawn && OwnerPawn->IsPlayerControlled())
 						{
+							RestoreMovingBasicAttackSlowIfNeeded();
 							ReleaseInputLockForPresentation();
-							if (UBattleSessionSubsystem* BattleForCancelWindow = GetBattle())
-							{
-								BattleForCancelWindow->CompletePresentedAction(GetOwner(), "Present.BasicAttack.CancelWindow", 0.05f);
-							}
-							Active.AutoFinishAtRealSec = FPlatformTime::Seconds() + 0.05;
-							UE_LOG(LogTemp, Log, TEXT("[InputPriority] BasicAttack CancelWindowOpen Owner=%s"), *GetNameSafe(GetOwner()));
+							UE_LOG(LogTemp, Log, TEXT("[InputPriority] BasicAttack HitResolvedMovementRestored Owner=%s"), *GetNameSafe(GetOwner()));
 						}
 					}
 				}
@@ -726,6 +819,7 @@ void UCombatPresentationComponent::FinishActivePresentation()
 	}
 
 	OnPresentationFinished.Broadcast(Active.Type, Active.ActionId);
+	RestoreMovingBasicAttackSlowIfNeeded();
 	ReleaseInputLockForPresentation();
 	ClearActiveState();
 }
@@ -767,6 +861,7 @@ void UCombatPresentationComponent::CancelActivePresentation(FName ReasonTag, boo
 	}
 
 	OnPresentationFinished.Broadcast(Active.Type, Active.ActionId);
+	RestoreMovingBasicAttackSlowIfNeeded();
 	ReleaseInputLockForPresentation();
 	ClearActiveState();
 }

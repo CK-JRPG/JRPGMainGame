@@ -13,6 +13,9 @@
 #include "Combat/Session/CombatZoneActor.h"
 #include "Combat/Stats/HPComponent.h"
 
+#include "Kismet/GameplayStatics.h"
+#include "NavigationSystem.h"
+#include "NavMesh/NavMeshBoundsVolume.h"
 
 #if __has_include("Combat/Progression/Leveling/LevelingSubsystem.h")
 	#include "Combat/Progression/Leveling/LevelingSubsystem.h"
@@ -229,6 +232,7 @@ bool UBattleSessionSubsystem::StartBattle(const FBattleSessionConfig& Config, co
 
 	// Zone 생성 (FEncounterContext 기반, 플레이어 중심)
 	CreateCombatZone(InEncounterCtx);
+	EnsureCombatNavMeshBounds(InEncounterCtx);
 
 	Snapshot.SessionId = InEncounterCtx.EncounterToken.IsValid() ? InEncounterCtx.EncounterToken : FGuid::NewGuid();
 	SetPhase(EBattlePhase::Starting);
@@ -809,6 +813,12 @@ void UBattleSessionSubsystem::EndBattle(EBattleEndReason Reason)
 		SpawnedZone->Destroy();
 		SpawnedZone = nullptr;
 	}
+
+	if (IsValid(SpawnedCombatNavBounds))
+	{
+		SpawnedCombatNavBounds->Destroy();
+		SpawnedCombatNavBounds = nullptr;
+	}
 }
 
 void UBattleSessionSubsystem::HandleCombatantDefeated(AActor* Victim, AActor*)
@@ -882,3 +892,71 @@ void UBattleSessionSubsystem::CreateCombatZone(const FEncounterContext& InEncoun
 	}
 }
 
+void UBattleSessionSubsystem::EnsureCombatNavMeshBounds(const FEncounterContext& InEncounterCtx)
+{
+	if (!GetWorld())
+	{
+		return;
+	}
+
+	TArray<AActor*> ExistingNavBounds;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ANavMeshBoundsVolume::StaticClass(), ExistingNavBounds);
+	if (ExistingNavBounds.Num() > 0)
+	{
+		if (UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+		{
+			for (AActor* NavBoundsActor : ExistingNavBounds)
+			{
+				if (ANavMeshBoundsVolume* NavBounds = Cast<ANavMeshBoundsVolume>(NavBoundsActor))
+				{
+					NavSys->OnNavigationBoundsUpdated(NavBounds);
+				}
+			}
+		}
+		return;
+	}
+
+	FVector NavExtent(2500.f, 2500.f, 600.f);
+	if (IsValid(InEncounterCtx.ZoneSetting))
+	{
+		const FVector ZoneExtent = InEncounterCtx.ZoneSetting->ZoneBoxExtent.GetAbs();
+		const float Radius = InEncounterCtx.ZoneSetting->ZoneShape == ECombatZoneShape::Sphere
+			? FMath::Max(0.f, InEncounterCtx.ZoneSetting->ZoneSphereRadius)
+			: FMath::Max(ZoneExtent.X, ZoneExtent.Y);
+		NavExtent.X = FMath::Max(NavExtent.X, Radius + 800.f);
+		NavExtent.Y = FMath::Max(NavExtent.Y, Radius + 800.f);
+		NavExtent.Z = FMath::Max(NavExtent.Z, ZoneExtent.Z + 400.f);
+	}
+	else if (ActiveConfig.CombatClampRadius > 0.f)
+	{
+		NavExtent.X = FMath::Max(NavExtent.X, ActiveConfig.CombatClampRadius + 800.f);
+		NavExtent.Y = FMath::Max(NavExtent.Y, ActiveConfig.CombatClampRadius + 800.f);
+	}
+
+	FActorSpawnParameters Params;
+	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	SpawnedCombatNavBounds = GetWorld()->SpawnActor<ANavMeshBoundsVolume>(
+		ANavMeshBoundsVolume::StaticClass(),
+		InEncounterCtx.ZoneCenter,
+		FRotator::ZeroRotator,
+		Params);
+	if (!IsValid(SpawnedCombatNavBounds))
+	{
+		UE_LOG(LogTemp, Error, TEXT("[PartyAI][NavSetup] FailedToSpawnCombatNavBounds Center=%s"), *InEncounterCtx.ZoneCenter.ToString());
+		return;
+	}
+
+	// The default volume brush is roughly 200 uu wide, so scale converts the requested extent to a combat-sized nav bounds.
+	SpawnedCombatNavBounds->SetActorScale3D(FVector(NavExtent.X / 100.f, NavExtent.Y / 100.f, NavExtent.Z / 100.f));
+	SpawnedCombatNavBounds->SetActorLocation(InEncounterCtx.ZoneCenter);
+
+	if (UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld()))
+	{
+		NavSys->OnNavigationBoundsUpdated(SpawnedCombatNavBounds);
+		NavSys->Build();
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[PartyAI][NavSetup] SpawnedCombatNavBounds Center=%s Extent=%s"),
+		*InEncounterCtx.ZoneCenter.ToString(),
+		*NavExtent.ToString());
+}

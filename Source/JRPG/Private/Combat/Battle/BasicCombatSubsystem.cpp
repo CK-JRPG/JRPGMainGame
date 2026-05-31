@@ -115,10 +115,10 @@ void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, f
 			HitMove.Direction = PushDir;
 			HitMove.Distance = bSkillOrHeavyHit
 				? FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(20.f, 60.f), DamageRatio)
-				: FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.f, 15.f), DamageRatio);
+				: FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.f, 5.f), DamageRatio);
 			HitMove.Duration = bSkillOrHeavyHit
-				? FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.08f, 0.16f), DamageRatio)
-				: FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.04f, 0.08f), DamageRatio);
+				? FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.12f, 0.20f), DamageRatio)
+				: FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.15f, 0.25f), DamageRatio);
 			HitMove.bCancelable = true;
 			HitMove.OwnerTag = "HitReact";
 			HitMove.DebugTag = bSkillOrHeavyHit ? "HitReact.Skill" : "HitReact.Basic";

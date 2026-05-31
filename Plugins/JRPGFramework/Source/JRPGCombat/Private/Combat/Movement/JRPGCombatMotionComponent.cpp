@@ -208,6 +208,18 @@ FCombatMotionResponse UJRPGCombatMotionComponent::RequestCombatMotion(const FCom
 	}
 
 	const int32 NewPriority = ResolvePriority(Req);
+	if (Req.Type == ECombatMotionType::HitMove)
+	{
+		const float Now = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.f;
+		if (State.ActiveHandle.IsValid() && State.ActiveRequest.Type == ECombatMotionType::HitMove)
+		{
+			return FCombatMotionResponse::Make(ECombatMotionResult::Rejected, State.ActiveHandle, FJRPGReason::Make("Reject.HitReactAlreadyActive"));
+		}
+		if (Now - LastHitMoveRequestRealSec < 0.35f)
+		{
+			return FCombatMotionResponse::Make(ECombatMotionResult::Rejected, {}, FJRPGReason::Make("Reject.HitReactCooldown"));
+		}
+	}
 
 	if (State.ActiveHandle.IsValid())
 	{
@@ -218,6 +230,10 @@ FCombatMotionResponse UJRPGCombatMotionComponent::RequestCombatMotion(const FCom
 
 			const FCombatMotionHandle H = MakeHandle(Req);
 			StartMotion_Internal(Req, H);
+			if (Req.Type == ECombatMotionType::HitMove)
+			{
+				LastHitMoveRequestRealSec = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.f;
+			}
 			return FCombatMotionResponse::Make(ECombatMotionResult::ReplacedExisting, H, FJRPGReason::None());
 		}
 
@@ -232,6 +248,10 @@ FCombatMotionResponse UJRPGCombatMotionComponent::RequestCombatMotion(const FCom
 
 	const FCombatMotionHandle H = MakeHandle(Req);
 	StartMotion_Internal(Req, H);
+	if (Req.Type == ECombatMotionType::HitMove)
+	{
+		LastHitMoveRequestRealSec = GetWorld() ? GetWorld()->GetRealTimeSeconds() : 0.f;
+	}
 	return FCombatMotionResponse::Make(ECombatMotionResult::Accepted, H, FJRPGReason::None());
 }
 

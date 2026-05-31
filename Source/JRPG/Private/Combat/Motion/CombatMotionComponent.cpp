@@ -574,11 +574,8 @@ void UCombatMotionComponent::TickVelocityCurve(float DeltaTime)
 				FLinearColor(1.f, 0.6f, 0.2f));
 		}
 
-		if (Req.Type == EJRPGCombatMotionType::HitMove || Req.EndPolicy == EJRPGCombatMotionEndPolicy::HitWallOrBlocked)
-		{
-			EndActiveMotion("End.HitWall");
-			return;
-		}
+		EndActiveMotion(Req.Type == EJRPGCombatMotionType::HitMove ? "End.HitWall" : "End.Blocked");
+		return;
 	}
 
 	ApplyClampIfNeeded();

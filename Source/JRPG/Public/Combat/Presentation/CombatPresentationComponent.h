@@ -20,6 +20,7 @@ class USkillComponent;
 class UCombatCharacterComponent;
 class UTacticalModeSubsystem;
 class UBattleSessionSubsystem;
+class UCharacterMovementComponent;
 
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class JRPG_API UCombatPresentationComponent : public UActorComponent
@@ -78,6 +79,8 @@ private:
 		
 		FJRPGHandle InputLockHandle;
 		bool bHasInputLock = false;
+		bool bHasMovementSlow = false;
+		float SavedMaxWalkSpeed = 0.f;
 	};
 	double AutoAttackSuppressedUntilRealSec = 0.0;
 	double LastBasicAttackStartWorldTime = -1000.0;
@@ -101,4 +104,7 @@ private:
 	
 	void AcquireInputLockForPresentation();
 	void ReleaseInputLockForPresentation();
+	void ApplyMovingBasicAttackSlowIfNeeded();
+	void RestoreMovingBasicAttackSlowIfNeeded();
+	void ConfigureAutoPresentationTiming(bool bNoPlayableMontage);
 };
