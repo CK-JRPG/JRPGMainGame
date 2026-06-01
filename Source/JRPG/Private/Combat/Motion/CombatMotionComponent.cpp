@@ -334,6 +334,19 @@ FJRPGCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FJRP
 	const bool bHadActive = IsMotionActive();
 	FJRPGCombatMotionHandle OldHandle = MotionState.ActiveHandle;
 
+	if (Req.Type == EJRPGCombatMotionType::HitMove)
+	{
+		const double Now = FPlatformTime::Seconds();
+		if (Now - LastHitMoveRequestRealSec < 0.4)
+		{
+			return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, FJRPGCombatMotionHandle(), "Reject.HitReactCooldown");
+		}
+		if (bHadActive && MotionState.ActiveRequest.Type == EJRPGCombatMotionType::HitMove)
+		{
+			return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, MotionState.ActiveHandle, "Reject.HitReactAlreadyActive");
+		}
+	}
+
 	if (bHadActive)
 	{
 		if (!CanReplaceCurrent(Req, Reason))
@@ -382,6 +395,10 @@ FJRPGCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FJRP
 	}
 
 	StartAcceptedMotion(Req, NewHandle, bHadActive, OldHandle);
+	if (Req.Type == EJRPGCombatMotionType::HitMove)
+	{
+		LastHitMoveRequestRealSec = FPlatformTime::Seconds();
+	}
 
 	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
 	{
@@ -557,11 +574,8 @@ void UCombatMotionComponent::TickVelocityCurve(float DeltaTime)
 				FLinearColor(1.f, 0.6f, 0.2f));
 		}
 
-		if (Req.EndPolicy == EJRPGCombatMotionEndPolicy::HitWallOrBlocked)
-		{
-			EndActiveMotion("End.HitWall");
-			return;
-		}
+		EndActiveMotion(Req.Type == EJRPGCombatMotionType::HitMove ? "End.HitWall" : "End.Blocked");
+		return;
 	}
 
 	ApplyClampIfNeeded();

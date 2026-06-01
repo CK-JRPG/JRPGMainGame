@@ -4,6 +4,7 @@
 #include "Components/ActorComponent.h"
 #include "Combat/AI/CombatAIPresetAsset.h"
 #include "Combat/AI/CombatAIActionTypes.h"
+#include "Combat/Presentation/CombatPresentationTypes.h"
 #include "Navigation/PathFollowingComponent.h"
 #include "CombatPartyAIComponent.generated.h"
 
@@ -65,6 +66,7 @@ private:
 	FString RoleToDebugString(EJRPGPartyRole InRole) const;
 	bool IsAllyActor(AActor* Candidate) const;
 	void MoveDirectlyToward(const FVector& Destination);
+	void StopActiveMove(FName ReasonTag);
 	void MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale = 1.0f);
 	void MoveLaterallyAround(const FVector& FocusLocation, float Scale = 1.0f);
 	void FaceTarget(AActor* Target);
@@ -73,6 +75,7 @@ private:
 	void LogMoveDebug(float DeltaTime);
 	FString GetPathFollowingStatusString() const;
 	void LoadRangeParams();
+	void HandlePresentationFinished(EPresentedCombatActionType Type, FName ActionId);
 	TArray<AActor*> BuildSkillTargets(const USkillDataAsset* SkillDef) const;
 	AActor * FindLowestHpAlly() const;
 
@@ -105,10 +108,15 @@ private:
 	bool bHasLastDistanceToTarget = false;
 	bool bHasLastDebugLocation = false;
 	bool LastMoveRequestActive = false;
+	bool bHasLastMoveGoal = false;
+	FVector LastMoveGoal = FVector::ZeroVector;
+	float LastMoveRequestWorldTime = -1000.f;
+	float RepathThreshold = 125.f;
+	float MinRepathInterval = 0.4f;
 	EPathFollowingRequestResult::Type LastMoveRequestResult = EPathFollowingRequestResult::Failed;
 	float NavFailureRetryBlockRemaining = 0.f;
 	float NavFailureLogCooldownRemaining = 0.f;
-	bool bEnableNonNavMeshFallbackMovement = true;
+	bool bEnableNonNavMeshFallbackMovement = false;
 	bool bPrevPlayerControlled = false;
 	float NextAutoAttackTime = 0.f;
 	float RetryDelayUntilTime = 0.f;
@@ -117,5 +125,10 @@ private:
 	float CannotPresentLogCooldownRemaining = 0.f;
 	FName LastCannotPresentReasonTag = NAME_None;
 	float LastAutoAttackSuccessTime = -1000.f;
+	float PlayerAutoAttackInterval = 0.75f;
+	float AIAutoAttackInterval = 1.0f;
+	float MovingAutoAttackIntervalMultiplier = 1.4f;
+	float LastAIBasicAttackStartTime = -1000.f;
 	float AttackKeepRange = 650.f;
+	float HealRange = 700.f;
 };

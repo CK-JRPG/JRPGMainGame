@@ -60,6 +60,7 @@ private:
 
 	FJRPGHandle LocomotionLockHandle;
 	uint64 NextUniqueId = 1;
+	float LastHitMoveRequestRealSec = -1000.f;
 
 	// default priorities
 	UPROPERTY(EditAnywhere, Category="JRPG|CombatMotion|Priority") int32 Priority_Skill = 10;

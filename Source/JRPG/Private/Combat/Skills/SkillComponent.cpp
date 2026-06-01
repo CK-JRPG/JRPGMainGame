@@ -4,6 +4,7 @@
 
 #include "JRPG/Public/Combat/Battle/CombatFormulaLibrary.h"
 #include "Combat/Battle/DirectionalDamageComponent.h"
+#include "Combat/Battle/BasicCombatSubsystem.h"
 #include "JRPG/Public/Combat/Characters/CombatParticipantInterface.h"
 #include "JRPG/Public/Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 
@@ -227,6 +228,10 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 			}
 			
 			THP->ApplyDamage(DamageDone,GetOwner(), Skill.SkillId);
+			if (UBasicCombatSubsystem* BasicCombat = GetWorld() ? GetWorld()->GetSubsystem<UBasicCombatSubsystem>() : nullptr)
+			{
+				BasicCombat->ApplyHitFeedback(GetOwner(), T, DamageDone, bCritical, true, Skill.SkillId);
+			}
 
 			if (IsHostileTarget(T))
 			{

@@ -6,6 +6,7 @@
 #include "Animation/AnimMontage.h"
 
 #include "Combat/Presentation/CombatPresentationTypes.h"
+#include "Combat/Battle/BasicCombatTypes.h"
 #include "Combat/Skills/SkillTypes.h"
 #include "Combat/Items/CombatItemTypes.h"
 #include "Combat/Motion/CombatMotionTypes.h"
@@ -19,6 +20,7 @@ class USkillComponent;
 class UCombatCharacterComponent;
 class UTacticalModeSubsystem;
 class UBattleSessionSubsystem;
+class UCharacterMovementComponent;
 
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class JRPG_API UCombatPresentationComponent : public UActorComponent
@@ -44,7 +46,10 @@ public:
 
 	void EmitCue(FName CueTag);
 	void SetAutoAttackSuppressedFor(float DurationSec);
+	void ClearAutoAttackSuppression();
 	bool IsAutoAttackSuppressed() const;
+	float GetMinBasicAttackStartInterval() const;
+	float GetRemainingBasicAttackStartCooldown() const;
 
 protected:
 	virtual void BeginPlay()override;
@@ -74,8 +79,11 @@ private:
 		
 		FJRPGHandle InputLockHandle;
 		bool bHasInputLock = false;
+		bool bHasMovementSlow = false;
+		float SavedMaxWalkSpeed = 0.f;
 	};
 	double AutoAttackSuppressedUntilRealSec = 0.0;
+	double LastBasicAttackStartWorldTime = -1000.0;
 
 	FActivePresentationState Active;
 
@@ -96,4 +104,8 @@ private:
 	
 	void AcquireInputLockForPresentation();
 	void ReleaseInputLockForPresentation();
+	void ApplyMovingBasicAttackSlowIfNeeded();
+	void RestoreMovingBasicAttackSlowIfNeeded();
+	void StopPathFollowingForPresentation(FName ReasonTag);
+	void ConfigureAutoPresentationTiming(bool bNoPlayableMontage);
 };
