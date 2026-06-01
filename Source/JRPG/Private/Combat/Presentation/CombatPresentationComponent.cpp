@@ -1,5 +1,6 @@
 ﻿#include "Combat/Presentation/CombatPresentationComponent.h"
 
+#include "Combat/Camera/CameraSubsystem.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Battle/BasicCombatSubsystem.h"
 #include "Combat/Items/CombatItemExecutionSubsystem.h"
@@ -547,6 +548,16 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 					}
 
 					Active.bResolved = Result.bOk;
+					if (Result.Breakdown.FinalDamage > 0.f)
+					{
+						if (UCameraSubsystem* CameraSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UCameraSubsystem>() : nullptr)
+						{
+							CameraSubsystem->PlayCombatCameraShakeForActor(
+								GetOwner(),
+								CharacterComp->CharacterDef->BasicAttackCameraShake,
+								Result.Breakdown.bCritical);
+						}
+					}
 				}
 			}
 			break;
@@ -569,6 +580,13 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 				}
 
 				Active.bResolved = R.bOk;
+				if (USkillDataAsset* SkillDef = SkillComp->GetSkillDef(Active.ActionId))
+				{
+					if (UCameraSubsystem* CameraSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UCameraSubsystem>() : nullptr)
+					{
+						CameraSubsystem->PlayCombatCameraShakeForActor(GetOwner(), SkillDef->CameraShake, false);
+					}
+				}
 			}
 			else
 			{

@@ -3,6 +3,7 @@
 #include "Combat/Camera/CameraTargetInterface.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Battle/BattleSessionTypes.h"
+#include "Combat/Characters/CombatParticipantInterface.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -40,6 +41,20 @@ void UCameraSubsystem::OnWorldBeginPlay(UWorld& InWorld)
     {
         BS->OnBattleEnded.AddUObject(this, &UCameraSubsystem::OnBattleEnded);
     }
+
+}
+
+void UCameraSubsystem::Deinitialize()
+{
+    if (UWorld* World = GetWorld())
+    {
+        if (UBattleSessionSubsystem* BS = World->GetSubsystem<UBattleSessionSubsystem>())
+        {
+            BS->OnBattleEnded.RemoveAll(this);
+        }
+    }
+
+    Super::Deinitialize();
 }
 
 void UCameraSubsystem::SetTarget(AActor* NewTarget)
@@ -360,4 +375,26 @@ void UCameraSubsystem::OnCharacterPossessed(AActor* NewCharacter)
         return;
 
     SetTargetSmooth(NewCharacter);
+}
+
+void UCameraSubsystem::PlayCombatCameraShakeForActor(AActor* SourceActor, const FCombatCameraShakeSpec& ShakeSpec, bool bCriticalHit)
+{
+    if (!SourceActor || !ShakeSpec.bEnable || !CameraRig.IsValid())
+    {
+        return;
+    }
+
+    APlayerController* PC = GetWorld() ? GetWorld()->GetFirstPlayerController() : nullptr;
+    if (!PC || PC->GetPawn() != SourceActor)
+    {
+        return;
+    }
+
+    const ICombatParticipantInterface* SourceParticipant = Cast<ICombatParticipantInterface>(SourceActor);
+    if (!SourceParticipant || SourceParticipant->GetCombatTeam() != ECombatTeam::Player)
+    {
+        return;
+    }
+
+    CameraRig->PlayCombatCameraShake(ShakeSpec, bCriticalHit);
 }

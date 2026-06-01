@@ -6,6 +6,7 @@
 
 class ACameraRigActor;
 enum class EBattleEndReason : uint8;
+struct FCombatCameraShakeSpec;
 
 // 스냅샷 - 인카운터 진입 전 필드 카메라 상태 보존용
 USTRUCT()
@@ -61,9 +62,11 @@ public:
 
 	// Getter/Setter
 	ACameraRigActor* GetCameraRig() const { return CameraRig.Get(); }
+	void PlayCombatCameraShakeForActor(AActor* SourceActor, const FCombatCameraShakeSpec& ShakeSpec, bool bCriticalHit = false);
 	
 protected:
 	virtual void OnWorldBeginPlay(UWorld& InWorld) override;
+	virtual void Deinitialize() override;
 	
 private:
 	UPROPERTY() TWeakObjectPtr<ACameraRigActor> CameraRig;
@@ -83,4 +86,5 @@ private:
 	
 	// BattleSessionSubsystem 빙의 전환 델리게이트 콜백
 	void OnCharacterPossessed(AActor* NewCharacter);
+
 };

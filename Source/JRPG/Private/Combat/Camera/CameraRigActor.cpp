@@ -2,6 +2,8 @@
 
 #include "Camera/CameraComponent.h"
 #include "Combat/Camera/CameraTargetInterface.h"
+#include "Camera/PlayerCameraManager.h"
+#include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
 
 
@@ -22,9 +24,21 @@ ACameraRigActor::ACameraRigActor()
 	Camera->bUsePawnControlRotation = false;
 }
 
+void ACameraRigActor::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (Camera)
+	{
+		CameraDefaultRelativeLocation = Camera->GetRelativeLocation();
+	}
+}
+
 void ACameraRigActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
+	UpdateManualCameraShake(DeltaTime);
 	
 	if (!TargetActor.IsValid()) return;
 	
@@ -119,4 +133,72 @@ void ACameraRigActor::UseCombatArmLength(bool bApplyImmediately)
 	CurrentDefaultArmLength = CombatArmLength;
 	CurrentMaxArmLength = CombatMaxArmLength;
 	SetArmLength(CombatArmLength, bApplyImmediately);
+}
+
+void ACameraRigActor::PlayCombatCameraShake(const FCombatCameraShakeSpec& ShakeSpec, bool bCriticalHit)
+{
+	if (!ShakeSpec.bEnable)
+	{
+		return;
+	}
+
+	StartManualCameraShake(ShakeSpec, bCriticalHit);
+
+	if (!ShakeSpec.CameraShakeClass)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	APlayerController* PC = World ? World->GetFirstPlayerController() : nullptr;
+	if (!PC || !PC->PlayerCameraManager)
+	{
+		return;
+	}
+
+	const float Scale = bCriticalHit ? ShakeSpec.CriticalCameraShakeScale : ShakeSpec.CameraShakeScale;
+	if (Scale > 0.f)
+	{
+		PC->PlayerCameraManager->StartCameraShake(ShakeSpec.CameraShakeClass, Scale);
+	}
+}
+
+void ACameraRigActor::StartManualCameraShake(const FCombatCameraShakeSpec& ShakeSpec, bool bCriticalHit)
+{
+	if (!ShakeSpec.bUseManualShake || !Camera)
+	{
+		return;
+	}
+
+	const float CriticalMultiplier = bCriticalHit ? ShakeSpec.ManualCriticalMultiplier : 1.0f;
+	ManualShakeElapsed = 0.0f;
+	ActiveManualShakeDuration = FMath::Max(0.01f, ShakeSpec.ManualDuration);
+	ActiveManualShakeHorizontalAmplitude = ShakeSpec.ManualHorizontalAmplitude * CriticalMultiplier;
+	ActiveManualShakeVerticalAmplitude = ShakeSpec.ManualVerticalAmplitude * CriticalMultiplier;
+	ActiveManualShakeSpeed = ShakeSpec.ManualSpeed;
+	bManualShakeActive = true;
+}
+
+void ACameraRigActor::UpdateManualCameraShake(float DeltaTime)
+{
+	if (!bManualShakeActive || !Camera)
+	{
+		return;
+	}
+
+	ManualShakeElapsed += DeltaTime;
+	const float NormalizedTime = ManualShakeElapsed / ActiveManualShakeDuration;
+	if (NormalizedTime >= 1.0f)
+	{
+		bManualShakeActive = false;
+		Camera->SetRelativeLocation(CameraDefaultRelativeLocation);
+		return;
+	}
+
+	const float Decay = FMath::Square(1.0f - NormalizedTime);
+	const float Phase = ManualShakeElapsed * ActiveManualShakeSpeed;
+	const float Horizontal = FMath::Sin(Phase) * ActiveManualShakeHorizontalAmplitude * Decay;
+	const float Vertical = FMath::Cos(Phase * 1.37f) * ActiveManualShakeVerticalAmplitude * Decay;
+
+	Camera->SetRelativeLocation(CameraDefaultRelativeLocation + FVector(0.0f, Horizontal, Vertical));
 }

@@ -1,10 +1,12 @@
 ﻿#pragma once
 
 #include "CoreMinimal.h"
+#include "Combat/Presentation/CombatPresentationTypes.h"
 #include "GameFramework/Actor.h"
 #include "CameraRigActor.generated.h"
 
 class UCameraComponent;
+class UCameraShakeBase;
 class USpringArmComponent;
 
 UCLASS()
@@ -16,6 +18,7 @@ public:
 	ACameraRigActor();
 	
 	virtual void Tick(float DeltaTime) override;
+	virtual void BeginPlay() override;
 
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<USpringArmComponent> SpringArm;
@@ -47,6 +50,7 @@ public:
 	void SetArmLength(float NewArmLength, bool bApplyImmediately = true);
 	void UseFieldArmLength(bool bApplyImmediately = false);
 	void UseCombatArmLength(bool bApplyImmediately = false);
+	void PlayCombatCameraShake(const FCombatCameraShakeSpec& ShakeSpec, bool bCriticalHit = false);
 
 private:
 	UPROPERTY()
@@ -92,4 +96,16 @@ private:
 	float LockOnVerticalOffset = 60.0f;
 
 	bool bLockRotation = false;
+
+	// 수동 쉐이크 종료 후 카메라 컴포넌트를 원래 상대 위치로 되돌리기 위한 런타임 값.
+	FVector CameraDefaultRelativeLocation = FVector::ZeroVector;
+	float ManualShakeElapsed = 0.0f;
+	float ActiveManualShakeDuration = 0.0f;
+	float ActiveManualShakeHorizontalAmplitude = 0.0f;
+	float ActiveManualShakeVerticalAmplitude = 0.0f;
+	float ActiveManualShakeSpeed = 0.0f;
+	bool bManualShakeActive = false;
+
+	void StartManualCameraShake(const FCombatCameraShakeSpec& ShakeSpec, bool bCriticalHit);
+	void UpdateManualCameraShake(float DeltaTime);
 };

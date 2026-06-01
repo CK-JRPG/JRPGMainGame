@@ -63,6 +63,9 @@ public:
 	UPROPERTY(EditAnywhere) FName FinishCueTag = "Skill.Finish";
 	UPROPERTY(EditAnywhere) bool bHasSkillMotion = false;
 	UPROPERTY(EditAnywhere) FJRPGCombatMotionRequest SkillMotion;
+	
+	UPROPERTY(EditAnywhere, Category="Presentation|Camera")
+	FCombatCameraShakeSpec CameraShake;
 
 	UPROPERTY(EditAnywhere, Category="Presentation|VFX") TObjectPtr<UNiagaraSystem> HitNiagaraEffect = nullptr;
 	UPROPERTY(EditAnywhere, Category="Presentation|VFX") TObjectPtr<UNiagaraSystem> OnResolveTargetEffect = nullptr;
