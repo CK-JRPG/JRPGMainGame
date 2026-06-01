@@ -38,7 +38,7 @@ void ACameraRigActor::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	UpdateManualPlayerHitCameraShake(DeltaTime);
+	UpdateManualCameraShake(DeltaTime);
 	
 	if (!TargetActor.IsValid()) return;
 	
@@ -135,16 +135,16 @@ void ACameraRigActor::UseCombatArmLength(bool bApplyImmediately)
 	SetArmLength(CombatArmLength, bApplyImmediately);
 }
 
-void ACameraRigActor::PlayPlayerHitCameraShake(float DamageAmount, bool bCriticalHit)
+void ACameraRigActor::PlayCombatCameraShake(const FCombatCameraShakeSpec& ShakeSpec, bool bCriticalHit)
 {
-	if (DamageAmount <= 0.f)
+	if (!ShakeSpec.bEnable)
 	{
 		return;
 	}
 
-	StartManualPlayerHitCameraShake(bCriticalHit);
+	StartManualCameraShake(ShakeSpec, bCriticalHit);
 
-	if (!PlayerHitCameraShakeClass)
+	if (!ShakeSpec.CameraShakeClass)
 	{
 		return;
 	}
@@ -156,48 +156,49 @@ void ACameraRigActor::PlayPlayerHitCameraShake(float DamageAmount, bool bCritica
 		return;
 	}
 
-	const float Scale = bCriticalHit ? PlayerCriticalHitCameraShakeScale : PlayerHitCameraShakeScale;
+	const float Scale = bCriticalHit ? ShakeSpec.CriticalCameraShakeScale : ShakeSpec.CameraShakeScale;
 	if (Scale > 0.f)
 	{
-		PC->PlayerCameraManager->StartCameraShake(PlayerHitCameraShakeClass, Scale);
+		PC->PlayerCameraManager->StartCameraShake(ShakeSpec.CameraShakeClass, Scale);
 	}
 }
 
-void ACameraRigActor::StartManualPlayerHitCameraShake(bool bCriticalHit)
+void ACameraRigActor::StartManualCameraShake(const FCombatCameraShakeSpec& ShakeSpec, bool bCriticalHit)
 {
-	if (!bUseManualPlayerHitCameraShake || !Camera)
+	if (!ShakeSpec.bUseManualShake || !Camera)
 	{
 		return;
 	}
 
-	const float CriticalMultiplier = bCriticalHit ? PlayerHitShakeCriticalMultiplier : 1.0f;
-	PlayerHitShakeElapsed = 0.0f;
-	ActivePlayerHitShakeDuration = FMath::Max(0.01f, PlayerHitShakeDuration);
-	ActivePlayerHitShakeHorizontalAmplitude = PlayerHitShakeHorizontalAmplitude * CriticalMultiplier;
-	ActivePlayerHitShakeVerticalAmplitude = PlayerHitShakeVerticalAmplitude * CriticalMultiplier;
-	bPlayerHitShakeActive = true;
+	const float CriticalMultiplier = bCriticalHit ? ShakeSpec.ManualCriticalMultiplier : 1.0f;
+	ManualShakeElapsed = 0.0f;
+	ActiveManualShakeDuration = FMath::Max(0.01f, ShakeSpec.ManualDuration);
+	ActiveManualShakeHorizontalAmplitude = ShakeSpec.ManualHorizontalAmplitude * CriticalMultiplier;
+	ActiveManualShakeVerticalAmplitude = ShakeSpec.ManualVerticalAmplitude * CriticalMultiplier;
+	ActiveManualShakeSpeed = ShakeSpec.ManualSpeed;
+	bManualShakeActive = true;
 }
 
-void ACameraRigActor::UpdateManualPlayerHitCameraShake(float DeltaTime)
+void ACameraRigActor::UpdateManualCameraShake(float DeltaTime)
 {
-	if (!bPlayerHitShakeActive || !Camera)
+	if (!bManualShakeActive || !Camera)
 	{
 		return;
 	}
 
-	PlayerHitShakeElapsed += DeltaTime;
-	const float NormalizedTime = PlayerHitShakeElapsed / ActivePlayerHitShakeDuration;
+	ManualShakeElapsed += DeltaTime;
+	const float NormalizedTime = ManualShakeElapsed / ActiveManualShakeDuration;
 	if (NormalizedTime >= 1.0f)
 	{
-		bPlayerHitShakeActive = false;
+		bManualShakeActive = false;
 		Camera->SetRelativeLocation(CameraDefaultRelativeLocation);
 		return;
 	}
 
 	const float Decay = FMath::Square(1.0f - NormalizedTime);
-	const float Phase = PlayerHitShakeElapsed * PlayerHitShakeSpeed;
-	const float Horizontal = FMath::Sin(Phase) * ActivePlayerHitShakeHorizontalAmplitude * Decay;
-	const float Vertical = FMath::Cos(Phase * 1.37f) * ActivePlayerHitShakeVerticalAmplitude * Decay;
+	const float Phase = ManualShakeElapsed * ActiveManualShakeSpeed;
+	const float Horizontal = FMath::Sin(Phase) * ActiveManualShakeHorizontalAmplitude * Decay;
+	const float Vertical = FMath::Cos(Phase * 1.37f) * ActiveManualShakeVerticalAmplitude * Decay;
 
 	Camera->SetRelativeLocation(CameraDefaultRelativeLocation + FVector(0.0f, Horizontal, Vertical));
 }

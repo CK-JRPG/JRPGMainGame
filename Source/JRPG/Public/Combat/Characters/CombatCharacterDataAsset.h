@@ -61,6 +61,9 @@ public:
 	UPROPERTY(EditAnywhere, Category="Basic Attack|VFX", meta=(ClampMin="0.0")) float BasicAttackEffectScaleMultiplier = 0.25f;
 	UPROPERTY(EditAnywhere, Category="Basic Attack|VFX", meta=(ClampMin="1.0")) float BasicAttackMinEffectScale = 1.f;
 	UPROPERTY(EditAnywhere, Category="Basic Attack|VFX", meta=(ClampMin="1.0")) float BasicAttackMaxEffectScale = 3.f;
+	
+	UPROPERTY(EditAnywhere, Category="Basic Attack|Camera")
+	FCombatCameraShakeSpec BasicAttackCameraShake;
 
 	// 스킬 ID만 보관 (에디터에서 KnownSkills에 이미 DA가 있을 때 해금 용도)
 	UPROPERTY(EditAnywhere) TArray<FName> StartingSkillIds;
