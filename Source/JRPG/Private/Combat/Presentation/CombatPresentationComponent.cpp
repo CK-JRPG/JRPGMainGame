@@ -724,8 +724,13 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 						CancelActivePresentation(Result.ReasonTag.IsNone() ? "Reject.ResolveFailed" : Result.ReasonTag, false);
 						return;
 					}
-
+					
 					Active.bResolved = Result.bOk;
+					if (Result.bOk)
+					{
+						UE_LOG(LogTemp, Log, TEXT("[InputPriority] BasicAttack HitResolvedMovementSlowHeldUntilFinish Owner=%s"), *GetNameSafe(GetOwner()));
+					}
+
 					if (Result.Breakdown.FinalDamage > 0.f)
 					{
 						if (UCameraSubsystem* CameraSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UCameraSubsystem>() : nullptr)
@@ -735,12 +740,6 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 								CharacterComp->CharacterDef->BasicAttackCameraShake,
 								Result.Breakdown.bCritical);
 						}
-					}
-				}
-			}
-					if (Result.bOk)
-					{
-						UE_LOG(LogTemp, Log, TEXT("[InputPriority] BasicAttack HitResolvedMovementSlowHeldUntilFinish Owner=%s"), *GetNameSafe(GetOwner()));
 					}
 				}
 			}
