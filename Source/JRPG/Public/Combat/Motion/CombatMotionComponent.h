@@ -38,6 +38,7 @@ private:
 	UPROPERTY()FCombatMotionState MotionState;
 	uint64 NextMotionId = 1;
 	double LastHitMoveRequestRealSec = -1000.0;
+	double LastBlockedHitMoveRealSec = -1000.0;
 
 	TWeakObjectPtr<UCharacterMovementComponent> CharMove;
 	TWeakObjectPtr<UGroggyComponent> Groggy;

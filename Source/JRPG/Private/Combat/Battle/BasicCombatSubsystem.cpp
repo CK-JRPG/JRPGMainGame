@@ -106,6 +106,12 @@ void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, f
 		return;
 	}
 
+	if (!bSkillOrHeavyHit)
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[HitReact] SkipMotion Owner=%s SourceTag=%s Reason=BasicAttackInPlaceReact"), *GetNameSafe(Target), SourceTag.IsNone() ? TEXT("None") : *SourceTag.ToString());
+		return;
+	}
+
 	if (UCombatMotionComponent* Motion = Target->FindComponentByClass<UCombatMotionComponent>())
 	{
 		FVector PushDir = Target->GetActorLocation() - (IsValid(Attacker) ? Attacker->GetActorLocation() : Target->GetActorLocation() - Target->GetActorForwardVector());
@@ -120,12 +126,8 @@ void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, f
 			HitMove.Instigator = Attacker;
 			HitMove.Target = Target;
 			HitMove.Direction = PushDir;
-			HitMove.Distance = bSkillOrHeavyHit
-				? FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(10.f, 20.f), DamageRatio)
-				: FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.f, 5.f), DamageRatio);
-			HitMove.Duration = bSkillOrHeavyHit
-				? FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.12f, 0.20f), DamageRatio)
-				: FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.15f, 0.25f), DamageRatio);
+			HitMove.Distance = FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(4.f, 10.f), DamageRatio);
+			HitMove.Duration = FMath::GetMappedRangeValueClamped(FVector2D(0.03f, 0.15f), FVector2D(0.10f, 0.16f), DamageRatio);
 			HitMove.bCancelable = true;
 			HitMove.OwnerTag = "HitReact";
 			HitMove.DebugTag = bSkillOrHeavyHit ? "HitReact.Skill" : "HitReact.Basic";
@@ -189,7 +191,7 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 		);
 
 	TargetHP->ApplyDamage(Out.Breakdown.FinalDamage, Attacker, Req.ReasonTag);
-	ApplyHitFeedback(Attacker, Target, Out.Breakdown.FinalDamage, Out.Breakdown.bCritical, false);
+	ApplyHitFeedback(Attacker, Target, Out.Breakdown.FinalDamage, Out.Breakdown.bCritical, false, Req.ReasonTag);
 
 	if (UCombatPartyAIComponent* PartyAI = Target->FindComponentByClass<UCombatPartyAIComponent>())
 	{

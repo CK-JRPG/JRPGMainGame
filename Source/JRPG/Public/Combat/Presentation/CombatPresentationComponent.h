@@ -21,6 +21,7 @@ class UCombatCharacterComponent;
 class UTacticalModeSubsystem;
 class UBattleSessionSubsystem;
 class UCharacterMovementComponent;
+class UAnimMontage;
 
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class JRPG_API UCombatPresentationComponent : public UActorComponent
@@ -42,6 +43,10 @@ public:
 
 	void ResolveActivePresentation();
 	void FinishActivePresentation();
+
+
+	UFUNCTION()
+	void HandleActiveMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 	void CancelActivePresentation(FName ReasonTag,bool bRefundPreparedSkill);
 
 	void EmitCue(FName CueTag);
@@ -81,6 +86,12 @@ private:
 		bool bHasInputLock = false;
 		bool bHasMovementSlow = false;
 		float SavedMaxWalkSpeed = 0.f;
+
+		bool bHasRotationLock = false;
+		bool bSavedOrientRotationToMovement = true;
+		bool bSavedUseControllerDesiredRotation = false;
+		bool bSavedUseControllerRotationYaw = false;
+		double FaceTargetUntilRealSec = 0.0;
 	};
 	double AutoAttackSuppressedUntilRealSec = 0.0;
 	double LastBasicAttackStartWorldTime = -1000.0;
@@ -104,8 +115,11 @@ private:
 	
 	void AcquireInputLockForPresentation();
 	void ReleaseInputLockForPresentation();
-	void ApplyMovingBasicAttackSlowIfNeeded();
-	void RestoreMovingBasicAttackSlowIfNeeded();
+	void ApplyPresentationMovementSlowIfNeeded();
+	void RestorePresentationMovementSlowIfNeeded();
+	void ApplyAttackRotationLockIfNeeded();
+	void RestoreAttackRotationLockIfNeeded();
+	void FaceActiveTarget();
 	void StopPathFollowingForPresentation(FName ReasonTag);
 	void ConfigureAutoPresentationTiming(bool bNoPlayableMontage);
 };
