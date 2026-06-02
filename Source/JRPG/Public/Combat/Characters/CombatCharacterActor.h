@@ -26,6 +26,7 @@ class UCombatZoneTrackerComponent;
 class UCombatPartyAIComponent;
 class UDirectionalDamageComponent;
 class UTargetGuideLineComponent;
+class UNiagaraSystem;
 
 
 class UHPComponent;
@@ -64,6 +65,7 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<USPComponent> SPComp;
 
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UEnemyEncounterComponent> EnemyEncounterComp;
+
 	
 
 	virtual FName GetCombatantId() const override;
@@ -84,6 +86,10 @@ public:
 	// 사망 몽타주
 	UPROPERTY(EditAnywhere, Category = "Combat|Death")
 	TObjectPtr<UAnimMontage> DeathMontage = nullptr;
+	UPROPERTY(EditAnywhere, Category = "Combat|Death") 
+	TObjectPtr<UNiagaraSystem> DeathNiagaraEffect = nullptr;
+
+	FTimerHandle DeathDestoryHandle;
 	
 protected:
 
@@ -96,4 +102,5 @@ protected:
 private:
 	FJRPGHandle DeathInputLockHandle;
 	void HandleOnDeath(AActor* Killer, FName ReasonTag);
+	void DeathDestory();
 };
