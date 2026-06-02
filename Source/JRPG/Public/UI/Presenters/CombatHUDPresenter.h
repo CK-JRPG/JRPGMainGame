@@ -55,7 +55,7 @@ private:
     void OnTacticalModeExited(const FTacticalModeSnapshot& Snapshot);
 
     void OnActionPaletteSPUpdated(float Percent, const FString& Text);
-    //void OnTargetNameUpdated(const FString& Name);
+    void OnTargetNameUpdated(const FString& Name);
     void OnTargetHPUpdated(float Percent, const FString& Text);
     //void OnTargetGroggyUpdated(bool bGroggy);
 

@@ -47,7 +47,7 @@ void UCombatHUDPresenter::Initialize(UWorld* InWorld, TSubclassOf<UCombatUIWidge
 			ActionPaletteVM->OnSkillListUpdated.AddUObject(this, &UCombatHUDPresenter::OnActionPaletteSkillUpdated);
 
 			TargetVM = NewObject<UEnemyViewModel>(this);
-			//TargetVM->OnTargetNameUpdated.AddUObject(this, &UCombatHUDPresenter::OnTargetNameUpdated);
+			TargetVM->OnTargetNameUpdated.AddUObject(this, &UCombatHUDPresenter::OnTargetNameUpdated);
 			TargetVM->OnTargetHPUpdated.AddUObject(this, &UCombatHUDPresenter::OnTargetHPUpdated);
 			//TargetVM->OnTargetGroggyUpdated.AddUObject(this, &UCombatHUDPresenter::OnTargetGroggyUpdated);
 		}
@@ -525,9 +525,13 @@ void UCombatHUDPresenter::OnActionPaletteSPUpdated(float Percent, const FString&
 	//if (CombatWidget && CombatWidget->ActionPalettePanel) CombatWidget->ActionPalettePanel->UpdateSPUI(Percent, Text);
 }
 
-//void UCombatHUDPresenter::OnTargetNameUpdated(const FString& Name) {
-//	if (CombatWidget && CombatWidget->TargetInfoPanel) CombatWidget->TargetInfoPanel->UpdateTargetName(Name);
-//}
+void UCombatHUDPresenter::OnTargetNameUpdated(const FString& Name) {
+	if (CombatWidget && CombatWidget->TargetInfoPanel)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UCombatHUDPresenter::OnTargetNameUpdated"));
+		CombatWidget->TargetInfoPanel->UpdateTargetName(Name);
+	}
+}
 
 void UCombatHUDPresenter::OnTargetHPUpdated(float Percent, const FString& Text) {
 	if (CombatWidget && CombatWidget->TargetInfoPanel) CombatWidget->TargetInfoPanel->UpdateTargetHP(Percent);
