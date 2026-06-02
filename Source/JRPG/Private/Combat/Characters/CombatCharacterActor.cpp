@@ -29,7 +29,10 @@
 #include "Combat/Session/CombatZoneTrackerComponent.h"
 
 #include "UI/Combat/EnemyHPBarWidget.h"
-#include "Combat/Stats/HPComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "TimerManager.h"
+
 
 
 ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectInitializer)
@@ -203,14 +206,46 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 	// 사망 몽타주 재생
 	if (DeathMontage)
 	{
+		// 적 사망시
 		if (CharacterComp && CharacterComp->GetTeam() == ECombatTeam::Enemy)
 		{
 			if (USkeletalMeshComponent* MeshComp = GetMesh())
 			{
+				if(UCapsuleComponent* CapsuleComp = GetCapsuleComponent())
+					GetCapsuleComponent()->SetCollisionProfileName("IgnoreOnlyPawn");
+
+				MeshComp->SetCollisionProfileName("IgnoreOnlyPawn");
 				MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+				MeshComp->SetPlayRate(1.0f);
 				MeshComp->PlayAnimation(DeathMontage, false);
+
+				if (DeathNiagaraEffect)
+				{
+					UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation
+					(
+						GetWorld(),
+						DeathNiagaraEffect,
+						GetActorLocation(),
+						FRotator(0,0,0),
+						FVector(1.0f),       
+						true,                
+						true,                
+						ENCPoolMethod::None, 
+						true
+					);
+				}
+
+				GetWorld()->GetTimerManager().SetTimer(
+					DeathDestoryHandle,
+					this,
+					&ACombatCharacterActor::DeathDestory,
+					DeathMontage->GetPlayLength() + 1.0f,
+					false
+				);
+
 			}
 		}
+		// 플레이어, 아군 사망시
 		else if (UAnimInstance* Anim = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 		{
 			Anim->Montage_Play(DeathMontage);
@@ -227,6 +262,15 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 	{
 		TargetGuideLineComp->ClearAggroTarget();
 	}
+}
+
+void ACombatCharacterActor::DeathDestory()
+{
+	if(GetWorld()->GetTimerManager().IsTimerActive(DeathDestoryHandle))
+	GetWorld()->GetTimerManager().ClearTimer(DeathDestoryHandle);
+
+	EndPlay(EEndPlayReason::Destroyed);
+	this->Destroy();
 }
 
 FName ACombatCharacterActor::GetCombatantId() const
