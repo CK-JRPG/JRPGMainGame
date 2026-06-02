@@ -341,6 +341,10 @@ FJRPGCombatMotionResponse UCombatMotionComponent::RequestCombatMotion(const FJRP
 		{
 			return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, FJRPGCombatMotionHandle(), "Reject.HitReactCooldown");
 		}
+		if (Now - LastBlockedHitMoveRealSec < 0.5)
+		{
+			return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, FJRPGCombatMotionHandle(), "Reject.HitReactRecentlyBlocked");
+		}
 		if (bHadActive && MotionState.ActiveRequest.Type == EJRPGCombatMotionType::HitMove)
 		{
 			return FJRPGCombatMotionResponse::Make(EJRPGCombatMotionResult::Rejected, MotionState.ActiveHandle, "Reject.HitReactAlreadyActive");
@@ -572,6 +576,11 @@ void UCombatMotionComponent::TickVelocityCurve(float DeltaTime)
 				GetOwner(),
 				MotionState.ActiveRequest.Target.Get(),
 				FLinearColor(1.f, 0.6f, 0.2f));
+		}
+
+		if (Req.Type == EJRPGCombatMotionType::HitMove)
+		{
+			LastBlockedHitMoveRealSec = FPlatformTime::Seconds();
 		}
 
 		EndActiveMotion(Req.Type == EJRPGCombatMotionType::HitMove ? "End.HitWall" : "End.Blocked");
