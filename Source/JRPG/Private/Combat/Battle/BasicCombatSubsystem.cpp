@@ -59,19 +59,40 @@ void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, f
 			return;
 		}
 
-		const float PreviousDilation = Actor->CustomTimeDilation;
+		const TWeakObjectPtr<AActor> ActorKey = Actor;
+		FHitStopRuntime& HitStop = ActiveHitStops.FindOrAdd(ActorKey);
+		if (HitStop.Serial <= 0)
+		{
+			const float CurrentDilation = Actor->CustomTimeDilation;
+			HitStop.OriginalDilation = CurrentDilation <= 0.06f ? 1.f : CurrentDilation;
+		}
+		HitStop.Serial++;
+		const int32 RestoreSerial = HitStop.Serial;
 		Actor->CustomTimeDilation = 0.05f;
 
 		FTimerHandle RestoreHandle;
 		TWeakObjectPtr<AActor> WeakActor = Actor;
+		TWeakObjectPtr<UBasicCombatSubsystem> WeakThis = this;
 		GetWorld()->GetTimerManager().SetTimer(
 			RestoreHandle,
-			[WeakActor, PreviousDilation]()
+			[WeakThis, WeakActor, RestoreSerial]()
 			{
-				if (WeakActor.IsValid())
+				UBasicCombatSubsystem* Subsystem = WeakThis.Get();
+				AActor* RestoredActor = WeakActor.Get();
+				if (!Subsystem || !RestoredActor)
 				{
-					WeakActor->CustomTimeDilation = PreviousDilation;
+					return;
 				}
+
+				const TWeakObjectPtr<AActor> RestoredActorKey = RestoredActor;
+				FHitStopRuntime* Runtime = Subsystem->ActiveHitStops.Find(RestoredActorKey);
+				if (!Runtime || Runtime->Serial != RestoreSerial)
+				{
+					return;
+				}
+
+				RestoredActor->CustomTimeDilation = Runtime->OriginalDilation;
+				Subsystem->ActiveHitStops.Remove(RestoredActorKey);
 			},
 			HitStopSec,
 			false);

@@ -212,20 +212,21 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 		const float Distance = GetDistanceToTarget();
 		const bool bInStartRange = Distance <= AttackRange;
-		const bool bInKeepRange = Distance <= AttackKeepRange;
 		const bool bInRange = bInStartRange;
 		const bool bIsMovingInput = PlayerController && PlayerController->IsMovementOverrideActive();
-		if (bIsMovingInput && !bInKeepRange)
+		if (bIsMovingInput)
 		{
-			UE_LOG(LogTemp, Log, TEXT("[InputPriority] Player movement blocks auto-move correction only"));
-			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Suppressed Reason=PlayerMovingOutOfRange Owner=%s Target=%s Distance=%.1f AttackKeepRange=%.1f"),
-				*GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), Distance, AttackKeepRange);
-			Decision = TEXT("SuppressMovingOutOfRange");
+			CachedPresentation->CancelPlayerBasicAttackForMovement("Input.MoveCancelBasicAttack");
+			const FName MovingSuppressionReason = "Suppress.PlayerMoving";
+			if (CannotPresentLogCooldownRemaining <= 0.f || LastCannotPresentReasonTag != MovingSuppressionReason)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] Suppressed Reason=PlayerMoving Owner=%s Target=%s Distance=%.1f AttackRange=%.1f"),
+					*GetNameSafe(GetOwner()), *GetNameSafe(CurrentTarget.Get()), Distance, AttackRange);
+				CannotPresentLogCooldownRemaining = 0.75f;
+				LastCannotPresentReasonTag = MovingSuppressionReason;
+			}
+			Decision = TEXT("SuppressMoving");
 			return;
-		}
-		if (bIsMovingInput && bInKeepRange)
-		{
-			UE_LOG(LogTemp, Log, TEXT("[PlayerAutoAttack] AttackAllowedWhileMoving InRange=true IntervalMultiplier=%.2f"), MovingAutoAttackIntervalMultiplier);
 		}
 		if (!bInRange)
 		{
@@ -240,7 +241,7 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 
 		const float EffectivePlayerInterval = CachedPresentation.IsValid()
 			? CachedPresentation->GetMinBasicAttackStartInterval()
-			: PlayerAutoAttackInterval * (bIsMovingInput ? MovingAutoAttackIntervalMultiplier : 1.0f);
+			: PlayerAutoAttackInterval;
 		const FCombatActionResult AttackResult = CachedPresentation->TryPresentBasicAttack(CurrentTarget.Get());
 		if (AttackResult.bOk)
 		{

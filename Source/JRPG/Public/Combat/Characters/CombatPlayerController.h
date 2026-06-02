@@ -79,6 +79,7 @@ private:
 	void OnSkill1(const FInputActionValue& Value);
 	void TryConsumeBufferedSkill();
 	void ClearBufferedSkill(FName ReasonTag);
+	void ClearMovementOverrideForAction(FName ReasonTag);
 	bool bIsPartyWheelActive = false;
 	FTimerHandle BufferedSkillTimerHandle;
 	FName BufferedSkillId = NAME_None;

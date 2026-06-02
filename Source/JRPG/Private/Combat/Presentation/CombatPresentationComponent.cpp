@@ -184,19 +184,30 @@ void UCombatPresentationComponent::CancelActiveMotionIfNeeded()
 	}
 }
 
+void UCombatPresentationComponent::StopActiveMontageIfNeeded(float BlendOutTime)
+{
+	if (!Active.Montage)
+	{
+		return;
+	}
+
+	ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner());
+	USkeletalMeshComponent* MeshComp = CharacterOwner ? CharacterOwner->GetMesh() : nullptr;
+	UAnimInstance* Anim = MeshComp ? MeshComp->GetAnimInstance() : nullptr;
+	if (!Anim || !Anim->Montage_IsPlaying(Active.Montage))
+	{
+		return;
+	}
+
+	FOnMontageEnded EmptyEndDelegate;
+	Anim->Montage_SetEndDelegate(EmptyEndDelegate, Active.Montage);
+	Anim->Montage_Stop(FMath::Max(0.f, BlendOutTime), Active.Montage);
+}
+
 void UCombatPresentationComponent::AcquireInputLockForPresentation()
 {
 	if (APawn* P = Cast<APawn>(GetOwner()))
 	{
-		if (Active.Type == EPresentedCombatActionType::BasicAttack && P->IsPlayerControlled())
-		{
-			const ACombatPlayerController* PC = Cast<ACombatPlayerController>(P->GetController());
-			if (PC && PC->IsMovementOverrideActive())
-			{
-				return;
-			}
-		}
-
 		if (ULocomotionComponent* Loco = P->FindComponentByClass<ULocomotionComponent>())
 		{
 			const TJRPGResult<FJRPGHandle> Result = Loco->AcquireInputLock("Present.Action");
@@ -228,13 +239,16 @@ void UCombatPresentationComponent::StopPathFollowingForPresentation(FName Reason
 {
 	ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner());
 	AAIController* AIController = CharacterOwner ? Cast<AAIController>(CharacterOwner->GetController()) : nullptr;
-	if (!CharacterOwner || !AIController)
+	if (!CharacterOwner)
 	{
 		return;
 	}
 
-	const EPathFollowingStatus::Type PreviousStatus = AIController->GetMoveStatus();
-	AIController->StopMovement();
+	const EPathFollowingStatus::Type PreviousStatus = AIController ? AIController->GetMoveStatus() : EPathFollowingStatus::Idle;
+	if (AIController)
+	{
+		AIController->StopMovement();
+	}
 	if (UCharacterMovementComponent* MoveComp = CharacterOwner->GetCharacterMovement())
 	{
 		MoveComp->StopMovementImmediately();
@@ -298,7 +312,7 @@ void UCombatPresentationComponent::ApplyAttackRotationLockIfNeeded()
 	MoveComp->bOrientRotationToMovement = false;
 	MoveComp->bUseControllerDesiredRotation = false;
 	CharacterOwner->bUseControllerRotationYaw = false;
-	Active.FaceTargetUntilRealSec = FPlatformTime::Seconds() + FMath::Max(0.35f, Active.Montage ? Active.Montage->GetPlayLength() : 0.6f);
+	Active.FaceTargetUntilRealSec = FPlatformTime::Seconds() + 0.12;
 	FaceActiveTarget();
 }
 
@@ -390,7 +404,23 @@ void UCombatPresentationComponent::PlayActiveMontageOrResolve()
 
 	if (ACharacter* C = Cast<ACharacter>(GetOwner()))
 	{
-		const float PlayedLen = C->PlayAnimMontage(Active.Montage);
+		if (C->CustomTimeDilation <= 0.06f)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Presentation][TimeDilationReset] Owner=%s Action=%s PreviousDilation=%.3f"),
+				*GetNameSafe(GetOwner()),
+				*Active.ActionId.ToString(),
+				C->CustomTimeDilation);
+			C->CustomTimeDilation = 1.f;
+		}
+		if (USkeletalMeshComponent* MeshComp = C->GetMesh())
+		{
+			if (MeshComp->GlobalAnimRateScale <= 0.1f)
+			{
+				MeshComp->GlobalAnimRateScale = 1.f;
+			}
+		}
+
+		const float PlayedLen = C->PlayAnimMontage(Active.Montage, 1.f);
 		if (PlayedLen > 0.f)
 		{
 			if (USkeletalMeshComponent* MeshComp = C->GetMesh())
@@ -458,13 +488,7 @@ float UCombatPresentationComponent::GetMinBasicAttackStartInterval() const
 	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
 	if (OwnerPawn && OwnerPawn->IsPlayerControlled())
 	{
-		float Interval = 0.75f;
-		const ACombatPlayerController* PC = Cast<ACombatPlayerController>(OwnerPawn->GetController());
-		if (PC && PC->IsMovementOverrideActive())
-		{
-			Interval *= 1.4f;
-		}
-		return Interval;
+		return 0.75f;
 	}
 
 	if (const ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(GetOwner()))
@@ -959,6 +983,7 @@ void UCombatPresentationComponent::CancelActivePresentation(FName ReasonTag, boo
 			FLinearColor(1.f, 0.6f, 0.6f));
 	}
 
+	StopActiveMontageIfNeeded(0.08f);
 	CancelActiveMotionIfNeeded();
 
 	if (Active.Type == EPresentedCombatActionType::Skill && SkillComp.IsValid() && SkillComp->HasPreparedSkillCast())
@@ -981,6 +1006,34 @@ void UCombatPresentationComponent::CancelActivePresentation(FName ReasonTag, boo
 	RestoreAttackRotationLockIfNeeded();
 	ReleaseInputLockForPresentation();
 	ClearActiveState();
+}
+
+bool UCombatPresentationComponent::CancelPlayerBasicAttackForMovement(FName ReasonTag)
+{
+	if (Active.Type != EPresentedCombatActionType::BasicAttack)
+	{
+		return false;
+	}
+
+	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (!OwnerPawn || !OwnerPawn->IsPlayerControlled())
+	{
+		return false;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[InputPriority] Player movement cancels auto basic attack Owner=%s Resolved=%s"),
+		*GetNameSafe(GetOwner()),
+		Active.bResolved ? TEXT("true") : TEXT("false"));
+
+	if (Active.bResolved)
+	{
+		StopActiveMontageIfNeeded(0.08f);
+		FinishActivePresentation();
+		return true;
+	}
+
+	CancelActivePresentation(ReasonTag.IsNone() ? FName("Input.MoveCancelBasicAttack") : ReasonTag, false);
+	return true;
 }
 
 void UCombatPresentationComponent::ClearActiveState()

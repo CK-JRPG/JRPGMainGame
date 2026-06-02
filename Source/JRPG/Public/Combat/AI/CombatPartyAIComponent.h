@@ -127,7 +127,6 @@ private:
 	float LastAutoAttackSuccessTime = -1000.f;
 	float PlayerAutoAttackInterval = 0.75f;
 	float AIAutoAttackInterval = 1.0f;
-	float MovingAutoAttackIntervalMultiplier = 1.4f;
 	float LastAIBasicAttackStartTime = -1000.f;
 	float AttackKeepRange = 650.f;
 	float HealRange = 700.f;

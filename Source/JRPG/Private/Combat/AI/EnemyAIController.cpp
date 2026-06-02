@@ -314,6 +314,11 @@ void AEnemyAIController::TickChase(float DeltaSeconds)
 
 void AEnemyAIController::TickAttack(float DeltaSeconds)
 {
+	if (PresentationComp && PresentationComp->HasActivePresentation())
+	{
+		return;
+	}
+
 	RefreshTarget();
 
 	if (!CurrentTarget.IsValid())
@@ -378,6 +383,11 @@ void AEnemyAIController::TickRising(float DeltaSeconds)
 {
 	const bool bAllowed = PresetAsset ? PresetAsset->bEnemyRisingAttackAllowed : false;
 	if (!bAllowed) return;
+
+	if (PresentationComp && PresentationComp->HasActivePresentation())
+	{
+		return;
+	}
 
 	const double Now = FPlatformTime::Seconds();
 	if (Now >= TargetLockUntilReal)

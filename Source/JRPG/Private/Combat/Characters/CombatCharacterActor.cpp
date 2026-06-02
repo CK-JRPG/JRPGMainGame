@@ -187,6 +187,19 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 	UE_LOG(LogTemp, Log, TEXT("CombatCharacterActor::HandleOnDeath : %s 사망 (Reason=%s)"),
 	*GetName(), *ReasonTag.ToString());
 
+	if (CustomTimeDilation <= 0.06f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Death][TimeDilationReset] Owner=%s PreviousDilation=%.3f"), *GetNameSafe(this), CustomTimeDilation);
+		CustomTimeDilation = 1.f;
+	}
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		if (MeshComp->GlobalAnimRateScale <= 0.1f)
+		{
+			MeshComp->GlobalAnimRateScale = 1.f;
+		}
+	}
+
 	// 진행 중인 프레젠테이션 취소 (몽타주 중단 + 기존 입력 잠금 해제)
 	if (PresentationComp)
 	{
@@ -248,7 +261,7 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 		// 플레이어, 아군 사망시
 		else if (UAnimInstance* Anim = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 		{
-			Anim->Montage_Play(DeathMontage);
+			Anim->Montage_Play(DeathMontage, 1.0f);
 		}
 	}
 

@@ -48,6 +48,7 @@ public:
 	UFUNCTION()
 	void HandleActiveMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 	void CancelActivePresentation(FName ReasonTag,bool bRefundPreparedSkill);
+	bool CancelPlayerBasicAttackForMovement(FName ReasonTag);
 
 	void EmitCue(FName CueTag);
 	void SetAutoAttackSuppressedFor(float DurationSec);
@@ -112,6 +113,7 @@ private:
 	bool TryStartMotionForBasicAttack();
 	bool TryStartMotionForSkill(USkillDataAsset* SkillDef);
 	void CancelActiveMotionIfNeeded();
+	void StopActiveMontageIfNeeded(float BlendOutTime);
 	
 	void AcquireInputLockForPresentation();
 	void ReleaseInputLockForPresentation();

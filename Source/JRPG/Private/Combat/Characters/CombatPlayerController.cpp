@@ -15,6 +15,7 @@
 #include "UI/Presenters/CombatHUDPresenter.h"
 
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Pawn.h"
 #include "InputCoreTypes.h"
 #include "Combat/Skills/SkillComponent.h"
@@ -84,6 +85,7 @@ void ACombatPlayerController::SetupInputComponent()
 void ACombatPlayerController::OnPossess(APawn* InPawn)
 {
 	Super::OnPossess(InPawn);
+	bMovementOverrideActive = false;
 
 	if(ULocalPlayer * LP = GetLocalPlayer())
 	{
@@ -113,6 +115,7 @@ void ACombatPlayerController::OnPossess(APawn* InPawn)
 
 void ACombatPlayerController::OnUnPossess()
 {
+	bMovementOverrideActive = false;
 	Super::OnUnPossess();
 }
 
@@ -130,6 +133,14 @@ void ACombatPlayerController::OnMove(const FInputActionValue& Value)
 
 	APawn* ControlledPawn = GetPawn();
 	if (!ControlledPawn) return;
+
+	if (bHasMovementInput)
+	{
+		if (UCombatPresentationComponent* Presentation = ControlledPawn->FindComponentByClass<UCombatPresentationComponent>())
+		{
+			Presentation->CancelPlayerBasicAttackForMovement("Input.MoveCancelBasicAttack");
+		}
+	}
 
 	if (ULocomotionComponent* Locomotion = ControlledPawn->FindComponentByClass<ULocomotionComponent>())
 	{
@@ -310,6 +321,8 @@ void ACombatPlayerController::OnSkill1(const FInputActionValue& Value)
 	SkillComp->GetOwnedSkillIds(SkillIds);
 	if (SkillIds.Num() == 0) return;
 
+	ClearMovementOverrideForAction("Input.SkillStopsMovement");
+
 	const bool bHasSameBufferedSkill = (BufferedSkillId == SkillIds[0]);
 	BufferedSkillId = SkillIds[0];
 	const float Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.f;
@@ -413,6 +426,36 @@ void ACombatPlayerController::ClearBufferedSkill(FName ReasonTag)
 	if (GetWorld())
 	{
 		GetWorld()->GetTimerManager().ClearTimer(BufferedSkillTimerHandle);
+	}
+}
+
+void ACombatPlayerController::ClearMovementOverrideForAction(FName ReasonTag)
+{
+	APawn* ControlledPawn = GetPawn();
+	if (!ControlledPawn)
+	{
+		bMovementOverrideActive = false;
+		return;
+	}
+
+	if (bMovementOverrideActive)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[InputPriority] Player movement override cleared Reason=%s"),
+			ReasonTag.IsNone() ? TEXT("None") : *ReasonTag.ToString());
+	}
+	bMovementOverrideActive = false;
+
+	if (ULocomotionComponent* Locomotion = ControlledPawn->FindComponentByClass<ULocomotionComponent>())
+	{
+		Locomotion->SetMoveInput(FVector2D::ZeroVector);
+	}
+
+	if (ACharacter* CharacterPawn = Cast<ACharacter>(ControlledPawn))
+	{
+		if (UCharacterMovementComponent* MoveComp = CharacterPawn->GetCharacterMovement())
+		{
+			MoveComp->StopMovementImmediately();
+		}
 	}
 }
 
