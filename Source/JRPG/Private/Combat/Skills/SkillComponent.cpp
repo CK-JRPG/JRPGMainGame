@@ -3,9 +3,11 @@
 #include "JRPG/Public/Combat/Skills/SkillDataAsset.h"
 
 #include "JRPG/Public/Combat/Battle/CombatFormulaLibrary.h"
+#include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Battle/DirectionalDamageComponent.h"
 #include "Combat/Battle/BasicCombatSubsystem.h"
 #include "JRPG/Public/Combat/Characters/CombatParticipantInterface.h"
+#include "Combat/Characters/CombatCharacterComponent.h"
 #include "JRPG/Public/Combat/Characters/Stats/CharacterCombatStatsComponent.h"
 
 #include "JRPG/Public/Combat/Stats/HPComponent.h"
@@ -176,6 +178,51 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 	const float Atk = Stats.IsValid() ? Stats->GetSnapshot().Attack : 10.f; 
 	const float CritRate = Stats.IsValid() ? Stats->GetSnapshot().CritRate : 0.f;
 	const float CritBonus = Stats.IsValid() ? Stats->GetSnapshot().CritDamage : 0.f;
+	constexpr float SkillDamageThreatScalar = 1.20f;
+	constexpr float HealerRoleHealThreatScalar = 1.45f;
+	const FString SkillIdString = Skill.SkillId.ToString();
+	const bool bAggroUtilitySkill = SkillIdString.Contains(TEXT("Aggro"));
+	const float EffectiveThreatBase = bAggroUtilitySkill ? FMath::Min(Skill.ThreatBase, 95.f) : Skill.ThreatBase;
+	const float EffectiveThreatFromDamageMul = bAggroUtilitySkill ? 0.f : Skill.ThreatFromDamageMul;
+	const float EffectiveThreatFromHealMul = bAggroUtilitySkill ? 0.f : Skill.ThreatFromHealMul;
+	float HealThreatScalar = 1.0f;
+	if (const UCombatCharacterComponent* CharacterComp = GetOwner() ? GetOwner()->FindComponentByClass<UCombatCharacterComponent>() : nullptr)
+	{
+		const EJRPGPartyRole OwnerRole = CharacterComp->GetRole();
+		if (OwnerRole == EJRPGPartyRole::Supporter || OwnerRole == EJRPGPartyRole::Healer)
+		{
+			HealThreatScalar = HealerRoleHealThreatScalar;
+		}
+	}
+
+	auto AddThreatToOpponents = [this](AActor* Source, float Amount, FName ReasonTag)
+	{
+		if (!IsValid(Source) || Amount <= 0.f)
+		{
+			return;
+		}
+
+		UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+		if (!Battle)
+		{
+			return;
+		}
+
+		TArray<AActor*> Opponents;
+		Battle->GetOpponentsFor(Source, Opponents);
+		for (AActor* Opponent : Opponents)
+		{
+			if (!IsValid(Opponent))
+			{
+				continue;
+			}
+
+			if (UThreatComponent* Threat = Opponent->FindComponentByClass<UThreatComponent>())
+			{
+				Threat->AddThreat(Source, Amount, ReasonTag);
+			}
+		}
+	};
 
 	for (AActor *T :Targets)
 	{
@@ -247,7 +294,7 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 				
 				if (TThreat)
 				{
-					const float Threat = FMath::Max(0.f,Skill.ThreatBase+DamageDone* FMath::Max(0.f,Skill.ThreatFromDamageMul));
+					const float Threat = FMath::Max(0.f, EffectiveThreatBase + DamageDone * FMath::Max(0.f, EffectiveThreatFromDamageMul) * SkillDamageThreatScalar);
 					if (Threat > 0.f)
 						TThreat->AddThreat(GetOwner(),Threat, Skill.SkillId);
 				}
@@ -265,6 +312,11 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 			if (Healed > 0.f)
 			{
 				SPSubSystem->ReportHeal(GetOwner(),T, Healed, BeforeRatio, bFromTacticalReservation, Skill.SkillId);
+				if (!IsHostileTarget(T))
+				{
+					const float Threat = FMath::Max(0.f, (EffectiveThreatBase + Healed * FMath::Max(0.f, EffectiveThreatFromHealMul)) * HealThreatScalar);
+					AddThreatToOpponents(GetOwner(), Threat, Skill.SkillId);
+				}
 			}
 		}
 

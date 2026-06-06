@@ -50,6 +50,8 @@ void UCombatPartyAIComponent::BeginPlay()
 		CachedPresentation->OnPresentationFinished.AddUObject(this, &UCombatPartyAIComponent::HandlePresentationFinished);
 	}
 	RangedRepositionDirection = FMath::RandBool() ? 1.f : -1.f;
+	CombatStrafeDirection = FMath::RandBool() ? 1.f : -1.f;
+	CombatStrafeFlipRemaining = FMath::FRandRange(AttackStrafeFlipIntervalMin, AttackStrafeFlipIntervalMax);
 
 	LoadRangeParams();
 	NavFailureRetryBlockRemaining = 0.f;
@@ -115,6 +117,10 @@ void UCombatPartyAIComponent::HandlePresentationFinished(EPresentedCombatActionT
 {
 	if (!IsPlayerControlledNow())
 	{
+		if (Type == EPresentedCombatActionType::Skill)
+		{
+			StartPostSkillReposition(ActionId);
+		}
 		return;
 	}
 
@@ -342,7 +348,14 @@ void UCombatPartyAIComponent::TickComponent(float DeltaTime, ELevelTick TickType
 	// Chain 시퀀스 중 이라면 작동안함
 	if (Context->bInChainSequence)
 	{
+		bPostSkillRepositionActive = false;
 		State = EPartyAIState::SuppressedByChain;
+		return;
+	}
+
+	if (TickPostSkillReposition(DeltaTime))
+	{
+		LogMoveDebug(DeltaTime);
 		return;
 	}
 
@@ -539,6 +552,7 @@ void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 			case EPartyAIState::Chase: ActionName = TEXT("MoveToTarget"); break;
 			case EPartyAIState::Attack: ActionName = TEXT("Attack"); break;
 			case EPartyAIState::KeepDistance: ActionName = TEXT("KeepDistance"); break;
+			case EPartyAIState::Reposition: ActionName = TEXT("Reposition"); break;
 			case EPartyAIState::Follow: ActionName = TEXT("Follow"); break;
 			default: break;
 			}
@@ -562,7 +576,7 @@ void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 		{
 			ActionText = TEXT("BasicAttack");
 		}
-		else if (State == EPartyAIState::Chase || State == EPartyAIState::KeepDistance)
+		else if (State == EPartyAIState::Chase || State == EPartyAIState::KeepDistance || State == EPartyAIState::Reposition)
 		{
 			ActionText = TEXT("MoveToTarget");
 		}
@@ -589,6 +603,7 @@ void UCombatPartyAIComponent::TickMovementAndAction(float DeltaTime)
 	case EPartyAIState::Attack:
 		StopActiveMove("AttackRangeReached");
 		FaceTarget(CurrentTarget.Get());
+		UpdateAttackStrafe(DeltaTime);
 		break;
 
 	case EPartyAIState::KeepDistance:
@@ -875,10 +890,6 @@ void UCombatPartyAIComponent::MoveDirectlyAwayFrom(const FVector& ThreatLocation
 	{
 		Dir /= Dist;
 	}
-	if (FVector::DotProduct(LastMoveDirection, Dir) > 0.999f)
-	{
-		return;
-	}
 	LastMoveDirection = Dir;
 
 	MyChar->AddMovementInput(Dir, Scale);
@@ -905,15 +916,354 @@ void UCombatPartyAIComponent::MoveLaterallyAround(const FVector& FocusLocation, 
 		return;
 	}
 
-	if (FVector::DotProduct(LastMoveDirection, Right * FMath::Sign(Scale)) > 0.999f)
-	{
-		return;
-	}
 	LastMoveDirection = Right * FMath::Sign(Scale);
 
 	MyChar->AddMovementInput(Right, Scale);
 	MoveCallsThisSecond += 1.f;
 	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
+}
+
+void UCombatPartyAIComponent::UpdateAttackStrafe(float DeltaTime)
+{
+	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
+	AActor* TargetActor = CurrentTarget.Get();
+	if (!MyChar || !TargetActor)
+	{
+		return;
+	}
+
+	if (CachedPresentation.IsValid() && CachedPresentation->HasActivePresentation())
+	{
+		return;
+	}
+
+	CombatStrafeFlipRemaining -= DeltaTime;
+	if (CombatStrafeFlipRemaining <= 0.f)
+	{
+		CombatStrafeDirection *= -1.f;
+		CombatStrafeFlipRemaining = FMath::FRandRange(AttackStrafeFlipIntervalMin, AttackStrafeFlipIntervalMax);
+	}
+
+	FVector ToTarget = TargetActor->GetActorLocation() - MyChar->GetActorLocation();
+	ToTarget.Z = 0.f;
+	const float Dist = ToTarget.Size();
+	if (Dist < KINDA_SMALL_NUMBER)
+	{
+		return;
+	}
+	ToTarget /= Dist;
+
+	const float InnerRange = bIsRanged
+		? FMath::Max(PreferredMinRange, AttackRange * AttackStrafeInnerRatio)
+		: FMath::Max(80.f, AttackRange * AttackStrafeInnerRatio);
+	const float OuterRange = FMath::Max(InnerRange + 40.f, AttackRange * AttackStrafeOuterRatio);
+
+	FVector MoveDir = FVector::CrossProduct(FVector::UpVector, ToTarget).GetSafeNormal() * CombatStrafeDirection;
+	if (Dist < InnerRange)
+	{
+		MoveDir -= ToTarget * 0.8f;
+	}
+	else if (Dist > OuterRange)
+	{
+		MoveDir += ToTarget * 0.55f;
+	}
+
+	MoveDir.Z = 0.f;
+	MoveDir = MoveDir.GetSafeNormal();
+	if (MoveDir.IsNearlyZero())
+	{
+		return;
+	}
+
+	LastMoveDirection = MoveDir;
+	MyChar->AddMovementInput(MoveDir, AttackStrafeSpeedScale);
+	MoveCallsThisSecond += 1.f;
+	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
+}
+
+bool UCombatPartyAIComponent::IsHealerLikeRole() const
+{
+	return Role == EJRPGPartyRole::Supporter || Role == EJRPGPartyRole::Healer;
+}
+
+FVector UCombatPartyAIComponent::BuildEnemyAvoidanceDirection(const FVector& Origin, AActor*& OutNearestEnemy, float& OutNearestDistance) const
+{
+	OutNearestEnemy = nullptr;
+	OutNearestDistance = MAX_FLT;
+
+	const AActor* OwnerActor = GetOwner();
+	const UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	if (!OwnerActor || !Battle)
+	{
+		return FVector::ZeroVector;
+	}
+
+	TArray<AActor*> Enemies;
+	Battle->GetOpponentsFor(const_cast<AActor*>(OwnerActor), Enemies);
+
+	FVector Avoidance = FVector::ZeroVector;
+	const float InfluenceRadius = FMath::Max(PostSkillHealerEnemyKeepDistance * 1.35f, PostSkillHealerEnemyKeepDistance + 1.f);
+	for (AActor* Enemy : Enemies)
+	{
+		if (!IsValid(Enemy))
+		{
+			continue;
+		}
+
+		const UHPComponent* EnemyHP = Enemy->FindComponentByClass<UHPComponent>();
+		if (EnemyHP && EnemyHP->IsDead())
+		{
+			continue;
+		}
+
+		FVector Away = Origin - Enemy->GetActorLocation();
+		Away.Z = 0.f;
+		float Dist = Away.Size();
+		if (Dist < 1.f)
+		{
+			Away = OwnerActor->GetActorForwardVector();
+			Away.Z = 0.f;
+			Dist = 1.f;
+		}
+
+		if (Dist < OutNearestDistance)
+		{
+			OutNearestDistance = Dist;
+			OutNearestEnemy = Enemy;
+		}
+
+		if (Dist <= InfluenceRadius)
+		{
+			const float Weight = FMath::Clamp((InfluenceRadius - Dist) / InfluenceRadius, 0.08f, 1.f);
+			Avoidance += Away.GetSafeNormal() * Weight;
+		}
+	}
+
+	if (Avoidance.IsNearlyZero() && OutNearestEnemy)
+	{
+		Avoidance = Origin - OutNearestEnemy->GetActorLocation();
+		Avoidance.Z = 0.f;
+	}
+
+	return Avoidance.GetSafeNormal();
+}
+
+void UCombatPartyAIComponent::PushGoalAwayFromEnemies(FVector& InOutGoal) const
+{
+	const AActor* OwnerActor = GetOwner();
+	const UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	if (!OwnerActor || !Battle)
+	{
+		return;
+	}
+
+	TArray<AActor*> Enemies;
+	Battle->GetOpponentsFor(const_cast<AActor*>(OwnerActor), Enemies);
+
+	const float GoalZ = InOutGoal.Z;
+	for (int32 Pass = 0; Pass < 2; ++Pass)
+	{
+		for (AActor* Enemy : Enemies)
+		{
+			if (!IsValid(Enemy))
+			{
+				continue;
+			}
+
+			const UHPComponent* EnemyHP = Enemy->FindComponentByClass<UHPComponent>();
+			if (EnemyHP && EnemyHP->IsDead())
+			{
+				continue;
+			}
+
+			FVector Away = InOutGoal - Enemy->GetActorLocation();
+			Away.Z = 0.f;
+			const float Dist = Away.Size();
+			if (Dist >= PostSkillHealerEnemyKeepDistance)
+			{
+				continue;
+			}
+
+			if (Away.IsNearlyZero())
+			{
+				Away = InOutGoal - OwnerActor->GetActorLocation();
+				Away.Z = 0.f;
+			}
+			if (Away.IsNearlyZero())
+			{
+				Away = OwnerActor->GetActorForwardVector();
+				Away.Z = 0.f;
+			}
+
+			const float PushAmount = PostSkillHealerEnemyKeepDistance - Dist + 80.f;
+			InOutGoal += Away.GetSafeNormal() * PushAmount;
+			InOutGoal.Z = GoalZ;
+		}
+	}
+}
+
+void UCombatPartyAIComponent::StartPostSkillReposition(FName ActionId)
+{
+	AActor* OwnerActor = GetOwner();
+	if (!OwnerActor || IsPlayerControlledNow() || PostSkillRepositionDuration <= 0.f)
+	{
+		return;
+	}
+
+	if (!CurrentTarget.IsValid())
+	{
+		RefreshTarget();
+	}
+
+	const FVector OwnerLocation = OwnerActor->GetActorLocation();
+	if (IsHealerLikeRole())
+	{
+		AActor* NearestEnemy = nullptr;
+		float NearestEnemyDistance = MAX_FLT;
+		FVector AwayFromEnemies = BuildEnemyAvoidanceDirection(OwnerLocation, NearestEnemy, NearestEnemyDistance);
+		if (!AwayFromEnemies.IsNearlyZero())
+		{
+			const float SideSign = FMath::RandBool() ? 1.f : -1.f;
+			const FVector Side = FVector::CrossProduct(FVector::UpVector, AwayFromEnemies).GetSafeNormal() * SideSign;
+			FVector DesiredDir = (AwayFromEnemies + Side * 0.22f).GetSafeNormal();
+			if (DesiredDir.IsNearlyZero())
+			{
+				DesiredDir = AwayFromEnemies;
+			}
+
+			const float NeededExtraDistance = NearestEnemyDistance < MAX_FLT
+				? FMath::Max(0.f, PostSkillHealerEnemyKeepDistance - NearestEnemyDistance) + 140.f
+				: 0.f;
+			const float RetreatDistance = FMath::Max(PostSkillHealerRetreatDistance, NeededExtraDistance);
+
+			PostSkillRepositionGoal = OwnerLocation + DesiredDir * RetreatDistance;
+			PostSkillRepositionGoal.Z = OwnerLocation.Z;
+			PushGoalAwayFromEnemies(PostSkillRepositionGoal);
+
+			PostSkillRepositionRemaining = PostSkillRepositionDuration;
+			bPostSkillRepositionActive = true;
+			State = EPartyAIState::Reposition;
+			StopActiveMove("AfterSkillHealerReposition");
+
+			UE_LOG(LogTemp, Log, TEXT("[PartyAI][PostSkillReposition] Start Owner=%s Skill=%s Mode=HealerAway NearestEnemy=%s NearestDist=%.1f Goal=%s Duration=%.2f"),
+				*GetNameSafe(OwnerActor),
+				ActionId.IsNone() ? TEXT("None") : *ActionId.ToString(),
+				*GetNameSafe(NearestEnemy),
+				NearestEnemyDistance,
+				*PostSkillRepositionGoal.ToString(),
+				PostSkillRepositionDuration);
+			return;
+		}
+	}
+
+	const AActor* FocusActor = CurrentTarget.Get();
+	const FVector FocusLocation = FocusActor
+		? FocusActor->GetActorLocation()
+		: OwnerLocation + OwnerActor->GetActorForwardVector() * 120.f;
+
+	FVector FromFocus = OwnerLocation - FocusLocation;
+	FromFocus.Z = 0.f;
+	if (FromFocus.IsNearlyZero())
+	{
+		const float RandomAngleDeg = FMath::FRandRange(0.f, 360.f);
+		FromFocus = FVector(FMath::Cos(FMath::DegreesToRadians(RandomAngleDeg)), FMath::Sin(FMath::DegreesToRadians(RandomAngleDeg)), 0.f);
+	}
+	FromFocus.Normalize();
+
+	const float SideSign = FMath::RandBool() ? 1.f : -1.f;
+	const float OrbitAngleDeg = FMath::FRandRange(55.f, 125.f) * SideSign;
+	FVector DesiredDir = FromFocus.RotateAngleAxis(OrbitAngleDeg, FVector::UpVector).GetSafeNormal();
+	if (DesiredDir.IsNearlyZero())
+	{
+		DesiredDir = FromFocus;
+	}
+
+	const float DesiredRadius = bIsRanged
+		? FMath::Max(PostSkillRangedRepositionRadius, PreferredMinRange)
+		: FMath::Max(PostSkillMeleeRepositionRadius, AttackRange * 0.8f);
+
+	PostSkillRepositionGoal = FocusLocation + DesiredDir * DesiredRadius;
+	PostSkillRepositionGoal.Z = OwnerLocation.Z;
+	PostSkillRepositionRemaining = PostSkillRepositionDuration;
+	bPostSkillRepositionActive = true;
+	State = EPartyAIState::Reposition;
+	StopActiveMove("AfterSkillReposition");
+
+	UE_LOG(LogTemp, Log, TEXT("[PartyAI][PostSkillReposition] Start Owner=%s Skill=%s Focus=%s Goal=%s Duration=%.2f"),
+		*GetNameSafe(OwnerActor),
+		ActionId.IsNone() ? TEXT("None") : *ActionId.ToString(),
+		*GetNameSafe(FocusActor),
+		*PostSkillRepositionGoal.ToString(),
+		PostSkillRepositionDuration);
+}
+
+bool UCombatPartyAIComponent::TickPostSkillReposition(float DeltaTime)
+{
+	if (!bPostSkillRepositionActive)
+	{
+		return false;
+	}
+
+	ACharacter* MyChar = Cast<ACharacter>(GetOwner());
+	if (!MyChar || IsPlayerControlledNow() || (Context && Context->bSelfIsDead))
+	{
+		bPostSkillRepositionActive = false;
+		return false;
+	}
+
+	PostSkillRepositionRemaining = FMath::Max(0.f, PostSkillRepositionRemaining - DeltaTime);
+	const FVector CurrentLocation = MyChar->GetActorLocation();
+	FVector ToGoal = PostSkillRepositionGoal - CurrentLocation;
+	ToGoal.Z = 0.f;
+
+	const float GoalDist = ToGoal.Size();
+	if (GoalDist <= PostSkillRepositionArriveRadius || PostSkillRepositionRemaining <= 0.f)
+	{
+		bPostSkillRepositionActive = false;
+		LastMoveDirection = FVector::ZeroVector;
+		UpdateStateMachine();
+		UE_LOG(LogTemp, Log, TEXT("[PartyAI][PostSkillReposition] End Owner=%s Distance=%.1f Remaining=%.2f"),
+			*GetNameSafe(GetOwner()),
+			GoalDist,
+			PostSkillRepositionRemaining);
+		return false;
+	}
+
+	ToGoal /= GoalDist;
+	if (IsHealerLikeRole())
+	{
+		AActor* NearestEnemy = nullptr;
+		float NearestEnemyDistance = MAX_FLT;
+		const FVector AvoidanceDir = BuildEnemyAvoidanceDirection(CurrentLocation, NearestEnemy, NearestEnemyDistance);
+		if (!AvoidanceDir.IsNearlyZero())
+		{
+			const float AvoidanceWeight = NearestEnemyDistance < PostSkillHealerEnemyKeepDistance
+				? PostSkillHealerAvoidanceWeight
+				: PostSkillHealerAvoidanceWeight * 0.45f;
+			ToGoal = (ToGoal + AvoidanceDir * AvoidanceWeight).GetSafeNormal();
+			if (ToGoal.IsNearlyZero())
+			{
+				ToGoal = AvoidanceDir;
+			}
+		}
+	}
+
+	LastMoveDirection = ToGoal;
+	State = EPartyAIState::Reposition;
+	MyChar->AddMovementInput(ToGoal, PostSkillRepositionSpeedScale);
+	MoveCallsThisSecond += 1.f;
+	if (MoveCallsAccum <= 0.f) MoveCallsAccum = KINDA_SMALL_NUMBER;
+
+	if (CurrentTarget.IsValid())
+	{
+		FaceTarget(CurrentTarget.Get());
+	}
+	else
+	{
+		MyChar->SetActorRotation(ToGoal.Rotation());
+	}
+
+	return true;
 }
 
 void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
@@ -1263,7 +1613,9 @@ bool UCombatPartyAIComponent::ResolveSkillMeta(USkillComponent* SkillComp, FName
 		OutMeta.bIsDebuff = Def->ApplyStatus != nullptr || HasAITag(TEXT("Debuff"));
 		OutMeta.bIsHighDps = HasAITag(TEXT("Damage")) || (Def->BasePower > 0.f && Def->AttackScale >= 1.0f);
 		OutMeta.bIsCleanse = Def->DispelAnyTags.Num() > 0;
-		OutMeta.bIsTaunt = HasAITag(TEXT("Taunt")) || Def->ThreatBase > 0.f || Def->ThreatFromDamageMul > 1.0f;
+		const bool bTargetsEnemy = Def->TargetType == ESkillTargetType::EnemySingle || Def->TargetType == ESkillTargetType::EnemyAll;
+		const bool bLooksLikeThreatSkill = bTargetsEnemy && (Def->SkillId.ToString().Contains(TEXT("Aggro")) || Def->ThreatBase >= 50.f);
+		OutMeta.bIsTaunt = HasAITag(TEXT("Taunt")) || bLooksLikeThreatSkill;
 		OutMeta.bIsBuff = Def->ApplyStatus != nullptr && (Def->TargetType == ESkillTargetType::Self || Def->TargetType == ESkillTargetType::AllySingle || Def->TargetType == ESkillTargetType::AllyAll);
 		return true;
 	}

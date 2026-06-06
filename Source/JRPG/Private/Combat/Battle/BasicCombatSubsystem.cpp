@@ -46,10 +46,10 @@ void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, f
 	const float MaxHP = TargetHP ? FMath::Max(1.f, TargetHP->GetMaxHP()) : 100.f;
 	const float DamageRatio = DamageAmount / MaxHP;
 
-	float HitStopSec = bSkillOrHeavyHit ? 0.05f : 0.03f;
+	float HitStopSec = bSkillOrHeavyHit ? SkillHitStopSec : BasicHitStopSec;
 	if (bCritical || DamageRatio >= 0.15f)
 	{
-		HitStopSec = FMath::Clamp(0.07f + DamageRatio * 0.15f, 0.07f, 0.10f);
+		HitStopSec = FMath::Clamp(HeavyHitStopMinSec + DamageRatio * 0.15f, HeavyHitStopMinSec, HeavyHitStopMaxSec);
 	}
 
 	auto ApplyActorHitStop = [this, HitStopSec](AActor* Actor)
@@ -68,7 +68,7 @@ void UBasicCombatSubsystem::ApplyHitFeedback(AActor* Attacker, AActor* Target, f
 		}
 		HitStop.Serial++;
 		const int32 RestoreSerial = HitStop.Serial;
-		Actor->CustomTimeDilation = 0.05f;
+		Actor->CustomTimeDilation = HitStopTimeDilation;
 
 		FTimerHandle RestoreHandle;
 		TWeakObjectPtr<AActor> WeakActor = Actor;
@@ -191,6 +191,14 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 	const float Def = TargetStats ? TargetStats->GetSnapshot().Defense : 5.f;
 	const float CritRate = AttackerStats ? AttackerStats->GetSnapshot().CritRate : 0.f;
 	const float CritBonus = AttackerStats ? AttackerStats->GetSnapshot().CritDamage : 0.f;
+	float EffectiveThreatMultiplier = Req.ThreatMultiplier;
+	if (const UCombatPartyAIComponent* AttackerPartyAI = Attacker->FindComponentByClass<UCombatPartyAIComponent>())
+	{
+		if (AttackerPartyAI->Role == EJRPGPartyRole::Defender)
+		{
+			EffectiveThreatMultiplier = FMath::Min(EffectiveThreatMultiplier, 0.55f);
+		}
+	}
 
 	FCombatActionResult Out = FCombatActionResult::Ok();
 	Out.Attacker = Attacker;
@@ -208,8 +216,9 @@ FCombatActionResult UBasicCombatSubsystem::ExecuteBasicAttack(const FBasicAttack
 		Req.VarianceMin,
 		Req.VarianceMax,
 		Req.GroggyPower,
-		Req.ThreatMultiplier
+		EffectiveThreatMultiplier
 		);
+	Out.Breakdown.ThreatGenerated *= BasicAttackThreatGeneratedScalar;
 
 	TargetHP->ApplyDamage(Out.Breakdown.FinalDamage, Attacker, Req.ReasonTag);
 	ApplyHitFeedback(Attacker, Target, Out.Breakdown.FinalDamage, Out.Breakdown.bCritical, false, Req.ReasonTag);

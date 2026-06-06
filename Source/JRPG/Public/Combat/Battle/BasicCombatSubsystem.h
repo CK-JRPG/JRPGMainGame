@@ -26,5 +26,12 @@ private:
 
 	TMap<TWeakObjectPtr<AActor>, FHitStopRuntime> ActiveHitStops;
 
+	static constexpr float BasicAttackThreatGeneratedScalar = 0.55f;
+	static constexpr float BasicHitStopSec = 0.045f;
+	static constexpr float SkillHitStopSec = 0.065f;
+	static constexpr float HeavyHitStopMinSec = 0.085f;
+	static constexpr float HeavyHitStopMaxSec = 0.12f;
+	static constexpr float HitStopTimeDilation = 0.02f;
+
 	bool IsFriendlyTarget(AActor* Attacker, AActor* Target) const;
 };

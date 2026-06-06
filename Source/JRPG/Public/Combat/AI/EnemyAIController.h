@@ -12,6 +12,7 @@ class UCombatAIPresetAsset;
 class UCombatCharacterComponent;
 class UCombatPresentationComponent;
 class UTargetGuideLineComponent;
+class UBattleSessionSubsystem;
 
 /**
  * 적 AI 컨트롤러 (Tales of Arise 스타일 FSM, NavMesh/BT 미사용)
@@ -51,6 +52,16 @@ private:
 	UPROPERTY() TWeakObjectPtr<AActor> CurrentTarget;
 	UPROPERTY() TWeakObjectPtr<AActor> ForcedTarget;
 	double ForcedTargetUntilReal = 0.0;
+	double TargetSwitchLockedUntilReal = 0.0;
+
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Aggro", meta = (ClampMin = "0.0"))
+	float TargetSwitchLockSec = 3.0f;
+
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Aggro", meta = (ClampMin = "1.0"))
+	float TargetSwitchThreatRatio = 1.15f;
+
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Aggro", meta = (ClampMin = "0.1", ClampMax = "1.0"))
+	float MaxFocusedTargetShare = 0.667f;
 
 	// AI 사거리 파라미터 (캐릭터 데이터 에셋에서 로드)
 	float AttackRange = 200.f;
@@ -70,7 +81,7 @@ private:
 	// FSM
 	void RefreshStateFromGroggyAndChain();
 	void RefreshTarget();
-	void SetCurrentTarget(AActor* NewTarget);
+	void SetCurrentTarget(AActor* NewTarget, bool bApplySwitchLock = true);
 	void TickChase(float DeltaSeconds);
 	void TickAttack(float DeltaSeconds);
 	void TickRetreat(float DeltaSeconds);
@@ -86,6 +97,9 @@ private:
 	// 유틸리티
 	float GetDistanceToTarget() const;
 	void LoadRangeParamsFromCharacterData();
+	bool IsTargetOverFocusLimit(AActor* Candidate, const UBattleSessionSubsystem* Battle) const;
+	AActor* SelectBestThreatTargetRespectingFocus(const TArray<AActor*>& Candidates, const UBattleSessionSubsystem* Battle) const;
+	AActor* SelectClosestTargetRespectingFocus(const TArray<AActor*>& Candidates, const UBattleSessionSubsystem* Battle) const;
 
 	bool IsChainSequenceActive() const;
 	bool ReadGroggy(EJRPGGroggyPhase& OutPhase) const;

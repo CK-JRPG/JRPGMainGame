@@ -48,8 +48,9 @@ public:
 	UPROPERTY(EditAnywhere) float HealPower = 0.f;
 
 	UPROPERTY(EditAnywhere) float GroggyPower = 0.f;
-	UPROPERTY(EditAnywhere) float ThreatBase = 0.f;
-	UPROPERTY(EditAnywhere) float ThreatFromDamageMul = 1.0f;
+	UPROPERTY(EditAnywhere, Category="Threat") float ThreatBase = 0.f;
+	UPROPERTY(EditAnywhere, Category="Threat") float ThreatFromDamageMul = 1.0f;
+	UPROPERTY(EditAnywhere, Category="Threat") float ThreatFromHealMul = 0.85f;
 
 	UPROPERTY(EditAnywhere) TObjectPtr<UStatusEffectDataAsset> ApplyStatus = nullptr;
 	UPROPERTY(EditAnywhere) float StatusChance = 1.0f;

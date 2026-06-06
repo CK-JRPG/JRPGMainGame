@@ -69,6 +69,12 @@ private:
 	void StopActiveMove(FName ReasonTag);
 	void MoveDirectlyAwayFrom(const FVector& ThreatLocation, float Scale = 1.0f);
 	void MoveLaterallyAround(const FVector& FocusLocation, float Scale = 1.0f);
+	void UpdateAttackStrafe(float DeltaTime);
+	void StartPostSkillReposition(FName ActionId);
+	bool TickPostSkillReposition(float DeltaTime);
+	bool IsHealerLikeRole() const;
+	FVector BuildEnemyAvoidanceDirection(const FVector& Origin, AActor*& OutNearestEnemy, float& OutNearestDistance) const;
+	void PushGoalAwayFromEnemies(FVector& InOutGoal) const;
 	void FaceTarget(AActor* Target);
 	float GetDistanceToTarget() const;
 	bool IsPlayerControlledNow() const;
@@ -83,6 +89,8 @@ private:
 
 	float RangedRepositionPauseRemaining = 0.f;
 	float RangedRepositionDirection = 1.f;
+	float CombatStrafeDirection = 1.f;
+	float CombatStrafeFlipRemaining = 0.f;
 	float KeepDistanceTolerance = 60.f;
 	float TankReactionCooldownRemaining = 0.f;
 	float TankTickLogAccum = 0.f;
@@ -97,8 +105,10 @@ private:
 	TWeakObjectPtr<AActor> LastTargetDebugForcedTarget;
 	TWeakObjectPtr<AActor> LastTargetDebugEffectiveTarget;
 	float StageOneLogAccum = 0.f;
-	float TempTauntForcedTargetDuration = 1.5f;
-	float TempTauntRecoveryGracePeriod = 0.0f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Tank Aggro", meta = (ClampMin = "0.0"))
+	float TempTauntForcedTargetDuration = 1.05f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Tank Aggro", meta = (ClampMin = "0.0"))
+	float TempTauntRecoveryGracePeriod = 4.5f;
 	float MoveCallsThisSecond = 0.f;
 	float MoveCallsAccum = 0.f;
 	FVector LastMoveDirection = FVector::ZeroVector;
@@ -130,4 +140,33 @@ private:
 	float LastAIBasicAttackStartTime = -1000.f;
 	float AttackKeepRange = 650.f;
 	float HealRange = 700.f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float AttackStrafeSpeedScale = 0.35f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.1"))
+	float AttackStrafeFlipIntervalMin = 1.2f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.1"))
+	float AttackStrafeFlipIntervalMax = 2.4f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float AttackStrafeInnerRatio = 0.62f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float AttackStrafeOuterRatio = 0.88f;
+	bool bPostSkillRepositionActive = false;
+	FVector PostSkillRepositionGoal = FVector::ZeroVector;
+	float PostSkillRepositionRemaining = 0.f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0"))
+	float PostSkillRepositionDuration = 1.0f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0"))
+	float PostSkillRepositionSpeedScale = 0.65f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0"))
+	float PostSkillRepositionArriveRadius = 90.f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0"))
+	float PostSkillMeleeRepositionRadius = 220.f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0"))
+	float PostSkillRangedRepositionRadius = 520.f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0"))
+	float PostSkillHealerEnemyKeepDistance = 650.f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0"))
+	float PostSkillHealerRetreatDistance = 380.f;
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Party Movement", meta = (ClampMin = "0.0"))
+	float PostSkillHealerAvoidanceWeight = 1.35f;
 };
