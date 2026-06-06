@@ -7,6 +7,7 @@
 
 class UCameraComponent;
 class UCameraShakeBase;
+class UMaterialInterface;
 class USpringArmComponent;
 
 UCLASS()
@@ -25,6 +26,12 @@ public:
 	
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
 	TObjectPtr<UCameraComponent> Camera;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Camera|Post Process")
+	TSoftObjectPtr<UMaterialInterface> TargetOutlinePostProcessMaterial;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Camera|Post Process", meta = (ClampMin = "0.0", ClampMax = "1.0"))
+	float TargetOutlinePostProcessWeight = 1.0f;
 	
 	// UCameraSubsystem만 호출
 	void SetCameraTarget(AActor* NewTarget);
@@ -108,4 +115,5 @@ private:
 
 	void StartManualCameraShake(const FCombatCameraShakeSpec& ShakeSpec, bool bCriticalHit);
 	void UpdateManualCameraShake(float DeltaTime);
+	void ApplyTargetOutlinePostProcess();
 };

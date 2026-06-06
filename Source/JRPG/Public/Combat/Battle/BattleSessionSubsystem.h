@@ -15,6 +15,7 @@
 
 class UBasicCombatSubsystem;
 class ACombatZoneActor;
+class ANavMeshBoundsVolume;
 
 UCLASS()
 class JRPG_API UBattleSessionSubsystem :public UWorldSubsystem
@@ -84,6 +85,7 @@ private:
 	UPROPERTY() FBattleSessionSnapshot Snapshot;
 	UPROPERTY() TArray<FBattleParticipantSlot> Participants;
 	UPROPERTY() TObjectPtr<ACombatZoneActor> SpawnedZone;
+	UPROPERTY() TObjectPtr<ANavMeshBoundsVolume> SpawnedCombatNavBounds;
 
 	TSet<FName> ExclusiveModeOwners;
 	TMap<TWeakObjectPtr<AActor>, FName> ActivePresentedActors;
@@ -96,6 +98,7 @@ private:
 
 	// Zone 생성 
 	void CreateCombatZone(const FEncounterContext& InEncounterCtx);
+	void EnsureCombatNavMeshBounds(const FEncounterContext& InEncounterCtx);
 
 	FBattleParticipantSlot* FindParticipantMutable(AActor* Actor);
 	const FBattleParticipantSlot* FindParticipant(AActor* Actor) const;

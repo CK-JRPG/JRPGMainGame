@@ -17,6 +17,7 @@
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Presentation/CombatVFXComponent.h"
 #include "Combat/Presentation/TargetGuideLineComponent.h"
+#include "Combat/Presentation/CombatTargetHighlightComponent.h"
 #include "Combat/Motion/CombatMotionComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
@@ -29,7 +30,10 @@
 #include "Combat/Session/CombatZoneTrackerComponent.h"
 
 #include "UI/Combat/EnemyHPBarWidget.h"
-#include "Combat/Stats/HPComponent.h"
+#include "Components/CapsuleComponent.h"
+#include "NiagaraFunctionLibrary.h"
+#include "TimerManager.h"
+
 
 
 ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectInitializer)
@@ -57,6 +61,7 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
 	VFXComp = CreateDefaultSubobject<UCombatVFXComponent>(TEXT("CombatVFXComponent"));
 	TargetGuideLineComp = CreateDefaultSubobject<UTargetGuideLineComponent>(TEXT("TargetGuideLineComponent"));
+	TargetHighlightComp = CreateDefaultSubobject<UCombatTargetHighlightComponent>(TEXT("CombatTargetHighlightComponent"));
 	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
 	LocomotionComp = CreateDefaultSubobject<ULocomotionComponent>(TEXT("LocomotionComponent"));
 	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));
@@ -184,6 +189,19 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 	UE_LOG(LogTemp, Log, TEXT("CombatCharacterActor::HandleOnDeath : %s 사망 (Reason=%s)"),
 	*GetName(), *ReasonTag.ToString());
 
+	if (CustomTimeDilation <= 0.06f)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[Death][TimeDilationReset] Owner=%s PreviousDilation=%.3f"), *GetNameSafe(this), CustomTimeDilation);
+		CustomTimeDilation = 1.f;
+	}
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		if (MeshComp->GlobalAnimRateScale <= 0.1f)
+		{
+			MeshComp->GlobalAnimRateScale = 1.f;
+		}
+	}
+
 	// 진행 중인 프레젠테이션 취소 (몽타주 중단 + 기존 입력 잠금 해제)
 	if (PresentationComp)
 	{
@@ -203,17 +221,49 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 	// 사망 몽타주 재생
 	if (DeathMontage)
 	{
+		// 적 사망시
 		if (CharacterComp && CharacterComp->GetTeam() == ECombatTeam::Enemy)
 		{
 			if (USkeletalMeshComponent* MeshComp = GetMesh())
 			{
+				if(UCapsuleComponent* CapsuleComp = GetCapsuleComponent())
+					GetCapsuleComponent()->SetCollisionProfileName("IgnoreOnlyPawn");
+
+				MeshComp->SetCollisionProfileName("IgnoreOnlyPawn");
 				MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
+				MeshComp->SetPlayRate(1.0f);
 				MeshComp->PlayAnimation(DeathMontage, false);
+
+				if (DeathNiagaraEffect)
+				{
+					UNiagaraComponent* NiagaraComp = UNiagaraFunctionLibrary::SpawnSystemAtLocation
+					(
+						GetWorld(),
+						DeathNiagaraEffect,
+						GetActorLocation(),
+						FRotator(0,0,0),
+						FVector(1.0f),       
+						true,                
+						true,                
+						ENCPoolMethod::None, 
+						true
+					);
+				}
+
+				GetWorld()->GetTimerManager().SetTimer(
+					DeathDestoryHandle,
+					this,
+					&ACombatCharacterActor::DeathDestory,
+					DeathMontage->GetPlayLength() + 1.0f,
+					false
+				);
+
 			}
 		}
+		// 플레이어, 아군 사망시
 		else if (UAnimInstance* Anim = GetMesh() ? GetMesh()->GetAnimInstance() : nullptr)
 		{
-			Anim->Montage_Play(DeathMontage);
+			Anim->Montage_Play(DeathMontage, 1.0f);
 		}
 	}
 
@@ -227,6 +277,15 @@ void ACombatCharacterActor::HandleOnDeath(AActor* Killer, FName ReasonTag)
 	{
 		TargetGuideLineComp->ClearAggroTarget();
 	}
+}
+
+void ACombatCharacterActor::DeathDestory()
+{
+	if(GetWorld()->GetTimerManager().IsTimerActive(DeathDestoryHandle))
+	GetWorld()->GetTimerManager().ClearTimer(DeathDestoryHandle);
+
+	EndPlay(EEndPlayReason::Destroyed);
+	this->Destroy();
 }
 
 FName ACombatCharacterActor::GetCombatantId() const

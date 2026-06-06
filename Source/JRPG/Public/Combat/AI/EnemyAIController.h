@@ -56,9 +56,16 @@ private:
 	float AttackRange = 200.f;
 	float PreferredMinRange = 0.f;
 	float ChaseLeashRange = 1200.f;
+	float AttackStartRange = 320.f;
+	float AttackKeepRange = 430.f;
+	float LeashRange = 1500.f;
 	bool bIsRanged = false;
 
 	double TargetLockUntilReal = 0.0;
+	double NextAttackAllowedReal = 0.0;
+	double WindupUntilReal = 0.0;
+	double RecoveryUntilReal = 0.0;
+	TWeakObjectPtr<AActor> WindupTarget;
 
 	// FSM
 	void RefreshStateFromGroggyAndChain();

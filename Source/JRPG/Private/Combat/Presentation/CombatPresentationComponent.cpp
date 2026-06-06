@@ -6,6 +6,8 @@
 #include "Combat/Items/CombatItemExecutionSubsystem.h"
 
 #include "Combat/Characters/CombatCharacterComponent.h"
+#include "Combat/Characters/CombatPlayerController.h"
+#include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Skills/SkillComponent.h"
 #include "Combat/Skills/SkillDataAsset.h"
@@ -16,7 +18,11 @@
 #include "Combat/Stats/HPComponent.h"
 
 #include "GameFramework/Character.h"
+#include "GameFramework/CharacterMovementComponent.h"
+#include "AIController.h"
+#include "Navigation/PathFollowingComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Animation/AnimInstance.h"
 #include "TimerManager.h"
 
 UCombatPresentationComponent::UCombatPresentationComponent()
@@ -53,6 +59,11 @@ void UCombatPresentationComponent::TickComponent(float, ELevelTick, FActorCompon
 	if (HasActivePresentation())
 	{
 		const double Now = FPlatformTime::Seconds();
+		if (Now <= Active.FaceTargetUntilRealSec)
+		{
+			FaceActiveTarget();
+		}
+
 		if (!Active.bResolved && Active.AutoResolveAtRealSec > 0.0 && Now >= Active.AutoResolveAtRealSec)
 		{
 			ResolveActivePresentation();
@@ -103,6 +114,12 @@ bool UCombatPresentationComponent::TryStartMotionForBasicAttack()
 	if (!Motion) return false;
 
 	FJRPGCombatMotionRequest Req = CharacterComp->CharacterDef->BasicAttackMotion;
+	if (Active.Montage && Active.Montage->HasRootMotion() && Req.ExecMode != EJRPGCombatMotionExecMode::RootMotion)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Presentation][RootMotion] SkipCodeMotion Owner=%s Action=BasicAttack Reason=MontageHasRootMotion"), *GetNameSafe(GetOwner()));
+		return true;
+	}
+
 	Req.Instigator = GetOwner();
 	if (Active.Targets.Num() > 0) Req.Target = Active.Targets[0];
 	Req.OwnerTag = "BasicAttack";
@@ -131,6 +148,12 @@ bool UCombatPresentationComponent::TryStartMotionForSkill(USkillDataAsset* Skill
 	if (!Motion) return false;
 
 	FJRPGCombatMotionRequest Req = SkillDef->SkillMotion;
+	if (Active.Montage && Active.Montage->HasRootMotion() && Req.ExecMode != EJRPGCombatMotionExecMode::RootMotion)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[Presentation][RootMotion] SkipCodeMotion Owner=%s Action=Skill.%s Reason=MontageHasRootMotion"), *GetNameSafe(GetOwner()), *SkillDef->SkillId.ToString());
+		return true;
+	}
+
 	Req.Instigator = GetOwner();
 	if (Active.Targets.Num() > 0) Req.Target = Active.Targets[0];
 	Req.OwnerTag = SkillDef->SkillId;
@@ -159,6 +182,26 @@ void UCombatPresentationComponent::CancelActiveMotionIfNeeded()
 	{
 		Motion->CancelCombatMotion(Active.MotionHandle, "Cancel.Presentation");
 	}
+}
+
+void UCombatPresentationComponent::StopActiveMontageIfNeeded(float BlendOutTime)
+{
+	if (!Active.Montage)
+	{
+		return;
+	}
+
+	ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner());
+	USkeletalMeshComponent* MeshComp = CharacterOwner ? CharacterOwner->GetMesh() : nullptr;
+	UAnimInstance* Anim = MeshComp ? MeshComp->GetAnimInstance() : nullptr;
+	if (!Anim || !Anim->Montage_IsPlaying(Active.Montage))
+	{
+		return;
+	}
+
+	FOnMontageEnded EmptyEndDelegate;
+	Anim->Montage_SetEndDelegate(EmptyEndDelegate, Active.Montage);
+	Anim->Montage_Stop(FMath::Max(0.f, BlendOutTime), Active.Montage);
 }
 
 void UCombatPresentationComponent::AcquireInputLockForPresentation()
@@ -192,6 +235,128 @@ void UCombatPresentationComponent::ReleaseInputLockForPresentation()
 	}
 }
 
+void UCombatPresentationComponent::StopPathFollowingForPresentation(FName ReasonTag)
+{
+	ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner());
+	AAIController* AIController = CharacterOwner ? Cast<AAIController>(CharacterOwner->GetController()) : nullptr;
+	if (!CharacterOwner)
+	{
+		return;
+	}
+
+	const EPathFollowingStatus::Type PreviousStatus = AIController ? AIController->GetMoveStatus() : EPathFollowingStatus::Idle;
+	if (AIController)
+	{
+		AIController->StopMovement();
+	}
+	if (UCharacterMovementComponent* MoveComp = CharacterOwner->GetCharacterMovement())
+	{
+		MoveComp->StopMovementImmediately();
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[Presentation][StopMovement] Owner=%s Reason=%s PreviousPathFollowingStatus=%d"),
+		*GetNameSafe(GetOwner()),
+		ReasonTag.IsNone() ? TEXT("None") : *ReasonTag.ToString(),
+		(int32)PreviousStatus);
+}
+
+void UCombatPresentationComponent::ApplyPresentationMovementSlowIfNeeded()
+{
+	ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner());
+	UCharacterMovementComponent* MoveComp = CharacterOwner ? CharacterOwner->GetCharacterMovement() : nullptr;
+	if (!MoveComp || Active.bHasMovementSlow)
+	{
+		return;
+	}
+
+	Active.SavedMaxWalkSpeed = MoveComp->MaxWalkSpeed;
+	const float SlowMultiplier = Active.Type == EPresentedCombatActionType::BasicAttack ? 0.30f : 0.20f;
+	MoveComp->MaxWalkSpeed = FMath::Max(10.f, Active.SavedMaxWalkSpeed * SlowMultiplier);
+	Active.bHasMovementSlow = true;
+	UE_LOG(LogTemp, Log, TEXT("[Presentation] AttackMoveSpeedSlow Owner=%s Action=%s MaxWalkSpeed=%.1f SlowMaxWalkSpeed=%.1f"),
+		*GetNameSafe(GetOwner()), *Active.ActionId.ToString(), Active.SavedMaxWalkSpeed, MoveComp->MaxWalkSpeed);
+}
+
+void UCombatPresentationComponent::RestorePresentationMovementSlowIfNeeded()
+{
+	if (!Active.bHasMovementSlow)
+	{
+		return;
+	}
+
+	if (ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner()))
+	{
+		if (UCharacterMovementComponent* MoveComp = CharacterOwner->GetCharacterMovement())
+		{
+			MoveComp->MaxWalkSpeed = Active.SavedMaxWalkSpeed;
+		}
+	}
+
+	Active.bHasMovementSlow = false;
+}
+
+void UCombatPresentationComponent::ApplyAttackRotationLockIfNeeded()
+{
+	ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner());
+	UCharacterMovementComponent* MoveComp = CharacterOwner ? CharacterOwner->GetCharacterMovement() : nullptr;
+	if (!CharacterOwner || !MoveComp || Active.bHasRotationLock)
+	{
+		return;
+	}
+
+	Active.bSavedOrientRotationToMovement = MoveComp->bOrientRotationToMovement;
+	Active.bSavedUseControllerDesiredRotation = MoveComp->bUseControllerDesiredRotation;
+	Active.bSavedUseControllerRotationYaw = CharacterOwner->bUseControllerRotationYaw;
+	Active.bHasRotationLock = true;
+
+	MoveComp->bOrientRotationToMovement = false;
+	MoveComp->bUseControllerDesiredRotation = false;
+	CharacterOwner->bUseControllerRotationYaw = false;
+	Active.FaceTargetUntilRealSec = FPlatformTime::Seconds() + 0.12;
+	FaceActiveTarget();
+}
+
+void UCombatPresentationComponent::RestoreAttackRotationLockIfNeeded()
+{
+	if (!Active.bHasRotationLock)
+	{
+		return;
+	}
+
+	if (ACharacter* CharacterOwner = Cast<ACharacter>(GetOwner()))
+	{
+		if (UCharacterMovementComponent* MoveComp = CharacterOwner->GetCharacterMovement())
+		{
+			MoveComp->bOrientRotationToMovement = Active.bSavedOrientRotationToMovement;
+			MoveComp->bUseControllerDesiredRotation = Active.bSavedUseControllerDesiredRotation;
+		}
+		CharacterOwner->bUseControllerRotationYaw = Active.bSavedUseControllerRotationYaw;
+	}
+
+	Active.bHasRotationLock = false;
+	Active.FaceTargetUntilRealSec = 0.0;
+
+}
+
+void UCombatPresentationComponent::FaceActiveTarget()
+{
+	AActor* OwnerActor = GetOwner();
+	AActor* Target = Active.Targets.Num() > 0 ? Active.Targets[0].Get() : nullptr;
+	if (!IsValid(OwnerActor) || !IsValid(Target))
+	{
+		return;
+	}
+
+	FVector ToTarget = Target->GetActorLocation() - OwnerActor->GetActorLocation();
+	ToTarget.Z = 0.f;
+	if (ToTarget.IsNearlyZero())
+	{
+		return;
+	}
+
+	OwnerActor->SetActorRotation(ToTarget.Rotation());
+}
+
 void UCombatPresentationComponent::EmitCue(FName CueTag)
 {
 	if (CueTag.IsNone())
@@ -204,74 +369,104 @@ void UCombatPresentationComponent::EmitCue(FName CueTag)
 	OnCombatCueEvent.Broadcast(Evt);
 }
 
+void UCombatPresentationComponent::ConfigureAutoPresentationTiming(bool bNoPlayableMontage)
+{
+	Active.AutoResolveAtRealSec = 0.0;
+	Active.AutoFinishAtRealSec = 0.0;
+
+	if (bNoPlayableMontage || !Active.Montage || Active.ResolveTiming == ECombatResolveTiming::Immediate)
+	{
+		Active.AutoResolveAtRealSec = Active.StartedAtRealSec;
+		Active.AutoFinishAtRealSec = Active.StartedAtRealSec;
+		return;
+	}
+
+	// AnimNotifyWindow and MontageEnded presentations are driven by animation notifies / montage end delegates.
+	// Timers are intentionally not armed here so damage and unlock do not drift from the actual montage.
+}
+
 void UCombatPresentationComponent::PlayActiveMontageOrResolve()
 {
 	EmitCue(Active.StartCueTag);
 	Active.StartedAtRealSec = FPlatformTime::Seconds();
- 
+
+	ConfigureAutoPresentationTiming(!Active.Montage);
+
 	if (Active.ResolveTiming == ECombatResolveTiming::Immediate || !Active.Montage)
 	{
-		Active.AutoResolveAtRealSec = Active.StartedAtRealSec;
-		Active.AutoFinishAtRealSec = Active.StartedAtRealSec;
 		ResolveActivePresentation();
-		FinishActivePresentation();
+		if (HasActivePresentation())
+		{
+			FinishActivePresentation();
+		}
 		return;
 	}
- 
-	const float MontageLengthSec = FMath::Max(0.05f, Active.Montage->GetPlayLength());
-	Active.AutoResolveAtRealSec = Active.StartedAtRealSec + (MontageLengthSec * 0.6f);
-	Active.AutoFinishAtRealSec = Active.StartedAtRealSec + MontageLengthSec + 0.1;
 
-	if (ACharacter *C = Cast<ACharacter>(GetOwner()))
+	if (ACharacter* C = Cast<ACharacter>(GetOwner()))
 	{
-		float PlayedLen = 0.f;
-		if (CharacterComp.IsValid() && CharacterComp->GetTeam() == ECombatTeam::Enemy)
+		if (C->CustomTimeDilation <= 0.06f)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("[Presentation][TimeDilationReset] Owner=%s Action=%s PreviousDilation=%.3f"),
+				*GetNameSafe(GetOwner()),
+				*Active.ActionId.ToString(),
+				C->CustomTimeDilation);
+			C->CustomTimeDilation = 1.f;
+		}
+		if (USkeletalMeshComponent* MeshComp = C->GetMesh())
+		{
+			if (MeshComp->GlobalAnimRateScale <= 0.1f)
+			{
+				MeshComp->GlobalAnimRateScale = 1.f;
+			}
+		}
+
+		const float PlayedLen = C->PlayAnimMontage(Active.Montage, 1.f);
+		if (PlayedLen > 0.f)
 		{
 			if (USkeletalMeshComponent* MeshComp = C->GetMesh())
 			{
-				MeshComp->SetAnimationMode(EAnimationMode::AnimationSingleNode);
-				MeshComp->PlayAnimation(Active.Montage, false);
-				PlayedLen = MontageLengthSec;
-
-				TWeakObjectPtr<USkeletalMeshComponent> WeakMesh = MeshComp;
-				FTimerHandle RestoreAnimModeHandle;
-				GetWorld()->GetTimerManager().SetTimer(
-					RestoreAnimModeHandle,
-					[WeakMesh]()
-					{
-						if (WeakMesh.IsValid())
-						{
-							if (AActor* MeshOwner = WeakMesh->GetOwner())
-							{
-								if (const UHPComponent* HP = MeshOwner->FindComponentByClass<UHPComponent>(); HP && HP->IsDead())
-								{
-									return;
-								}
-							}
-							WeakMesh->SetAnimationMode(EAnimationMode::AnimationBlueprint);
-						}
-					},
-					MontageLengthSec,
-					false);
+				if (UAnimInstance* Anim = MeshComp->GetAnimInstance())
+				{
+					FOnMontageEnded EndDelegate;
+					EndDelegate.BindUObject(this, &UCombatPresentationComponent::HandleActiveMontageEnded);
+					Anim->Montage_SetEndDelegate(EndDelegate, Active.Montage);
+				}
 			}
-		}
-		else
-		{
-			PlayedLen = C->PlayAnimMontage(Active.Montage);
-		}
-
-		if (PlayedLen <= 0.f)
-		{
-			ResolveActivePresentation();
-			FinishActivePresentation();
+			return;
 		}
 	}
-	else
+
+	ConfigureAutoPresentationTiming(true);
+	ResolveActivePresentation();
+	if (HasActivePresentation())
 	{
-		ResolveActivePresentation();
 		FinishActivePresentation();
 	}
-} 
+}
+
+void UCombatPresentationComponent::HandleActiveMontageEnded(UAnimMontage* Montage, bool bInterrupted)
+{
+	if (!HasActivePresentation() || Montage != Active.Montage)
+	{
+		return;
+	}
+
+	if (bInterrupted)
+	{
+		CancelActivePresentation("Cancel.MontageInterrupted", Active.Type == EPresentedCombatActionType::Skill);
+		return;
+	}
+
+	if (!Active.bResolved && Active.ResolveTiming == ECombatResolveTiming::MontageEnded)
+	{
+		ResolveActivePresentation();
+	}
+
+	if (HasActivePresentation())
+	{
+		FinishActivePresentation();
+	}
+}
 
 bool UCombatPresentationComponent::IsAutoAttackSuppressed() const
 {
@@ -281,6 +476,36 @@ bool UCombatPresentationComponent::IsAutoAttackSuppressed() const
 void UCombatPresentationComponent::SetAutoAttackSuppressedFor(float DurationSec)
 {
 	AutoAttackSuppressedUntilRealSec = FMath::Max(AutoAttackSuppressedUntilRealSec, FPlatformTime::Seconds() + FMath::Max(0.f, DurationSec));
+}
+
+void UCombatPresentationComponent::ClearAutoAttackSuppression()
+{
+	AutoAttackSuppressedUntilRealSec = 0.0;
+}
+
+float UCombatPresentationComponent::GetMinBasicAttackStartInterval() const
+{
+	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (OwnerPawn && OwnerPawn->IsPlayerControlled())
+	{
+		return 0.75f;
+	}
+
+	if (const ICombatParticipantInterface* Participant = Cast<ICombatParticipantInterface>(GetOwner()))
+	{
+		if (Participant->GetCombatTeam() == ECombatTeam::Enemy)
+		{
+			return 1.65f;
+		}
+	}
+
+	return 1.0f;
+}
+
+float UCombatPresentationComponent::GetRemainingBasicAttackStartCooldown() const
+{
+	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	return FMath::Max(0.f, static_cast<float>((LastBasicAttackStartWorldTime + GetMinBasicAttackStartInterval()) - Now));
 }
 
 FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *Target)
@@ -294,6 +519,25 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 		const double Remaining = FMath::Max(0.0, AutoAttackSuppressedUntilRealSec - FPlatformTime::Seconds());
 		UE_LOG(LogTemp, Log, TEXT("[InputPriority] AutoAttack suppressed by skill input Remaining=%.2f"), Remaining);
 		return FCombatActionResult::Fail("Reject.AutoAttackSuppressed");
+	}
+
+	if (!IsValid(Target))
+	{
+		return FCombatActionResult::Fail("Reject.InvalidTarget");
+	}
+	if (const UHPComponent* TargetHP = Target->FindComponentByClass<UHPComponent>(); TargetHP && TargetHP->IsDead())
+	{
+		return FCombatActionResult::Fail("Reject.TargetDead");
+	}
+
+	const double NowTime = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	const float MinInterval = GetMinBasicAttackStartInterval();
+	const float DeltaSinceLastStart = static_cast<float>(NowTime - LastBasicAttackStartWorldTime);
+	if (DeltaSinceLastStart < MinInterval)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[AttackTempo] Owner=%s LastAttackStart=%.2f CurrentAttackStart=%.2f Delta=%.2f MinInterval=%.2f Allowed=false"),
+			*GetNameSafe(GetOwner()), LastBasicAttackStartWorldTime, NowTime, DeltaSinceLastStart, MinInterval);
+		return FCombatActionResult::Fail("Reject.BasicAttackTempoCooldown");
 	}
 	
 	if (!Battle->BeginPresentedAction(GetOwner(),"Present.BasicAttack"))
@@ -321,8 +565,15 @@ FCombatActionResult UCombatPresentationComponent::TryPresentBasicAttack(AActor *
 		ClearActiveState();
 		return FCombatActionResult::Fail("Reject.BasicAttackMotionFailed");
 	}
+
+	UE_LOG(LogTemp, Log, TEXT("[AttackTempo] Owner=%s LastAttackStart=%.2f CurrentAttackStart=%.2f Delta=%.2f MinInterval=%.2f Allowed=true"),
+		*GetNameSafe(GetOwner()), LastBasicAttackStartWorldTime, NowTime, DeltaSinceLastStart, MinInterval);
+	LastBasicAttackStartWorldTime = NowTime;
 	
+	StopPathFollowingForPresentation("BeforeBasicAttack");
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
+	ApplyPresentationMovementSlowIfNeeded();
+	ApplyAttackRotationLockIfNeeded();
 	AcquireInputLockForPresentation();
 	PlayActiveMontageOrResolve();
 	
@@ -390,7 +641,10 @@ FSkillCastResult UCombatPresentationComponent::TryPresentSkill(FName SkillId, co
 		return FSkillCastResult::Fail("Reject.SkillMotionFailed");
 	}
 	
+	StopPathFollowingForPresentation("BeforeSkill");
 	OnPresentationStarted.Broadcast(Active.Type, Active.ActionId);
+	ApplyPresentationMovementSlowIfNeeded();
+	ApplyAttackRotationLockIfNeeded();
 	AcquireInputLockForPresentation();
 	PlayActiveMontageOrResolve();
 
@@ -453,6 +707,36 @@ FCombatItemUseResult UCombatPresentationComponent::TryPresentItem(FName ItemId,c
 
 void UCombatPresentationComponent::ResolveActivePresentation()
 {
+	if (!HasActivePresentation())
+	{
+		UE_LOG(LogTemp, Verbose, TEXT("[Presentation] SkipResolve Owner=%s Reason=NoActivePresentation"), *GetNameSafe(GetOwner()));
+		return;
+	}
+	if (Active.bResolved)
+	{
+		return;
+	}
+	
+	if (Active.Type != EPresentedCombatActionType::Item)
+	{
+		if (Active.Targets.Num() <= 0 || !IsValid(Active.Targets[0].Get()))
+		{
+			CancelActivePresentation("Reject.InvalidTarget", Active.Type == EPresentedCombatActionType::Skill);
+			return;
+		}
+
+		if (const UHPComponent* TargetHP = Active.Targets[0]->FindComponentByClass<UHPComponent>(); TargetHP && TargetHP->IsDead())
+		{
+			CancelActivePresentation("Reject.TargetDead", Active.Type == EPresentedCombatActionType::Skill);
+			return;
+		}
+	}
+	
+		UBattleSessionSubsystem * Battle = GetBattle();
+	if (!Battle || !Battle->CanActorResolvePresentedAction(GetOwner()))
+		 return;
+	
+
 	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
 	{
 		Debug->AddLog(
@@ -465,16 +749,6 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 			Active.Targets.Num() > 0 ? Active.Targets[0].Get() : nullptr,
 			FLinearColor(1.f, 0.9f, 0.6f));
 	}
-	
-	if (!HasActivePresentation())
-		return;
-	if (Active.bResolved)
-		return;
-
-	UBattleSessionSubsystem *Battle = GetBattle();
-	if (!Battle || !Battle->CanActorResolvePresentedAction(GetOwner()))
-		return;
-
 
 	EmitCue(Active.HitCueTag);
 
@@ -546,8 +820,13 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 						CancelActivePresentation(Result.ReasonTag.IsNone() ? "Reject.ResolveFailed" : Result.ReasonTag, false);
 						return;
 					}
-
+					
 					Active.bResolved = Result.bOk;
+					if (Result.bOk)
+					{
+						UE_LOG(LogTemp, Log, TEXT("[InputPriority] BasicAttack HitResolvedMovementSlowHeldUntilFinish Owner=%s"), *GetNameSafe(GetOwner()));
+					}
+
 					if (Result.Breakdown.FinalDamage > 0.f)
 					{
 						if (UCameraSubsystem* CameraSubsystem = GetWorld() ? GetWorld()->GetSubsystem<UCameraSubsystem>() : nullptr)
@@ -622,6 +901,11 @@ void UCombatPresentationComponent::ResolveActivePresentation()
 
 void UCombatPresentationComponent::FinishActivePresentation()
 {
+	if (!HasActivePresentation())
+	{
+		return;
+	}
+
 	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
 	{
 		Debug->AddLog(
@@ -635,9 +919,6 @@ void UCombatPresentationComponent::FinishActivePresentation()
 			Active.Targets.Num() > 0 ? Active.Targets[0].Get() : nullptr,
 			FLinearColor(0.8f, 1.f, 0.8f));
 	}
-	
-	if (!HasActivePresentation())
-		return;
 
 	EmitCue(Active.FinishCueTag);
 
@@ -649,23 +930,12 @@ void UCombatPresentationComponent::FinishActivePresentation()
 
 			if (Active.Type == EPresentedCombatActionType::BasicAttack)
 			{
-				if (CharacterComp.IsValid()&&CharacterComp->CharacterDef && CharacterComp->CharacterDef->BasicAttackMontage)
-				{
-					RecoverySec = CharacterComp->CharacterDef->BasicAttackMontage->GetPlayLength();
-				}
+				const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+				RecoverySec = (OwnerPawn && OwnerPawn->IsPlayerControlled()) ? 0.05f : 0.6f;
 			}
 			else if (Active.Type == EPresentedCombatActionType::Skill)
 			{
-				if (SkillComp.IsValid())
-				{
-					if (USkillDataAsset* Def = SkillComp->GetSkillDef(Active.ActionId))
-					{
-						if (Def->CastMontage)
-						{
-							RecoverySec = Def->CastMontage->GetPlayLength();
-						}
-					}
-				}
+				RecoverySec = 0.05f;
 			}
 
 			Battle->CompletePresentedAction(GetOwner(),"Present.Finish",RecoverySec);
@@ -680,45 +950,90 @@ void UCombatPresentationComponent::FinishActivePresentation()
 		}
 	}
 
+	if (Active.Type == EPresentedCombatActionType::Skill)
+	{
+		ClearAutoAttackSuppression();
+	}
+
 	OnPresentationFinished.Broadcast(Active.Type, Active.ActionId);
+	RestorePresentationMovementSlowIfNeeded();
+	RestoreAttackRotationLockIfNeeded();
 	ReleaseInputLockForPresentation();
 	ClearActiveState();
 }
 
 void UCombatPresentationComponent::CancelActivePresentation(FName ReasonTag, bool bRefundPreparedSkill)
 {
+	if (!HasActivePresentation())
+	{
+		return;
+	}
+
 	if (UCombatDebugSubsystem* Debug = GetWorld() ? GetWorld()->GetSubsystem<UCombatDebugSubsystem>() : nullptr)
 	{
 		Debug->AddLog(
 			ECombatDebugCategory::Presentation,
 			ReasonTag.IsNone() ? "Present.Cancel" : ReasonTag,
-				FString::Printf(TEXT("Cancel presentation | Type=%d Action=%s RefundPreparedSkill=%s"),
-						(int32)Active.Type,
-						*Active.ActionId.ToString(),
-			bRefundPreparedSkill ? TEXT("true") : TEXT("false")),
+			FString::Printf(TEXT("Cancel presentation | Type=%d Action=%s RefundPreparedSkill=%s"),
+				(int32)Active.Type,
+				*Active.ActionId.ToString(),
+				bRefundPreparedSkill ? TEXT("true") : TEXT("false")),
 			GetOwner(),
 			Active.Targets.Num() > 0 ? Active.Targets[0].Get() : nullptr,
 			FLinearColor(1.f, 0.6f, 0.6f));
 	}
-	
+
+	StopActiveMontageIfNeeded(0.08f);
 	CancelActiveMotionIfNeeded();
-	
-	if (!HasActivePresentation())
-		return;
 
 	if (Active.Type == EPresentedCombatActionType::Skill && SkillComp.IsValid() && SkillComp->HasPreparedSkillCast())
 	{
 		SkillComp->CancelPreparedSkillCast(bRefundPreparedSkill, ReasonTag);
 	}
 
-	if (UBattleSessionSubsystem *Battle = GetBattle())
+	if (UBattleSessionSubsystem* Battle = GetBattle())
 	{
-		Battle->AbortPresentedAction(GetOwner(),ReasonTag);
+		Battle->AbortPresentedAction(GetOwner(), ReasonTag);
+	}
+
+	if (Active.Type == EPresentedCombatActionType::Skill)
+	{
+		ClearAutoAttackSuppression();
 	}
 
 	OnPresentationFinished.Broadcast(Active.Type, Active.ActionId);
+	RestorePresentationMovementSlowIfNeeded();
+	RestoreAttackRotationLockIfNeeded();
 	ReleaseInputLockForPresentation();
 	ClearActiveState();
+}
+
+bool UCombatPresentationComponent::CancelPlayerBasicAttackForMovement(FName ReasonTag)
+{
+	if (Active.Type != EPresentedCombatActionType::BasicAttack)
+	{
+		return false;
+	}
+
+	const APawn* OwnerPawn = Cast<APawn>(GetOwner());
+	if (!OwnerPawn || !OwnerPawn->IsPlayerControlled())
+	{
+		return false;
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[InputPriority] Player movement cancels auto basic attack Owner=%s Resolved=%s"),
+		*GetNameSafe(GetOwner()),
+		Active.bResolved ? TEXT("true") : TEXT("false"));
+
+	if (Active.bResolved)
+	{
+		StopActiveMontageIfNeeded(0.08f);
+		FinishActivePresentation();
+		return true;
+	}
+
+	CancelActivePresentation(ReasonTag.IsNone() ? FName("Input.MoveCancelBasicAttack") : ReasonTag, false);
+	return true;
 }
 
 void UCombatPresentationComponent::ClearActiveState()

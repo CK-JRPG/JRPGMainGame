@@ -6,6 +6,7 @@
 #include "Animation/AnimMontage.h"
 
 #include "Combat/Presentation/CombatPresentationTypes.h"
+#include "Combat/Battle/BasicCombatTypes.h"
 #include "Combat/Skills/SkillTypes.h"
 #include "Combat/Items/CombatItemTypes.h"
 #include "Combat/Motion/CombatMotionTypes.h"
@@ -19,6 +20,8 @@ class USkillComponent;
 class UCombatCharacterComponent;
 class UTacticalModeSubsystem;
 class UBattleSessionSubsystem;
+class UCharacterMovementComponent;
+class UAnimMontage;
 
 UCLASS(ClassGroup=(Combat), meta=(BlueprintSpawnableComponent))
 class JRPG_API UCombatPresentationComponent : public UActorComponent
@@ -40,11 +43,19 @@ public:
 
 	void ResolveActivePresentation();
 	void FinishActivePresentation();
+
+
+	UFUNCTION()
+	void HandleActiveMontageEnded(UAnimMontage* Montage, bool bInterrupted);
 	void CancelActivePresentation(FName ReasonTag,bool bRefundPreparedSkill);
+	bool CancelPlayerBasicAttackForMovement(FName ReasonTag);
 
 	void EmitCue(FName CueTag);
 	void SetAutoAttackSuppressedFor(float DurationSec);
+	void ClearAutoAttackSuppression();
 	bool IsAutoAttackSuppressed() const;
+	float GetMinBasicAttackStartInterval() const;
+	float GetRemainingBasicAttackStartCooldown() const;
 
 protected:
 	virtual void BeginPlay()override;
@@ -74,8 +85,17 @@ private:
 		
 		FJRPGHandle InputLockHandle;
 		bool bHasInputLock = false;
+		bool bHasMovementSlow = false;
+		float SavedMaxWalkSpeed = 0.f;
+
+		bool bHasRotationLock = false;
+		bool bSavedOrientRotationToMovement = true;
+		bool bSavedUseControllerDesiredRotation = false;
+		bool bSavedUseControllerRotationYaw = false;
+		double FaceTargetUntilRealSec = 0.0;
 	};
 	double AutoAttackSuppressedUntilRealSec = 0.0;
+	double LastBasicAttackStartWorldTime = -1000.0;
 
 	FActivePresentationState Active;
 
@@ -93,7 +113,15 @@ private:
 	bool TryStartMotionForBasicAttack();
 	bool TryStartMotionForSkill(USkillDataAsset* SkillDef);
 	void CancelActiveMotionIfNeeded();
+	void StopActiveMontageIfNeeded(float BlendOutTime);
 	
 	void AcquireInputLockForPresentation();
 	void ReleaseInputLockForPresentation();
+	void ApplyPresentationMovementSlowIfNeeded();
+	void RestorePresentationMovementSlowIfNeeded();
+	void ApplyAttackRotationLockIfNeeded();
+	void RestoreAttackRotationLockIfNeeded();
+	void FaceActiveTarget();
+	void StopPathFollowingForPresentation(FName ReasonTag);
+	void ConfigureAutoPresentationTiming(bool bNoPlayableMontage);
 };

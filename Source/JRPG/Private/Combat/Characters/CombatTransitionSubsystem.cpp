@@ -513,7 +513,7 @@ void UCombatTransitionSubsystem::OnDefeatFadeOutComplete()
 	// CompanionPawn 복원 (저장된 허브 방문 시 위치로 복원)
 	if (UFieldCompanionSubsystem* CompanionSub = GetWorld()->GetSubsystem<UFieldCompanionSubsystem>())
 	{
-		CompanionSub->RestoreCompanionsToSavedLocations();
+		CompanionSub->RestoreCompanionsToSavedLocations(CachedFieldPawn.Get());
 	}
 
 	// 필드 컨트롤러 이동 입력 막기 (페이드 인 완료 전까지)
@@ -835,7 +835,7 @@ void UCombatTransitionSubsystem::PerformTransition(bool bUseLeaderPosition)
 	// CompanionPawn 복원
 	if (UFieldCompanionSubsystem* CompanionSub = GetWorld()->GetSubsystem<UFieldCompanionSubsystem>())
 	{
-		CompanionSub->RestoreCompanions();
+		CompanionSub->RestoreCompanions(CachedFieldPawn.Get());
 	}
 }
 

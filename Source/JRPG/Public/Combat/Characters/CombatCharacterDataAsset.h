@@ -65,6 +65,9 @@ public:
 	UPROPERTY(EditAnywhere, Category="Basic Attack|Camera")
 	FCombatCameraShakeSpec BasicAttackCameraShake;
 
+	// 피격 반응 연출(선택): 일정 피해 이상일 때 짧은 리액트 몽타주로 타격감을 보강합니다.
+	UPROPERTY(EditAnywhere, Category="Hit Feedback") TObjectPtr<UAnimMontage> HitReactMontage = nullptr;
+
 	// 스킬 ID만 보관 (에디터에서 KnownSkills에 이미 DA가 있을 때 해금 용도)
 	UPROPERTY(EditAnywhere) TArray<FName> StartingSkillIds;
 	// DA 직접 레퍼런스 (이 배열에 넣으면 BeginPlay 시 자동으로 LearnSkill 호출)

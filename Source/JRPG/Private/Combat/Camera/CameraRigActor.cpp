@@ -5,6 +5,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "Materials/MaterialInterface.h"
 
 
 ACameraRigActor::ACameraRigActor()
@@ -22,6 +23,9 @@ ACameraRigActor::ACameraRigActor()
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(SpringArm, USpringArmComponent::SocketName);
 	Camera->bUsePawnControlRotation = false;
+
+	TargetOutlinePostProcessMaterial = TSoftObjectPtr<UMaterialInterface>(
+		FSoftObjectPath(TEXT("/Game/Combat/Presentation/M_CombatTargetOutline_PP.M_CombatTargetOutline_PP")));
 }
 
 void ACameraRigActor::BeginPlay()
@@ -32,6 +36,8 @@ void ACameraRigActor::BeginPlay()
 	{
 		CameraDefaultRelativeLocation = Camera->GetRelativeLocation();
 	}
+
+	ApplyTargetOutlinePostProcess();
 }
 
 void ACameraRigActor::Tick(float DeltaTime)
@@ -201,4 +207,22 @@ void ACameraRigActor::UpdateManualCameraShake(float DeltaTime)
 	const float Vertical = FMath::Cos(Phase * 1.37f) * ActiveManualShakeVerticalAmplitude * Decay;
 
 	Camera->SetRelativeLocation(CameraDefaultRelativeLocation + FVector(0.0f, Horizontal, Vertical));
+}
+
+void ACameraRigActor::ApplyTargetOutlinePostProcess()
+{
+	if (!Camera || TargetOutlinePostProcessMaterial.IsNull() || TargetOutlinePostProcessWeight <= 0.0f)
+	{
+		return;
+	}
+
+	UMaterialInterface* OutlineMaterial = TargetOutlinePostProcessMaterial.LoadSynchronous();
+	if (!OutlineMaterial)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("CameraRigActor: target outline post-process material not found: %s"),
+			*TargetOutlinePostProcessMaterial.ToString());
+		return;
+	}
+
+	Camera->PostProcessSettings.AddBlendable(OutlineMaterial, TargetOutlinePostProcessWeight);
 }

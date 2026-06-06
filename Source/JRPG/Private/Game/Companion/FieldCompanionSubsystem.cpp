@@ -2,6 +2,7 @@
 
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Engine/AssetManager.h"
+#include "Game/Companion/CompanionPawnController.h"
 #include "Game/Companion/JRPGCompanionPawn.h"
 
 void UFieldCompanionSubsystem::SpawnFieldCompanions(
@@ -123,39 +124,126 @@ void UFieldCompanionSubsystem::HideCompanions()
 	}
 }
 
-void UFieldCompanionSubsystem::RestoreCompanions()
+FTransform UFieldCompanionSubsystem::MakeFormationTransform(const AActor* LeaderActor, int32 CompanionIndex) const
 {
-	for (auto& Pair : SpawnedCompanionMap)
+	if (!IsValid(LeaderActor))
 	{
-		AJRPGCompanionPawn* Companion = Pair.Value.Get();
-		if (!IsValid(Companion)) continue;
+		return FTransform::Identity;
+	}
 
-		Companion->SetActorHiddenInGame(false);
-		Companion->SetActorEnableCollision(true);
-		Companion->SetActorTickEnabled(true);
+	const int32 PartyIndex = CompanionIndex + 1;
+	const FVector LeaderLocation = LeaderActor->GetActorLocation();
+	const FVector LeaderForward = LeaderActor->GetActorForwardVector();
+	const FRotator LeaderRotation = LeaderActor->GetActorRotation();
 
-		Companion->SpawnDefaultController();
+	float AngleOffset = (PartyIndex % 2 != 0) ? -45.0f : 45.0f;
+	AngleOffset *= FMath::CeilToFloat(PartyIndex / 2.0f);
+
+	const FVector Direction = LeaderForward.RotateAngleAxis(AngleOffset, FVector::UpVector);
+	const FVector RestoreLocation = LeaderLocation - (Direction * RestoreFormationDistance);
+	return FTransform(LeaderRotation, RestoreLocation);
+}
+
+bool UFieldCompanionSubsystem::IsRestoreLocationUsable(const FVector& Location, const AActor* LeaderActor) const
+{
+	if (Location.ContainsNaN())
+	{
+		return false;
+	}
+
+	if (!IsValid(LeaderActor))
+	{
+		return true;
+	}
+
+	const float DistanceSq = FVector::DistSquared2D(Location, LeaderActor->GetActorLocation());
+	return DistanceSq <= FMath::Square(RestoreMaxDistanceFromLeader);
+}
+
+void UFieldCompanionSubsystem::MoveToFormationIfNeeded(
+	AJRPGCompanionPawn* Companion,
+	const AActor* LeaderActor,
+	int32 CompanionIndex,
+	FName ReasonTag)
+{
+	if (!IsValid(Companion) || !IsValid(LeaderActor))
+	{
+		return;
+	}
+
+	const FVector CurrentLocation = Companion->GetActorLocation();
+	if (IsRestoreLocationUsable(CurrentLocation, LeaderActor))
+	{
+		return;
+	}
+
+	const FTransform FallbackTransform = MakeFormationTransform(LeaderActor, CompanionIndex);
+	Companion->TeleportTo(FallbackTransform.GetLocation(), FallbackTransform.GetRotation().Rotator(), false, true);
+
+	UE_LOG(LogTemp, Warning,
+		TEXT("FieldCompanionSubsystem : 컴패니언 복구 위치 보정 - %s Reason=%s Old=%s New=%s Leader=%s"),
+		*GetNameSafe(Companion),
+		*ReasonTag.ToString(),
+		*CurrentLocation.ToString(),
+		*FallbackTransform.GetLocation().ToString(),
+		*GetNameSafe(LeaderActor));
+}
+
+void UFieldCompanionSubsystem::RestoreCompanion(AJRPGCompanionPawn* Companion, AActor* LeaderActor, int32 CompanionIndex)
+{
+	if (!IsValid(Companion))
+	{
+		return;
+	}
+
+	MoveToFormationIfNeeded(Companion, LeaderActor, CompanionIndex, TEXT("Restore.InvalidOrFarLocation"));
+
+	Companion->SetActorHiddenInGame(false);
+	Companion->SetActorEnableCollision(true);
+	Companion->SetActorTickEnabled(true);
+
+	Companion->SpawnDefaultController();
+
+	if (ACompanionPawnController* CompanionController = Cast<ACompanionPawnController>(Companion->GetController()))
+	{
+		CompanionController->SetPartyIndex(CompanionIndex + 1);
+		if (IsValid(LeaderActor))
+		{
+			CompanionController->SetLeaderActor(LeaderActor);
+		}
 	}
 }
 
-void UFieldCompanionSubsystem::RestoreCompanionsToSavedLocations()
+void UFieldCompanionSubsystem::RestoreCompanions(AActor* LeaderActor)
 {
+	int32 CompanionIndex = 0;
+	for (auto& Pair : SpawnedCompanionMap)
+	{
+		AJRPGCompanionPawn* Companion = Pair.Value.Get();
+		RestoreCompanion(Companion, LeaderActor, CompanionIndex);
+		++CompanionIndex;
+	}
+}
+
+void UFieldCompanionSubsystem::RestoreCompanionsToSavedLocations(AActor* LeaderActor)
+{
+	int32 CompanionIndex = 0;
 	for (auto& Pair : SpawnedCompanionMap)
 	{
 		AJRPGCompanionPawn* Companion = Pair.Value.Get();
 		if (!IsValid(Companion))
+		{
+			++CompanionIndex;
 			continue;
+		}
 		
 		if (const FVector* SavedLoc = SavedCompanionLocations.Find(Pair.Key))
 		{
 			Companion->TeleportTo(*SavedLoc, Companion->GetActorRotation());
 		}
 		
-		Companion->SetActorHiddenInGame(false);
-		Companion->SetActorEnableCollision(true);
-		Companion->SetActorTickEnabled(true);
-		
-		Companion->SpawnDefaultController();
+		RestoreCompanion(Companion, LeaderActor, CompanionIndex);
+		++CompanionIndex;
 	}
 }
 

@@ -8,6 +8,7 @@
 #include "Combat/Characters/CombatCharacterComponent.h"
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Battle/BasicCombatTypes.h"
 #include "Combat/Presentation/TargetGuideLineComponent.h"
 #include "Combat/Stats/HPComponent.h"
 
@@ -47,6 +48,10 @@ void AEnemyAIController::LoadRangeParamsFromCharacterData()
 	AttackRange = Data->AttackRange;
 	PreferredMinRange = Data->PreferredMinRange;
 	ChaseLeashRange = Data->ChaseLeashRange;
+	AttackStartRange = bIsRanged ? FMath::Max(AttackRange, 600.f) : FMath::Clamp(AttackRange > 0.f ? AttackRange : 320.f, 250.f, 350.f);
+	AttackKeepRange = bIsRanged ? FMath::Max(AttackStartRange + 150.f, 750.f) : FMath::Max(AttackStartRange + 80.f, 430.f);
+	ChaseLeashRange = FMath::Clamp(ChaseLeashRange > 0.f ? ChaseLeashRange : 1000.f, 800.f, 1200.f);
+	LeashRange = FMath::Max(1500.f, ChaseLeashRange + 300.f);
 }
 
 void AEnemyAIController::Tick(float DeltaSeconds)
@@ -72,7 +77,7 @@ void AEnemyAIController::Tick(float DeltaSeconds)
 		if (CurrentTarget.IsValid())
 		{
 			const float Dist = GetDistanceToTarget();
-			if (Dist <= AttackRange)
+			if (Dist <= AttackStartRange)
 				State = EEnemyCombatState::Attack;
 			else
 				State = EEnemyCombatState::Chase;
@@ -114,6 +119,10 @@ void AEnemyAIController::ResetForNewBattle()
 	CachedChainProviderObject = nullptr;
 	NextChainProviderRescanAt = 0.0f;
 	TargetLockUntilReal = 0.0f;
+	NextAttackAllowedReal = 0.0;
+	WindupUntilReal = 0.0;
+	RecoveryUntilReal = 0.0;
+	WindupTarget = nullptr;
 	State = EEnemyCombatState::Engage;
 }
 
@@ -285,7 +294,15 @@ void AEnemyAIController::TickChase(float DeltaSeconds)
 
 	const float Dist = GetDistanceToTarget();
 
-	if (Dist <= AttackRange)
+	if (Dist > LeashRange)
+	{
+		StopMovement();
+		SetCurrentTarget(nullptr);
+		State = EEnemyCombatState::Engage;
+		return;
+	}
+
+	if (Dist <= AttackStartRange)
 	{
 		State = EEnemyCombatState::Attack;
 		return;
@@ -297,6 +314,11 @@ void AEnemyAIController::TickChase(float DeltaSeconds)
 
 void AEnemyAIController::TickAttack(float DeltaSeconds)
 {
+	if (PresentationComp && PresentationComp->HasActivePresentation())
+	{
+		return;
+	}
+
 	RefreshTarget();
 
 	if (!CurrentTarget.IsValid())
@@ -314,13 +336,16 @@ void AEnemyAIController::TickAttack(float DeltaSeconds)
 		return;
 	}
 
-	// 사거리 밖이면 Chase
-	if (bIsRanged && Dist > ChaseLeashRange)
+	if (Dist > LeashRange)
 	{
-		State = EEnemyCombatState::Chase;
+		StopMovement();
+		SetCurrentTarget(nullptr);
+		State = EEnemyCombatState::Engage;
 		return;
 	}
-	if (!bIsRanged && Dist > AttackRange)
+
+	// 공격 유지 사거리 밖이면 다시 접근합니다.
+	if (Dist > AttackKeepRange || (bIsRanged && Dist > ChaseLeashRange))
 	{
 		State = EEnemyCombatState::Chase;
 		return;
@@ -359,6 +384,11 @@ void AEnemyAIController::TickRising(float DeltaSeconds)
 	const bool bAllowed = PresetAsset ? PresetAsset->bEnemyRisingAttackAllowed : false;
 	if (!bAllowed) return;
 
+	if (PresentationComp && PresentationComp->HasActivePresentation())
+	{
+		return;
+	}
+
 	const double Now = FPlatformTime::Seconds();
 	if (Now >= TargetLockUntilReal)
 	{
@@ -376,13 +406,58 @@ void AEnemyAIController::TickRising(float DeltaSeconds)
 
 void AEnemyAIController::TryExecuteOffensiveAction(AActor* Target)
 {
-	if (!PresentationComp || !IsValid(Target))
+	if (!PresentationComp || !IsValid(Target) || !ControlledPawn)
 	{
 		return;
 	}
 
-	// TODO: 몬스터 스킬 우선순위(쿨다운/거리/상태이상)를 추가할 수 있도록 진입점 분리.
-	PresentationComp->TryPresentBasicAttack(Target);
+	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+	if (Now < RecoveryUntilReal || Now < NextAttackAllowedReal || PresentationComp->HasActivePresentation())
+	{
+		return;
+	}
+
+	if (WindupUntilReal <= 0.0 || WindupTarget.Get() != Target)
+	{
+		WindupTarget = Target;
+		WindupUntilReal = Now + FMath::FRandRange(0.4f, 0.7f);
+		StopMovement();
+		UE_LOG(LogTemp, Log, TEXT("[EnemyTempo] Windup Owner=%s Target=%s Duration=%.2f"), *GetNameSafe(ControlledPawn.Get()), *GetNameSafe(Target), WindupUntilReal - Now);
+		return;
+	}
+
+	if (Now < WindupUntilReal)
+	{
+		StopMovement();
+		FaceTarget(Target);
+		return;
+	}
+
+	const float Dist = GetDistanceToTarget();
+	if (Dist > AttackKeepRange)
+	{
+		WindupUntilReal = 0.0;
+		WindupTarget = nullptr;
+		State = EEnemyCombatState::Chase;
+		return;
+	}
+
+	const FCombatActionResult Result = PresentationComp->TryPresentBasicAttack(Target);
+	if (Result.bOk)
+	{
+		const float RecoverySec = FMath::FRandRange(0.6f, 1.0f);
+		const float CooldownSec = FMath::FRandRange(0.5f, 1.2f);
+		RecoveryUntilReal = Now + RecoverySec;
+		NextAttackAllowedReal = Now + FMath::Clamp(RecoverySec + CooldownSec, 1.8f, 2.5f);
+		UE_LOG(LogTemp, Log, TEXT("[EnemyTempo] Attack Owner=%s Target=%s Recovery=%.2f CooldownReadyIn=%.2f"), *GetNameSafe(ControlledPawn.Get()), *GetNameSafe(Target), RecoverySec, NextAttackAllowedReal - Now);
+	}
+	else
+	{
+		NextAttackAllowedReal = Now + 0.2;
+	}
+
+	WindupUntilReal = 0.0;
+	WindupTarget = nullptr;
 }
 
 // ---- NavMesh 미사용 직접 이동 ----
