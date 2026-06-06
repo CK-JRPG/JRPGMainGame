@@ -17,6 +17,7 @@
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Presentation/CombatVFXComponent.h"
 #include "Combat/Presentation/TargetGuideLineComponent.h"
+#include "Combat/Presentation/CombatTargetHighlightComponent.h"
 #include "Combat/Motion/CombatMotionComponent.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Movement/JRPGCharacterMovementComponent.h"
@@ -60,6 +61,7 @@ ACombatCharacterActor::ACombatCharacterActor(const FObjectInitializer& ObjectIni
 	PresentationComp = CreateDefaultSubobject<UCombatPresentationComponent>(TEXT("CombatPresentationComponent"));
 	VFXComp = CreateDefaultSubobject<UCombatVFXComponent>(TEXT("CombatVFXComponent"));
 	TargetGuideLineComp = CreateDefaultSubobject<UTargetGuideLineComponent>(TEXT("TargetGuideLineComponent"));
+	TargetHighlightComp = CreateDefaultSubobject<UCombatTargetHighlightComponent>(TEXT("CombatTargetHighlightComponent"));
 	MotionComp = CreateDefaultSubobject<UCombatMotionComponent>(TEXT("CombatMotionComponent"));
 	LocomotionComp = CreateDefaultSubobject<ULocomotionComponent>(TEXT("LocomotionComponent"));
 	EnemyEncounterComp = CreateDefaultSubobject<UEnemyEncounterComponent>(TEXT("EnemyEncounterComponent"));

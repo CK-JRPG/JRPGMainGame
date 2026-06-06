@@ -6,6 +6,8 @@
 #include "FieldCompanionSubsystem.generated.h"
 
 class AJRPGCompanionPawn;
+class AActor;
+class ACompanionPawnController;
 struct FCharacterSpawnEntry;
 
 
@@ -38,10 +40,10 @@ public:
 	void HideCompanions();
 
 	// 전투 종료 시 컴패니언 복원 (제자리 - 승리 시)
-	void RestoreCompanions();
+	void RestoreCompanions(AActor* LeaderActor = nullptr);
 
 	// 전투 종료 시 컴패니언 복원 (저장된 위치로 - 패배 시)
-	void RestoreCompanionsToSavedLocations();
+	void RestoreCompanionsToSavedLocations(AActor* LeaderActor = nullptr);
 	
 	// 현재 컴패니언 위치를 스냅샷 저장 (허브 상호작용 시)
 	void SaveCompanionLocations();
@@ -50,6 +52,14 @@ public:
 	bool HasSavedCompanionLocations() const;
 	
 private:
+	FTransform MakeFormationTransform(const AActor* LeaderActor, int32 CompanionIndex) const;
+	bool IsRestoreLocationUsable(const FVector& Location, const AActor* LeaderActor) const;
+	void MoveToFormationIfNeeded(AJRPGCompanionPawn* Companion, const AActor* LeaderActor, int32 CompanionIndex, FName ReasonTag);
+	void RestoreCompanion(AJRPGCompanionPawn* Companion, AActor* LeaderActor, int32 CompanionIndex);
+
+	static constexpr float RestoreMaxDistanceFromLeader = 1800.0f;
+	static constexpr float RestoreFormationDistance = 200.0f;
+
 	UPROPERTY()
 	TMap<FName, TObjectPtr<AJRPGCompanionPawn>> SpawnedCompanionMap;
 

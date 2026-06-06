@@ -26,6 +26,7 @@ class UCombatZoneTrackerComponent;
 class UCombatPartyAIComponent;
 class UDirectionalDamageComponent;
 class UTargetGuideLineComponent;
+class UCombatTargetHighlightComponent;
 class UNiagaraSystem;
 
 
@@ -59,6 +60,7 @@ public:
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatMotionComponent> MotionComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<ULocomotionComponent> LocomotionComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatZoneTrackerComponent> ZoneTrackerComp;
+	UPROPERTY(VisibleAnywhere) TObjectPtr<UCombatTargetHighlightComponent> TargetHighlightComp;
 
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UHPComponent> HPComp;
 	UPROPERTY(VisibleAnywhere) TObjectPtr<UAPComponent> APComp;

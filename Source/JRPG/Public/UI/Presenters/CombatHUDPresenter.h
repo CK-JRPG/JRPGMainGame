@@ -6,6 +6,7 @@
 #include "UI/Combat/DamageTextWidget.h"
 #include "Combat/Presentation/CombatPresentationTypes.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
+#include "Combat/Presentation/CombatTargetHighlightComponent.h"
 #include "CombatHUDPresenter.generated.h"
 
 class UCombatUIWidget;
@@ -78,7 +79,10 @@ private:
     TWeakObjectPtr<class UCombatPartySlotViewModel> CurrentActivePartyVM;
 
     TWeakObjectPtr<AActor> LastTargetActor;
+    TWeakObjectPtr<AActor> LastHighlightedTargetActor;
+    ECombatTargetHighlightMode LastTargetHighlightMode = ECombatTargetHighlightMode::None;
     AActor* FindSoftTargetEnemy() const;
+    void UpdateTargetHighlight(AActor* NewTarget, ECombatTargetHighlightMode NewMode);
 
     void OnActionPaletteHPUpdated(float Percent, const FString& Text);
     void OnActionPaletteAPUpdated(float Percent);

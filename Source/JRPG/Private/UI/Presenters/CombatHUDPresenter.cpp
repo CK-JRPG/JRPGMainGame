@@ -112,6 +112,7 @@ void UCombatHUDPresenter::Shutdown()
 	}
 
 	ClearHPBindings();
+	UpdateTargetHighlight(nullptr, ECombatTargetHighlightMode::None);
 
 	if (CombatWidget) { CombatWidget->RemoveFromParent(); CombatWidget = nullptr; }
 	if (TacticalWidget) { TacticalWidget->RemoveFromParent(); TacticalWidget = nullptr; }
@@ -227,6 +228,7 @@ void UCombatHUDPresenter::ReturnDamageTextToPool(UDamageTextWidget* Widget)
 void UCombatHUDPresenter::OnBattleStarted(const FBattleSessionSnapshot& Snapshot)
 {
 	if (!CombatWidget) return;
+	UpdateTargetHighlight(nullptr, ECombatTargetHighlightMode::None);
 	CombatWidget->SetVisibility(ESlateVisibility::Hidden);
 	CombatWidget->SetCombatPanelsVisible(false);
 	CombatWidget->HideEncounterOverlay();
@@ -353,6 +355,7 @@ void UCombatHUDPresenter::OnBattleEnded(const FBattleSessionSnapshot& Snapshot, 
 	for (auto& VM : PartyVMs) { if (VM) VM->Unbind(); }
 	for (auto& VM : EnemyHPBarVMs) { if (VM) VM->Unbind(); }
 	ClearHPBindings();
+	UpdateTargetHighlight(nullptr, ECombatTargetHighlightMode::None);
 }
 
 void UCombatHUDPresenter::ClearHPBindings()
@@ -658,21 +661,32 @@ void UCombatHUDPresenter::EndEncounterIntro()
 void UCombatHUDPresenter::UpdateTargetInfo()
 {
 	AActor* CurrentTarget = nullptr;
+	ECombatTargetHighlightMode HighlightMode = ECombatTargetHighlightMode::None;
 
 	if (UCameraSubsystem* CamSub = GetWorld()->GetSubsystem<UCameraSubsystem>())
 	{
 		CurrentTarget = CamSub->GetLockedOnEnemy();
+		if (CurrentTarget && CamSub->IsLockedOn())
+		{
+			HighlightMode = ECombatTargetHighlightMode::LockedOn;
+		}
 	}
 
 	if (!CurrentTarget)
 	{
 		CurrentTarget = FindSoftTargetEnemy();
+		if (CurrentTarget)
+		{
+			HighlightMode = ECombatTargetHighlightMode::SoftTarget;
+		}
 	}
 
-	if (CurrentTarget != LastTargetActor.Get())
+	if (CurrentTarget != LastTargetActor.Get() || HighlightMode != LastTargetHighlightMode)
 	{
+		UpdateTargetHighlight(CurrentTarget, HighlightMode);
 		UpdateTargetEnemyUI(CurrentTarget);
 		LastTargetActor = CurrentTarget;
+		LastTargetHighlightMode = HighlightMode;
 	}
 }
 
@@ -690,6 +704,39 @@ void UCombatHUDPresenter::UpdateTargetEnemyUI(AActor* NewTarget)
 	{
 		TargetVM->Unbind();
 		CombatWidget->TargetInfoPanel->SetVisibility(ESlateVisibility::Collapsed);
+	}
+}
+
+void UCombatHUDPresenter::UpdateTargetHighlight(AActor* NewTarget, ECombatTargetHighlightMode NewMode)
+{
+	if (AActor* PreviousTarget = LastHighlightedTargetActor.Get())
+	{
+		if (PreviousTarget != NewTarget || NewMode == ECombatTargetHighlightMode::None)
+		{
+			if (UCombatTargetHighlightComponent* HighlightComp = PreviousTarget->FindComponentByClass<UCombatTargetHighlightComponent>())
+			{
+				HighlightComp->ClearHighlight();
+			}
+		}
+	}
+
+	if (NewMode == ECombatTargetHighlightMode::None || !NewTarget)
+	{
+		LastHighlightedTargetActor = nullptr;
+		LastTargetHighlightMode = ECombatTargetHighlightMode::None;
+		return;
+	}
+
+	if (UCombatTargetHighlightComponent* HighlightComp = NewTarget->FindComponentByClass<UCombatTargetHighlightComponent>())
+	{
+		HighlightComp->SetHighlightMode(NewMode);
+		LastHighlightedTargetActor = NewTarget;
+		LastTargetHighlightMode = NewMode;
+	}
+	else
+	{
+		LastHighlightedTargetActor = nullptr;
+		LastTargetHighlightMode = ECombatTargetHighlightMode::None;
 	}
 }
 

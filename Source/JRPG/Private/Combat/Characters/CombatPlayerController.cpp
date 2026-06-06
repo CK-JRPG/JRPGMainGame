@@ -256,7 +256,7 @@ void ACombatPlayerController::OnTargetLockOn(const FInputActionValue& Value)
 	{
 		if (UCombatHUDPresenter* Presenter = HUD->GetCombatPresenter())
 		{
-			Presenter->UpdateTargetEnemyUI(CamSub->GetLockedOnEnemy());
+			Presenter->UpdateTargetInfo();
 			UE_LOG(LogTemp, Warning, TEXT("락온 된 적 HP 표시"));
 		}
 	}

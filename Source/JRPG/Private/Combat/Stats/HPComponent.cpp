@@ -10,6 +10,7 @@ UHPComponent::UHPComponent()
 
 void UHPComponent::BeginPlay()
 {
+	Super::BeginPlay();
 	CurrentHP = MaxHP;
 }
 
