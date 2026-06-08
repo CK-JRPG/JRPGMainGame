@@ -9,6 +9,7 @@
 #include "UI/ViewModels/CombatViewModels.h"
 #include "UI/Combat/DamageTextWidget.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Battle/CombatTargetingSubsystem.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/CombatCharacterActor.h"
 #include "Combat/Tactical/TacticalModeSubsystem.h"
@@ -378,62 +379,16 @@ AActor* UCombatHUDPresenter::FindSoftTargetEnemy() const
 	APawn* PlayerPawn = UGameplayStatics::GetPlayerPawn(World, 0);
 	if (!PlayerPawn) return nullptr;
 
-	UBattleSessionSubsystem* BattleSub = World->GetSubsystem<UBattleSessionSubsystem>();
-	if (!BattleSub) return nullptr;
-
-	TArray<AActor*> ActiveEnemies;
-	BattleSub->GetAliveParticipantsByTeam(ECombatTeam::Enemy, ActiveEnemies);
-
-	AActor* BestTarget = nullptr;
-	float ClosestDistance = 999999.0f;
-	const float MaxTargetingDistance = 3000.0f;
-
-	FVector PlayerLoc = PlayerPawn->GetActorLocation();
-	FVector PlayerForward = PlayerPawn->GetActorForwardVector();
-	PlayerForward.Z = 0.0f;
-	PlayerForward.Normalize();
-
-	for (AActor* Enemy : ActiveEnemies)
+	if (UCombatTargetingSubsystem* Targeting = World->GetSubsystem<UCombatTargetingSubsystem>())
 	{
-		if (!Enemy) continue;
-
-		FVector DirToEnemy = Enemy->GetActorLocation() - PlayerLoc;
-		DirToEnemy.Z = 0.0f;
-
-		float DistanceToEnemy = DirToEnemy.Size();
-		if (DistanceToEnemy > MaxTargetingDistance) continue;
-
-		DirToEnemy.Normalize();
-
-		float DotProduct = FVector::DotProduct(PlayerForward, DirToEnemy);
-
-		if (DotProduct > 0.0f)
+		const FTargetingResult Result = Targeting->ResolvePreferredBasicAttackTarget(PlayerPawn);
+		if (Result.bOk && Result.Targets.Num() > 0 && Result.Targets[0].IsValid())
 		{
-			if (DistanceToEnemy < ClosestDistance)
-			{
-				ClosestDistance = DistanceToEnemy;
-				BestTarget = Enemy;
-			}
+			return Result.Targets[0].Get();
 		}
 	}
 
-	if (!BestTarget)
-	{
-		ClosestDistance = 999999.0f; // 거리 초기화
-		for (AActor* Enemy : ActiveEnemies)
-		{
-			if (!Enemy) continue;
-
-			float Dist = FVector::Dist(PlayerLoc, Enemy->GetActorLocation());
-			if (Dist < MaxTargetingDistance && Dist < ClosestDistance)
-			{
-				ClosestDistance = Dist;
-				BestTarget = Enemy;
-			}
-		}
-	}
-
-	return BestTarget;
+	return nullptr;
 }
 
 //void UCombatHUDPresenter::OnActionPaletteHPUpdated(float Percent, const FString& Text)

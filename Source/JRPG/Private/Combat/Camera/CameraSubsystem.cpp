@@ -4,9 +4,24 @@
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Battle/BattleSessionTypes.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
+#include "Combat/Stats/HPComponent.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+
+namespace
+{
+    bool IsAliveCameraTarget(const AActor* Actor)
+    {
+        if (!IsValid(Actor))
+        {
+            return false;
+        }
+
+        const UHPComponent* HP = Actor->FindComponentByClass<UHPComponent>();
+        return !HP || !HP->IsDead();
+    }
+}
 
 void UCameraSubsystem::OnWorldBeginPlay(UWorld& InWorld)
 {
@@ -196,6 +211,17 @@ void UCameraSubsystem::ResetZoom()
         CameraRig->ResetZoom();
 }
 
+AActor* UCameraSubsystem::GetLockedOnEnemy() const
+{
+    AActor* Locked = LockedOnEnemy.Get();
+    if (!bLockedOn || !IsAliveCameraTarget(Locked))
+    {
+        return nullptr;
+    }
+
+    return Locked;
+}
+
 void UCameraSubsystem::LockOnEnemy()
 {
     RefreshEnemyList();
@@ -260,16 +286,17 @@ void UCameraSubsystem::CycleLockOnEnemy(int32 Direction)
     }
 
     // 현재 락온 중인 적이 죽었거나 유효하지 않으면 인덱스 조정
-    if (!LockedOnEnemy.IsValid())
+    AActor* CurrentLocked = GetLockedOnEnemy();
+    if (!CurrentLocked)
     {
         LockedOnEnemyIndex = FMath::Clamp(LockedOnEnemyIndex, 0, CachedEnemies.Num() - 1);
     }
     else
     {
         // 새 목록에서 현재 적의 인덱스를 다시 찾기
-        const int32 NewIdx = CachedEnemies.IndexOfByPredicate([this](const TWeakObjectPtr<AActor>& Elem) 
+        const int32 NewIdx = CachedEnemies.IndexOfByPredicate([CurrentLocked](const TWeakObjectPtr<AActor>& Elem) 
             { 
-                return Elem.Get() == LockedOnEnemy.Get(); 
+                return Elem.Get() == CurrentLocked; 
             });
 
         if (NewIdx != INDEX_NONE)
@@ -336,7 +363,7 @@ void UCameraSubsystem::RefreshEnemyList()
     // ICameraTargetInterface를 구현한 적만 필터링
     for (AActor* Enemy : Opponents)
     {
-        if (Enemy && Enemy->Implements<UCameraTargetInterface>())
+        if (Enemy && IsAliveCameraTarget(Enemy) && Enemy->Implements<UCameraTargetInterface>())
         {
             CachedEnemies.Add(Enemy);
         }
@@ -371,7 +398,7 @@ void UCameraSubsystem::OnBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/,
 
 void UCameraSubsystem::OnCharacterPossessed(AActor* NewCharacter)
 {
-    if (bLockedOn)
+    if (IsLockedOn())
         return;
 
     SetTargetSmooth(NewCharacter);

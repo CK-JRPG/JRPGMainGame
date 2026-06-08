@@ -232,7 +232,7 @@ FTargetingResult UCombatTargetingSubsystem::ResolvePreferredBasicAttackTarget(AA
 	{
 		if (AActor* Locked = CamSub->GetLockedOnEnemy())
 		{
-			if (Opponents.Contains(Locked))
+			if (Opponents.Contains(Locked) && IsAliveCombatant(Locked))
 			{
 				Chosen = Locked;
 			}
@@ -301,7 +301,19 @@ FTargetingResult UCombatTargetingSubsystem::ResolvePreferredTargetsForSkill(AAct
 			TArray<AActor*> Opponents;
 			Battle->GetOpponentsFor(Requester,Opponents);
 
-			AActor *Chosen = PickTopThreatTarget(Requester,Opponents);
+			AActor* Chosen = nullptr;
+			const FTargetingResult BasicTarget = ResolvePreferredBasicAttackTarget(Requester);
+			if (BasicTarget.bOk && BasicTarget.Targets.Num() > 0 && BasicTarget.Targets[0].IsValid())
+			{
+				AActor* Preferred = BasicTarget.Targets[0].Get();
+				if (Opponents.Contains(Preferred) && IsAliveCombatant(Preferred))
+				{
+					Chosen = Preferred;
+				}
+			}
+
+			if (!Chosen)
+				Chosen = PickTopThreatTarget(Requester,Opponents);
 			if (!Chosen)
 				Chosen = PickLowestHPActor(Opponents);
 		

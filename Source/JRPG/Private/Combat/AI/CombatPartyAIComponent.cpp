@@ -9,6 +9,7 @@
 #include "Combat/Characters/CombatCharacterDataAsset.h"
 #include "Combat/Threat/ThreatComponent.h"
 #include "Combat/Battle/BattleSessionSubsystem.h"
+#include "Combat/Battle/CombatTargetingSubsystem.h"
 #include "Combat/Presentation/CombatPresentationComponent.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Characters/CombatPlayerController.h"
@@ -417,6 +418,20 @@ void UCombatPartyAIComponent::RefreshTarget()
 			const UHPComponent* HP = InTarget->FindComponentByClass<UHPComponent>();
 			return !HP || !HP->IsDead();
 		};
+
+	if (IsPlayerControlledNow())
+	{
+		CurrentTarget = nullptr;
+		if (UCombatTargetingSubsystem* Targeting = GetWorld() ? GetWorld()->GetSubsystem<UCombatTargetingSubsystem>() : nullptr)
+		{
+			const FTargetingResult Result = Targeting->ResolvePreferredBasicAttackTarget(GetOwner());
+			if (Result.bOk && Result.Targets.Num() > 0 && Result.Targets[0].IsValid())
+			{
+				CurrentTarget = Result.Targets[0].Get();
+			}
+		}
+		return;
+	}
 
 	if (CurrentTarget.IsValid() && !IsAliveTarget(CurrentTarget.Get()))
 	{
@@ -1280,6 +1295,17 @@ void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 				TankBlockedLogAccum = 0.f;
 			}
 		};
+	auto IsAliveTarget = [](AActor* InTarget) -> bool
+		{
+			if (!IsValid(InTarget))
+			{
+				return false;
+			}
+
+			const UHPComponent* HP = InTarget->FindComponentByClass<UHPComponent>();
+			return !HP || !HP->IsDead();
+		};
+
 	if (Role != EJRPGPartyRole::Defender)
 	{
 		LogBlocked(TEXT("SelfRole is not Tank"));
@@ -1290,35 +1316,114 @@ void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 		return;
 	}
 
+	if (LastTempTauntedEnemy.IsValid() && !IsAliveTarget(LastTempTauntedEnemy.Get()))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] TauntedEnemyDefeated Enemy=%s CooldownReset=%.1f"),
+			*GetNameSafe(LastTempTauntedEnemy.Get()),
+			TankReactionCooldownRemaining);
+		LastTempTauntedEnemy = nullptr;
+		TankReactionCooldownRemaining = 0.f;
+	}
+	else if (!LastTempTauntedEnemy.IsValid())
+	{
+		LastTempTauntedEnemy = nullptr;
+	}
+
 	AEnemyAIController* ObservedEnemyController = nullptr;
 	AActor* EnemyActor = nullptr;
+	AActor* RawCurrentTarget = nullptr;
+	AActor* EffectiveTarget = nullptr;
+	AActor* ForcedTarget = nullptr;
+	AActor* EnemyCurrentTarget = nullptr;
 	TArray<AActor*> Enemies;
+	int32 ObservedEnemyCount = 0;
+	int32 ForcedSelfCount = 0;
+	int32 TargetingTankCount = 0;
+	float BestScore = -FLT_MAX;
+	float BestDistSq = FLT_MAX;
 	if (UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr)
 	{
 		Battle->GetOpponentsFor(GetOwner(), Enemies);
 		for (AActor* Enemy : Enemies)
 		{
-			if (!IsValid(Enemy)) continue;
+			if (!IsAliveTarget(Enemy)) continue;
 			if (APawn* EnemyPawn = Cast<APawn>(Enemy))
 			{
 				if (AEnemyAIController* EnemyController = Cast<AEnemyAIController>(EnemyPawn->GetController()))
 				{
-					ObservedEnemyController = EnemyController;
-					EnemyActor = Enemy;
-					break;
+					++ObservedEnemyCount;
+					AActor* CandidateRawTarget = EnemyController->GetCurrentTargetActor();
+					AActor* CandidateEffectiveTarget = EnemyController->GetEffectiveTargetActor();
+					AActor* CandidateForcedTarget = EnemyController->HasForcedTarget() ? CandidateEffectiveTarget : nullptr;
+					if (!IsAliveTarget(CandidateEffectiveTarget))
+					{
+						continue;
+					}
+
+					if (EnemyController->HasForcedTarget() && CandidateForcedTarget == GetOwner())
+					{
+						++ForcedSelfCount;
+						continue;
+					}
+
+					if (CandidateEffectiveTarget == GetOwner())
+					{
+						++TargetingTankCount;
+						continue;
+					}
+
+					if (!IsAllyActor(CandidateEffectiveTarget))
+					{
+						continue;
+					}
+
+					UCombatPartyAIComponent* CandidateTargetAI = CandidateEffectiveTarget->FindComponentByClass<UCombatPartyAIComponent>();
+					const bool bProtectingNonTank = !CandidateTargetAI || CandidateTargetAI->Role != EJRPGPartyRole::Defender;
+					const float CandidateScore = bProtectingNonTank ? 2.f : 1.f;
+					const float CandidateDistSq = GetOwner()
+						? FVector::DistSquared2D(GetOwner()->GetActorLocation(), Enemy->GetActorLocation())
+						: FLT_MAX;
+
+					if (CandidateScore > BestScore || (FMath::IsNearlyEqual(CandidateScore, BestScore) && CandidateDistSq < BestDistSq))
+					{
+						BestScore = CandidateScore;
+						BestDistSq = CandidateDistSq;
+						ObservedEnemyController = EnemyController;
+						EnemyActor = Enemy;
+						RawCurrentTarget = CandidateRawTarget;
+						EffectiveTarget = CandidateEffectiveTarget;
+						ForcedTarget = CandidateForcedTarget;
+						EnemyCurrentTarget = CandidateEffectiveTarget;
+					}
 				}
 			}
 		}
 	}
 	if (!ObservedEnemyController)
 	{
-		LogBlocked(TEXT("No observed enemy"));
+		if (ForcedSelfCount > 0 && !bTankAggroSuspendedByForcedSelf)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[TankAI] AggroReaction suspended: ForcedTarget is self Count=%d"), ForcedSelfCount);
+			bTankAggroSuspendedByForcedSelf = true;
+		}
+		if (TankDebugLogAccum >= 0.75f)
+		{
+			UE_LOG(LogTemp, Log, TEXT("[TankAI] ObserveAggro Owner=%s Enemies=%d CandidateEnemy=None ForcedSelf=%d TargetingTank=%d Cooldown=%.1f"),
+				*GetNameSafe(GetOwner()),
+				ObservedEnemyCount,
+				ForcedSelfCount,
+				TargetingTankCount,
+				TankReactionCooldownRemaining);
+			TankDebugLogAccum = 0.f;
+		}
+		LogBlocked(ObservedEnemyCount > 0 ? TEXT("No ally under enemy focus") : TEXT("No observed enemy"));
 		return;
 	}
-	AActor* RawCurrentTarget = ObservedEnemyController->GetCurrentTargetActor();
-	AActor* EffectiveTarget = ObservedEnemyController->GetEffectiveTargetActor();
-	AActor* ForcedTarget = ObservedEnemyController->HasForcedTarget() ? EffectiveTarget : nullptr;
-	AActor* EnemyCurrentTarget = EffectiveTarget;
+	if (bTankAggroSuspendedByForcedSelf)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] AggroReaction resumed"));
+		bTankAggroSuspendedByForcedSelf = false;
+	}
 	TankTargetDebugLogAccum += DeltaTime;
 	const bool bTargetStateChanged =
 		LastTargetDebugRawCurrent.Get() != RawCurrentTarget ||
@@ -1341,7 +1446,17 @@ void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 	}
 	if (TankDebugLogAccum >= 0.75f)
 	{
-		UE_LOG(LogTemp, Log, TEXT("[TankAI] ObservedEnemy=%s EnemyCurrentTarget=%s SelfRole=%s"), *GetNameSafe(EnemyActor), *GetNameSafe(EnemyCurrentTarget), *RoleToDebugString(Role));
+		UCombatPartyAIComponent* DebugTargetAI = EnemyCurrentTarget ? EnemyCurrentTarget->FindComponentByClass<UCombatPartyAIComponent>() : nullptr;
+		UE_LOG(LogTemp, Log, TEXT("[TankAI] ObserveAggro Owner=%s Enemies=%d CandidateEnemy=%s EnemyCurrentTarget=%s EnemyTargetRole=%s ForcedTarget=%s ForcedSelf=%d TargetingTank=%d Cooldown=%.1f"),
+			*GetNameSafe(GetOwner()),
+			ObservedEnemyCount,
+			*GetNameSafe(EnemyActor),
+			*GetNameSafe(EnemyCurrentTarget),
+			DebugTargetAI ? *RoleToDebugString(DebugTargetAI->Role) : TEXT("NonParty"),
+			*GetNameSafe(ForcedTarget),
+			ForcedSelfCount,
+			TargetingTankCount,
+			TankReactionCooldownRemaining);
 		TankDebugLogAccum = 0.f;
 	}
 
@@ -1354,24 +1469,6 @@ void UCombatPartyAIComponent::TryRecoverAggro(float DeltaTime)
 	if (TankDebugLogAccum <= KINDA_SMALL_NUMBER)
 	{
 		UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTargetRole=%s"), TargetAI ? *RoleToDebugString(TargetAI->Role) : TEXT("NonParty"));
-	}
-	if (ObservedEnemyController->HasForcedTarget() && ForcedTarget == GetOwner())
-	{
-		if (!bTankAggroSuspendedByForcedSelf)
-		{
-			UE_LOG(LogTemp, Log, TEXT("[TankAI] AggroReaction suspended: ForcedTarget is self"));
-			bTankAggroSuspendedByForcedSelf = true;
-		}
-		return;
-	}
-	if (bTankAggroSuspendedByForcedSelf)
-	{
-		UE_LOG(LogTemp, Log, TEXT("[TankAI] AggroReaction resumed"));
-		bTankAggroSuspendedByForcedSelf = false;
-	}
-	if (EffectiveTarget == GetOwner())
-	{
-		return;
 	}
 	if (!IsAllyActor(EnemyCurrentTarget))
 	{
@@ -1396,7 +1493,11 @@ bool UCombatPartyAIComponent::TryTempTaunt(AEnemyAIController* EnemyController)
 	AActor* Prev = EnemyController->GetCurrentTargetActor();
 	UE_LOG(LogTemp, Log, TEXT("[TankAI] Use TempTaunt"));
 	EnemyController->ApplyForcedTarget(GetOwner(), TempTauntForcedTargetDuration);
-	UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTarget changed: %s -> %s"), *GetNameSafe(Prev), *GetNameSafe(GetOwner()));
+	LastTempTauntedEnemy = EnemyController->GetPawn();
+	UE_LOG(LogTemp, Log, TEXT("[TankAI] EnemyTarget changed: Enemy=%s %s -> %s"),
+		*GetNameSafe(LastTempTauntedEnemy.Get()),
+		*GetNameSafe(Prev),
+		*GetNameSafe(GetOwner()));
 	return true;
 }
 

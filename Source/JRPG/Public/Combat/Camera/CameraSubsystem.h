@@ -57,8 +57,8 @@ public:
 	void LockOnEnemy();
 	void CycleLockOnEnemy(int32 Direction);
 	void ClearLockOn();
-	bool IsLockedOn() const { return bLockedOn; }
-	AActor* GetLockedOnEnemy() const { return LockedOnEnemy.Get(); }
+	AActor* GetLockedOnEnemy() const;
+	bool IsLockedOn() const { return GetLockedOnEnemy() != nullptr; }
 
 	// Getter/Setter
 	ACameraRigActor* GetCameraRig() const { return CameraRig.Get(); }

@@ -104,6 +104,7 @@ private:
 	TWeakObjectPtr<AActor> LastTargetDebugAggroTarget;
 	TWeakObjectPtr<AActor> LastTargetDebugForcedTarget;
 	TWeakObjectPtr<AActor> LastTargetDebugEffectiveTarget;
+	TWeakObjectPtr<AActor> LastTempTauntedEnemy;
 	float StageOneLogAccum = 0.f;
 	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Tank Aggro", meta = (ClampMin = "0.0"))
 	float TempTauntForcedTargetDuration = 1.05f;
