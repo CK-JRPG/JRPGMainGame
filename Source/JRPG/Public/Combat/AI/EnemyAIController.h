@@ -78,6 +78,12 @@ private:
 	double RecoveryUntilReal = 0.0;
 	TWeakObjectPtr<AActor> WindupTarget;
 
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Movement", meta = (ClampMin = "1.0"))
+	float FaceTargetTurnRateDegPerSec = 360.f;
+
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Movement", meta = (ClampMin = "0.0"))
+	float FaceTargetSnapAngleDegrees = 3.f;
+
 	// FSM
 	void RefreshStateFromGroggyAndChain();
 	void RefreshTarget();
@@ -87,12 +93,12 @@ private:
 	void TickRetreat(float DeltaSeconds);
 	void TickGroggyStunned(float DeltaSeconds);
 	void TickRising(float DeltaSeconds);
-	void TryExecuteOffensiveAction(AActor* Target);
+	void TryExecuteOffensiveAction(AActor* Target, float DeltaSeconds);
 
 	// NavMesh 미사용 직접 이동
 	void MoveDirectlyToward(const FVector& Destination, float DeltaTime);
 	void MoveDirectlyAwayFrom(const FVector& ThreatLocation, float DeltaTime);
-	void FaceTarget(AActor* Target);
+	void FaceTarget(AActor* Target, float DeltaSeconds);
 
 	// 유틸리티
 	float GetDistanceToTarget() const;

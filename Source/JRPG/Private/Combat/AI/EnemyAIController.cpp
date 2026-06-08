@@ -496,7 +496,7 @@ void AEnemyAIController::TickChase(float DeltaSeconds)
 		return;
 	}
 
-	FaceTarget(CurrentTarget.Get());
+	FaceTarget(CurrentTarget.Get(), DeltaSeconds);
 	MoveDirectlyToward(CurrentTarget->GetActorLocation(), DeltaSeconds);
 }
 
@@ -539,8 +539,8 @@ void AEnemyAIController::TickAttack(float DeltaSeconds)
 		return;
 	}
 
-	FaceTarget(CurrentTarget.Get());
-	TryExecuteOffensiveAction(CurrentTarget.Get());
+	FaceTarget(CurrentTarget.Get(), DeltaSeconds);
+	TryExecuteOffensiveAction(CurrentTarget.Get(), DeltaSeconds);
 }
 
 void AEnemyAIController::TickRetreat(float DeltaSeconds)
@@ -587,12 +587,12 @@ void AEnemyAIController::TickRising(float DeltaSeconds)
 
 	if (CurrentTarget.IsValid() && PresentationComp) 
 	{
-		FaceTarget(CurrentTarget.Get());
-		TryExecuteOffensiveAction(CurrentTarget.Get());
+		FaceTarget(CurrentTarget.Get(), DeltaSeconds);
+		TryExecuteOffensiveAction(CurrentTarget.Get(), DeltaSeconds);
 	}
 }
 
-void AEnemyAIController::TryExecuteOffensiveAction(AActor* Target)
+void AEnemyAIController::TryExecuteOffensiveAction(AActor* Target, float DeltaSeconds)
 {
 	if (!PresentationComp || !IsValid(Target) || !ControlledPawn)
 	{
@@ -617,7 +617,7 @@ void AEnemyAIController::TryExecuteOffensiveAction(AActor* Target)
 	if (Now < WindupUntilReal)
 	{
 		StopMovement();
-		FaceTarget(Target);
+		FaceTarget(Target, DeltaSeconds);
 		return;
 	}
 
@@ -686,7 +686,7 @@ void AEnemyAIController::MoveDirectlyAwayFrom(const FVector& ThreatLocation, flo
 	MyChar->AddMovementInput(Dir, 1.0f);
 }
 
-void AEnemyAIController::FaceTarget(AActor* Target)
+void AEnemyAIController::FaceTarget(AActor* Target, float DeltaSeconds)
 {
 	if (!Target || !ControlledPawn) return;
 
@@ -694,7 +694,24 @@ void AEnemyAIController::FaceTarget(AActor* Target)
 	Dir.Z = 0.f;
 	if (!Dir.IsNearlyZero())
 	{
-		ControlledPawn->SetActorRotation(Dir.Rotation());
+		const FRotator CurrentRotation = ControlledPawn->GetActorRotation();
+		FRotator DesiredRotation = Dir.Rotation();
+		DesiredRotation.Pitch = CurrentRotation.Pitch;
+		DesiredRotation.Roll = CurrentRotation.Roll;
+
+		const float YawDelta = FMath::Abs(FMath::FindDeltaAngleDegrees(CurrentRotation.Yaw, DesiredRotation.Yaw));
+		if (YawDelta <= FaceTargetSnapAngleDegrees || DeltaSeconds <= 0.f)
+		{
+			ControlledPawn->SetActorRotation(DesiredRotation);
+			return;
+		}
+
+		ControlledPawn->SetActorRotation(FMath::RInterpConstantTo(
+			CurrentRotation,
+			DesiredRotation,
+			DeltaSeconds,
+			FaceTargetTurnRateDegPerSec
+		));
 	}
 }
 
