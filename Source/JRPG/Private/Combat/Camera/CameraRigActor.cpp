@@ -5,6 +5,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpringArmComponent.h"
+#include "UObject/ConstructorHelpers.h"
 #include "Materials/MaterialInterface.h"
 
 
@@ -26,6 +27,13 @@ ACameraRigActor::ACameraRigActor()
 
 	TargetOutlinePostProcessMaterial = TSoftObjectPtr<UMaterialInterface>(
 		FSoftObjectPath(TEXT("/Game/Combat/Presentation/M_CombatTargetOutline_PP.M_CombatTargetOutline_PP")));
+
+	static ConstructorHelpers::FObjectFinder<UMaterialInterface> TargetOutlineMaterialFinder(
+		TEXT("/Game/Combat/Presentation/M_CombatTargetOutline_PP.M_CombatTargetOutline_PP"));
+	if (TargetOutlineMaterialFinder.Succeeded())
+	{
+		DefaultTargetOutlinePostProcessMaterial = TargetOutlineMaterialFinder.Object;
+	}
 }
 
 void ACameraRigActor::BeginPlay()
@@ -211,12 +219,20 @@ void ACameraRigActor::UpdateManualCameraShake(float DeltaTime)
 
 void ACameraRigActor::ApplyTargetOutlinePostProcess()
 {
-	if (!Camera || TargetOutlinePostProcessMaterial.IsNull() || TargetOutlinePostProcessWeight <= 0.0f)
+	if (!Camera || TargetOutlinePostProcessWeight <= 0.0f)
 	{
 		return;
 	}
 
-	UMaterialInterface* OutlineMaterial = TargetOutlinePostProcessMaterial.LoadSynchronous();
+	UMaterialInterface* OutlineMaterial = TargetOutlinePostProcessMaterial.IsNull()
+		? DefaultTargetOutlinePostProcessMaterial.Get()
+		: TargetOutlinePostProcessMaterial.LoadSynchronous();
+
+	if (!OutlineMaterial)
+	{
+		OutlineMaterial = DefaultTargetOutlinePostProcessMaterial.Get();
+	}
+
 	if (!OutlineMaterial)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("CameraRigActor: target outline post-process material not found: %s"),

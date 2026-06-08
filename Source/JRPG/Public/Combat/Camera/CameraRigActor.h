@@ -113,6 +113,9 @@ private:
 	float ActiveManualShakeSpeed = 0.0f;
 	bool bManualShakeActive = false;
 
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> DefaultTargetOutlinePostProcessMaterial;
+
 	void StartManualCameraShake(const FCombatCameraShakeSpec& ShakeSpec, bool bCriticalHit);
 	void UpdateManualCameraShake(float DeltaTime);
 	void ApplyTargetOutlinePostProcess();
