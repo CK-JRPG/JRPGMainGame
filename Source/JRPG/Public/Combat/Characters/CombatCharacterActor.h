@@ -103,6 +103,8 @@ protected:
 	
 private:
 	FJRPGHandle DeathInputLockHandle;
+	FName DefaultCapsuleCollisionProfileName = NAME_None;
+	FName DefaultMeshCollisionProfileName = NAME_None;
 	void HandleOnDeath(AActor* Killer, FName ReasonTag);
 	void DeathDestory();
 };

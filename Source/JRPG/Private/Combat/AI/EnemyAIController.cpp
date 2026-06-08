@@ -130,6 +130,8 @@ void AEnemyAIController::ResetForNewBattle()
 {
 	StopMovement();
 	SetCurrentTarget(nullptr);
+	ForcedTarget = nullptr;
+	ForcedTargetUntilReal = 0.0;
 	CachedChainProviderObject = nullptr;
 	NextChainProviderRescanAt = 0.0f;
 	TargetLockUntilReal = 0.0f;

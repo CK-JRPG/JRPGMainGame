@@ -6,6 +6,7 @@
 #include "Combat/Battle/CombatActionComponent.h"
 #include "Combat/Battle/CombatZoneSettingDataAsset.h"
 
+#include "Combat/Characters/CombatCharacterActor.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
 #include "Combat/Characters/PartySubsystem.h"
 
@@ -802,6 +803,22 @@ void UBattleSessionSubsystem::EndBattle(EBattleEndReason Reason)
 	SetPhase(EBattlePhase::Cleanup);
 
 	const FBattleSessionSnapshot FinalSnapshot = Snapshot;
+
+	if (Reason == EBattleEndReason::Defeat || Reason == EBattleEndReason::Aborted)
+	{
+		for (const FBattleParticipantSlot& Slot : Participants)
+		{
+			if (Slot.Team != ECombatTeam::Enemy)
+			{
+				continue;
+			}
+
+			if (ACombatCharacterActor* Enemy = Cast<ACombatCharacterActor>(Slot.Actor.Get()))
+			{
+				Enemy->ResetEnemyRuntimeForRematch(TEXT("Battle.RematchReset"));
+			}
+		}
+	}
 
 	bBattleActive = false;
 	OnBattleEnded.Broadcast(FinalSnapshot, Reason);

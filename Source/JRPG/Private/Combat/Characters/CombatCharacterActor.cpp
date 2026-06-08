@@ -95,6 +95,15 @@ void ACombatCharacterActor::BeginPlay()
 {
 	Super::BeginPlay();
 
+	if (UCapsuleComponent* CapsuleComp = GetCapsuleComponent())
+	{
+		DefaultCapsuleCollisionProfileName = CapsuleComp->GetCollisionProfileName();
+	}
+	if (USkeletalMeshComponent* MeshComp = GetMesh())
+	{
+		DefaultMeshCollisionProfileName = MeshComp->GetCollisionProfileName();
+	}
+
 	// 사망 이벤트 바인딩
 	if (HPComp)
 	{
@@ -312,6 +321,16 @@ void ACombatCharacterActor::ResetEnemyRuntimeForRematch(FName ReasonTag)
 {
 	if (!CharacterComp || CharacterComp->GetTeam() != ECombatTeam::Enemy)
 		return;
+
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(DeathDestoryHandle);
+	}
+
+	SetActorHiddenInGame(false);
+	SetActorEnableCollision(true);
+	SetActorTickEnabled(true);
+	CustomTimeDilation = 1.f;
 	
 	if (PresentationComp)
 	{
@@ -340,6 +359,15 @@ void ACombatCharacterActor::ResetEnemyRuntimeForRematch(FName ReasonTag)
 		MoveComp->StopMovementImmediately();
 	}
 
+	if (UCapsuleComponent* CapsuleComp = GetCapsuleComponent())
+	{
+		if (!DefaultCapsuleCollisionProfileName.IsNone())
+		{
+			CapsuleComp->SetCollisionProfileName(DefaultCapsuleCollisionProfileName);
+		}
+		CapsuleComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	}
+
 	if (HPComp)
 	{
 		HPComp->RestoreFull(ReasonTag);
@@ -362,7 +390,12 @@ void ACombatCharacterActor::ResetEnemyRuntimeForRematch(FName ReasonTag)
 
 	if (USkeletalMeshComponent* MeshComp = GetMesh())
 	{
+		if (!DefaultMeshCollisionProfileName.IsNone())
+		{
+			MeshComp->SetCollisionProfileName(DefaultMeshCollisionProfileName);
+		}
 		MeshComp->SetAnimationMode(EAnimationMode::AnimationBlueprint);
+		MeshComp->GlobalAnimRateScale = 1.f;
 	}
 
 	AEnemyAIController* EnemyAI = Cast<AEnemyAIController>(GetController());
