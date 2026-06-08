@@ -6,6 +6,7 @@
 #include "Combat/Stats/HPComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "UObject/ConstructorHelpers.h"
 #include "UI/LevelEnd/LevelEndUIWidget.h"
 
 ALevelEndManagerActor::ALevelEndManagerActor()
@@ -13,6 +14,13 @@ ALevelEndManagerActor::ALevelEndManagerActor()
 	PrimaryActorTick.bCanEverTick = true;
 	SetActorTickEnabled(false);
 	LevelEndWidgetClass = ULevelEndUIWidget::StaticClass();
+
+	static ConstructorHelpers::FClassFinder<ULevelEndUIWidget> LevelEndWidgetBPClass(
+		TEXT("/Game/UI/Widgets/WBP_LevelEndUIWidget"));
+	if (LevelEndWidgetBPClass.Succeeded())
+	{
+		LevelEndWidgetClass = LevelEndWidgetBPClass.Class;
+	}
 }
 
 void ALevelEndManagerActor::BeginPlay()

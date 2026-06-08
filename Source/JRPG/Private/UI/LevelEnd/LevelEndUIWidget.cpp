@@ -9,6 +9,7 @@
 #include "Components/TextBlock.h"
 #include "Components/VerticalBox.h"
 #include "Components/VerticalBoxSlot.h"
+#include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
 
 void ULevelEndUIWidget::NativeConstruct()
@@ -66,6 +67,12 @@ void ULevelEndUIWidget::RestartCurrentLevel()
 		if (APlayerController* PC = UGameplayStatics::GetPlayerController(World, 0))
 		{
 			PC->SetPause(false);
+			PC->SetIgnoreMoveInput(false);
+			PC->SetIgnoreLookInput(false);
+			PC->bShowMouseCursor = false;
+			PC->bEnableClickEvents = false;
+			PC->bEnableMouseOverEvents = false;
+			PC->SetInputMode(FInputModeGameOnly());
 		}
 
 		const FName CurrentLevelName(*UGameplayStatics::GetCurrentLevelName(World, true));

@@ -11,6 +11,7 @@
 #include "Game/PartySetupService.h"
 
 #include "Game/JRPGPlayerPawn.h"
+#include "Game/LevelEndManagerActor.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "UI/Presenters/InventoryPresenter.h"
 #include "Combat/Items/InventorySubsystem.h"
@@ -18,13 +19,22 @@
 #include "UI/Presenters/ExplorationHUDPresenter.h"
 #include "Game/HubSubsystem.h"
 #include "Game/Companion/FieldCompanionSubsystem.h"
+#include "Kismet/GameplayStatics.h"
 
 void AJRPGPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
 
+	SetIgnoreMoveInput(false);
+	SetIgnoreLookInput(false);
+	bShowMouseCursor = false;
+	bEnableClickEvents = false;
+	bEnableMouseOverEvents = false;
+	SetInputMode(FInputModeGameOnly());
+
 	UpdateCameraTargetForPawn(GetPawn());
 	EnsureDefaultPartyFromTable();
+	EnsureLevelEndManagerForCurrentLevel();
 
 	if (UPartySubsystem* PartySys = GetGameInstance() ? GetGameInstance()->GetSubsystem<UPartySubsystem>() : nullptr)
 	{
@@ -45,6 +55,45 @@ void AJRPGPlayerController::BeginPlay()
 		InventoryPresenter->Initialize(GetWorld(), InventoryWidgetClass);
 	}*/
 
+}
+
+void AJRPGPlayerController::EnsureLevelEndManagerForCurrentLevel()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const FString CurrentLevelName = UGameplayStatics::GetCurrentLevelName(World, true);
+	if (CurrentLevelName != TEXT("NewLevelDesign"))
+	{
+		return;
+	}
+
+	TArray<AActor*> ExistingManagers;
+	UGameplayStatics::GetAllActorsOfClass(World, ALevelEndManagerActor::StaticClass(), ExistingManagers);
+	if (!ExistingManagers.IsEmpty())
+	{
+		UE_LOG(LogTemp, Log, TEXT("[LevelEndManager] Existing manager found in %s. Count=%d"),
+			*CurrentLevelName,
+			ExistingManagers.Num());
+		return;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	ALevelEndManagerActor* SpawnedManager = World->SpawnActor<ALevelEndManagerActor>(
+		ALevelEndManagerActor::StaticClass(),
+		FVector::ZeroVector,
+		FRotator::ZeroRotator,
+		SpawnParams);
+
+	UE_LOG(LogTemp, Log, TEXT("[LevelEndManager] Auto-spawned manager for %s. Success=%s"),
+		*CurrentLevelName,
+		SpawnedManager ? TEXT("true") : TEXT("false"));
 }
 
 void AJRPGPlayerController::OnPossess(APawn* InPawn)

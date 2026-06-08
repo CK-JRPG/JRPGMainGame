@@ -7,6 +7,7 @@
 
 class AJRPGCompanionPawn;
 class ACombatCharacterActor;
+class ALevelEndManagerActor;
 class UInputMappingContext;
 class UInputAction;
 class UCombatCharacterDataAsset;
@@ -116,6 +117,7 @@ protected:
 	
 private:
 	void EnsureDefaultPartyFromTable();
+	void EnsureLevelEndManagerForCurrentLevel();
 	void InitallizeCombatBridge();
 	UCombatCharacterDataAsset* FindCharacterDefById(FName CharId) const;
 	FCharacterMappingRow*      FindMappingRowById(FName CharId) const;
