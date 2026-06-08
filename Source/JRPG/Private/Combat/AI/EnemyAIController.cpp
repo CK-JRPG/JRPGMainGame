@@ -134,6 +134,7 @@ void AEnemyAIController::ResetForNewBattle()
 	NextChainProviderRescanAt = 0.0f;
 	TargetLockUntilReal = 0.0f;
 	TargetSwitchLockedUntilReal = 0.0;
+	AggroTurnSlowUntilReal = 0.0;
 	NextAttackAllowedReal = 0.0;
 	WindupUntilReal = 0.0;
 	RecoveryUntilReal = 0.0;
@@ -171,6 +172,27 @@ void AEnemyAIController::RefreshStateFromGroggyAndChain()
 	{
 		State = EEnemyCombatState::Engage;
 	}
+}
+
+bool AEnemyAIController::HasAliveBattleOpponent() const
+{
+	const UBattleSessionSubsystem* Battle = GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
+	if (!Battle || !Battle->IsBattleActive() || !ControlledPawn)
+	{
+		return false;
+	}
+
+	TArray<AActor*> Opponents;
+	Battle->GetOpponentsFor(ControlledPawn.Get(), Opponents);
+	for (AActor* Opponent : Opponents)
+	{
+		if (IsAliveCombatActor(Opponent))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 bool AEnemyAIController::IsTargetOverFocusLimit(AActor* Candidate, const UBattleSessionSubsystem* Battle) const
@@ -313,6 +335,31 @@ AActor* AEnemyAIController::SelectClosestTargetRespectingFocus(const TArray<AAct
 void AEnemyAIController::RefreshTarget()
 {
 	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+
+	if (ForcedTarget.IsValid() && !IsAliveCombatActor(ForcedTarget.Get()))
+	{
+		AActor* DeadForcedTarget = ForcedTarget.Get();
+		ForcedTarget = nullptr;
+		ForcedTargetUntilReal = 0.0;
+		TargetSwitchLockedUntilReal = 0.0;
+		if (CurrentTarget.Get() == DeadForcedTarget)
+		{
+			SetCurrentTarget(nullptr, false);
+		}
+		if (WindupTarget.Get() == DeadForcedTarget)
+		{
+			WindupTarget = nullptr;
+			WindupUntilReal = 0.0;
+		}
+		UE_LOG(LogTemp, Log, TEXT("[EnemyAI] ForcedTargetCleared Owner=%s Target=%s Reason=Dead"),
+			*GetNameSafe(ControlledPawn.Get()), *GetNameSafe(DeadForcedTarget));
+	}
+	else if (!ForcedTarget.IsValid() && ForcedTargetUntilReal > 0.0)
+	{
+		ForcedTargetUntilReal = 0.0;
+		TargetSwitchLockedUntilReal = 0.0;
+	}
+
 	if (ForcedTarget.IsValid() && Now < ForcedTargetUntilReal)
 	{
 		SetCurrentTarget(ForcedTarget.Get(), false);
@@ -331,7 +378,15 @@ void AEnemyAIController::RefreshTarget()
 
 	if (CurrentTarget.IsValid() && !IsAliveTarget(CurrentTarget.Get()))
 	{
+		AActor* DeadTarget = CurrentTarget.Get();
 		SetCurrentTarget(nullptr, false);
+		if (WindupTarget.Get() == DeadTarget)
+		{
+			WindupTarget = nullptr;
+			WindupUntilReal = 0.0;
+		}
+		UE_LOG(LogTemp, Log, TEXT("[EnemyAI] CurrentTargetCleared Owner=%s Target=%s Reason=Dead"),
+			*GetNameSafe(ControlledPawn.Get()), *GetNameSafe(DeadTarget));
 	}
 
 	const bool bCurrentTargetAlive = CurrentTarget.IsValid() && IsAliveTarget(CurrentTarget.Get());
@@ -420,12 +475,24 @@ void AEnemyAIController::SetCurrentTarget(AActor* NewTarget, bool bApplySwitchLo
 {
 	if (CurrentTarget.Get() != NewTarget)
 	{
+		AActor* PreviousTarget = CurrentTarget.Get();
 		CurrentTarget = NewTarget;
 		if (bApplySwitchLock && NewTarget)
 		{
 			const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 			TargetSwitchLockedUntilReal = Now + FMath::Max(0.f, TargetSwitchLockSec);
 		}
+		if (NewTarget)
+		{
+			const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+			AggroTurnSlowUntilReal = Now + FMath::Max(0.f, AggroTurnSlowDurationSec);
+		}
+		UE_LOG(LogTemp, Log, TEXT("[EnemyAI] TargetChanged Owner=%s Prev=%s New=%s State=%d Forced=%s"),
+			*GetNameSafe(ControlledPawn.Get()),
+			*GetNameSafe(PreviousTarget),
+			*GetNameSafe(NewTarget),
+			static_cast<int32>(State),
+			HasForcedTarget() ? TEXT("true") : TEXT("false"));
 	}
 
 	if (TargetGuideLineComp)
@@ -443,22 +510,40 @@ void AEnemyAIController::SetCurrentTarget(AActor* NewTarget, bool bApplySwitchLo
 
 void AEnemyAIController::ForceSetCurrentTarget(AActor* NewTarget)
 {
+	if (NewTarget && !IsAliveCombatActor(NewTarget))
+	{
+		UE_LOG(LogTemp, Log, TEXT("[EnemyAI] ForceSetTargetRejected Owner=%s Target=%s Reason=Dead"),
+			*GetNameSafe(ControlledPawn.Get()), *GetNameSafe(NewTarget));
+		return;
+	}
+
 	SetCurrentTarget(NewTarget, false);
 }
 
 void AEnemyAIController::ApplyForcedTarget(AActor* NewTarget, float DurationSec)
 {
+	if (!IsAliveCombatActor(NewTarget))
+	{
+		ForcedTarget = nullptr;
+		ForcedTargetUntilReal = 0.0;
+		TargetSwitchLockedUntilReal = 0.0;
+		UE_LOG(LogTemp, Log, TEXT("[EnemyAI] ForcedTargetRejected Owner=%s Target=%s Reason=InvalidOrDead"),
+			*GetNameSafe(ControlledPawn.Get()), *GetNameSafe(NewTarget));
+		return;
+	}
+
 	ForcedTarget = NewTarget;
 	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
 	ForcedTargetUntilReal = Now + FMath::Max(0.0, static_cast<double>(DurationSec));
 	TargetSwitchLockedUntilReal = 0.0;
+	AggroTurnSlowUntilReal = Now + FMath::Max(0.f, AggroTurnSlowDurationSec);
 	SetCurrentTarget(NewTarget, false);
 }
 
 bool AEnemyAIController::HasForcedTarget() const
 {
 	const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
-	return ForcedTarget.IsValid() && Now < ForcedTargetUntilReal;
+	return ForcedTarget.IsValid() && IsAliveCombatActor(ForcedTarget.Get()) && Now < ForcedTargetUntilReal;
 }
 
 AActor* AEnemyAIController::GetEffectiveTargetActor() const
@@ -467,7 +552,9 @@ AActor* AEnemyAIController::GetEffectiveTargetActor() const
 	{
 		return ForcedTarget.Get();
 	}
-	return CurrentTarget.Get();
+
+	AActor* Target = CurrentTarget.Get();
+	return IsAliveCombatActor(Target) ? Target : nullptr;
 }
 
 void AEnemyAIController::TickChase(float DeltaSeconds)
@@ -484,10 +571,13 @@ void AEnemyAIController::TickChase(float DeltaSeconds)
 
 	if (Dist > LeashRange)
 	{
-		StopMovement();
-		SetCurrentTarget(nullptr, false);
-		State = EEnemyCombatState::Engage;
-		return;
+		if (!HasAliveBattleOpponent())
+		{
+			StopMovement();
+			SetCurrentTarget(nullptr, false);
+			State = EEnemyCombatState::Engage;
+			return;
+		}
 	}
 
 	if (Dist <= AttackStartRange)
@@ -526,9 +616,15 @@ void AEnemyAIController::TickAttack(float DeltaSeconds)
 
 	if (Dist > LeashRange)
 	{
-		StopMovement();
-		SetCurrentTarget(nullptr, false);
-		State = EEnemyCombatState::Engage;
+		if (!HasAliveBattleOpponent())
+		{
+			StopMovement();
+			SetCurrentTarget(nullptr, false);
+			State = EEnemyCombatState::Engage;
+			return;
+		}
+
+		State = EEnemyCombatState::Chase;
 		return;
 	}
 
@@ -545,6 +641,8 @@ void AEnemyAIController::TickAttack(float DeltaSeconds)
 
 void AEnemyAIController::TickRetreat(float DeltaSeconds)
 {
+	RefreshTarget();
+
 	if (!CurrentTarget.IsValid())
 	{
 		State = EEnemyCombatState::Idle;
@@ -594,8 +692,10 @@ void AEnemyAIController::TickRising(float DeltaSeconds)
 
 void AEnemyAIController::TryExecuteOffensiveAction(AActor* Target, float DeltaSeconds)
 {
-	if (!PresentationComp || !IsValid(Target) || !ControlledPawn)
+	if (!PresentationComp || !IsAliveCombatActor(Target) || !ControlledPawn)
 	{
+		WindupUntilReal = 0.0;
+		WindupTarget = nullptr;
 		return;
 	}
 
@@ -662,7 +762,7 @@ void AEnemyAIController::MoveDirectlyToward(const FVector& Destination, float De
 	if (Dist < 10.0f) return;
 
 	Dir /= Dist;
-	MyChar->AddMovementInput(Dir, 1.0f);
+	MyChar->AddMovementInput(Dir, FMath::Clamp(MovementInputScale, 0.1f, 1.0f));
 }
 
 void AEnemyAIController::MoveDirectlyAwayFrom(const FVector& ThreatLocation, float DeltaTime)
@@ -683,7 +783,7 @@ void AEnemyAIController::MoveDirectlyAwayFrom(const FVector& ThreatLocation, flo
 		Dir /= Dist;
 	}
 
-	MyChar->AddMovementInput(Dir, 1.0f);
+	MyChar->AddMovementInput(Dir, FMath::Clamp(MovementInputScale, 0.1f, 1.0f));
 }
 
 void AEnemyAIController::FaceTarget(AActor* Target, float DeltaSeconds)
@@ -706,11 +806,16 @@ void AEnemyAIController::FaceTarget(AActor* Target, float DeltaSeconds)
 			return;
 		}
 
+		const double Now = GetWorld() ? GetWorld()->GetTimeSeconds() : 0.0;
+		const float TurnRateDegPerSec = Now < AggroTurnSlowUntilReal
+			? FMath::Min(FaceTargetTurnRateDegPerSec, AggroFaceTargetTurnRateDegPerSec)
+			: FaceTargetTurnRateDegPerSec;
+
 		ControlledPawn->SetActorRotation(FMath::RInterpConstantTo(
 			CurrentRotation,
 			DesiredRotation,
 			DeltaSeconds,
-			FaceTargetTurnRateDegPerSec
+			TurnRateDegPerSec
 		));
 	}
 }

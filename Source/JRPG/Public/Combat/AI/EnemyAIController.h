@@ -79,10 +79,21 @@ private:
 	TWeakObjectPtr<AActor> WindupTarget;
 
 	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Movement", meta = (ClampMin = "1.0"))
-	float FaceTargetTurnRateDegPerSec = 360.f;
+	float FaceTargetTurnRateDegPerSec = 240.f;
+
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Movement", meta = (ClampMin = "1.0"))
+	float AggroFaceTargetTurnRateDegPerSec = 150.f;
+
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Movement", meta = (ClampMin = "0.0"))
+	float AggroTurnSlowDurationSec = 0.8f;
+
+	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Movement", meta = (ClampMin = "0.1", ClampMax = "1.0"))
+	float MovementInputScale = 0.75f;
 
 	UPROPERTY(EditAnywhere, Category = "JRPG|Combat|Movement", meta = (ClampMin = "0.0"))
 	float FaceTargetSnapAngleDegrees = 3.f;
+
+	double AggroTurnSlowUntilReal = 0.0;
 
 	// FSM
 	void RefreshStateFromGroggyAndChain();
@@ -103,6 +114,7 @@ private:
 	// 유틸리티
 	float GetDistanceToTarget() const;
 	void LoadRangeParamsFromCharacterData();
+	bool HasAliveBattleOpponent() const;
 	bool IsTargetOverFocusLimit(AActor* Candidate, const UBattleSessionSubsystem* Battle) const;
 	AActor* SelectBestThreatTargetRespectingFocus(const TArray<AActor*>& Candidates, const UBattleSessionSubsystem* Battle) const;
 	AActor* SelectClosestTargetRespectingFocus(const TArray<AActor*>& Candidates, const UBattleSessionSubsystem* Battle) const;
