@@ -20,7 +20,7 @@ ACombatZoneActor::ACombatZoneActor()
 
 	ZoneBounds->SetSphereRadius(1200.0f);
 	
-	bDrawDebug = true;
+	bDrawDebug = false;
 }
 
 FVector ACombatZoneActor::ClampCharacterLocation(const FVector& WorldLocation, float CapsuleRadius, float CapsuleHalfHeight) const

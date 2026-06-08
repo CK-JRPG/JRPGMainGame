@@ -6,6 +6,7 @@
 
 class UWidgetSwitcher;
 class UInventoryUIWidget;
+class UButton;
 
 UENUM(BlueprintType)
 enum class EMainMenuTab : uint8
@@ -24,10 +25,16 @@ class JRPG_API UMainMenuUIWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	virtual void NativeConstruct() override;
+	virtual void NativeDestruct() override;
+
 	void SetActiveTab(EMainMenuTab Tab);
 
 	UFUNCTION(BlueprintCallable, Category = "JRPG|MainMenu")
 	void RequestTabChanged(EMainMenuTab Tab);
+
+	UFUNCTION(BlueprintCallable, Category = "JRPG|MainMenu")
+	void RestartCurrentLevel();
 
 	FOnMainMenuTabChanged OnTabChanged;
 
@@ -39,4 +46,7 @@ protected:
 
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UInventoryUIWidget> Widget_Inventory;
+
+	UPROPERTY(meta = (BindWidgetOptional))
+	TObjectPtr<UButton> Button_Restart;
 };
