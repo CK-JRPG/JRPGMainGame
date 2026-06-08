@@ -180,20 +180,30 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 	const float CritBonus = Stats.IsValid() ? Stats->GetSnapshot().CritDamage : 0.f;
 	constexpr float SkillDamageThreatScalar = 1.20f;
 	constexpr float HealerRoleHealThreatScalar = 1.45f;
+	constexpr float AggroSkillThreatBaseFloor = 350.0f;
+	constexpr float AggroSkillThreatBaseScalar = 2.5f;
+	constexpr float DefenderAggroSkillThreatScalar = 2.0f;
+	constexpr float AggroSkillThreatFromDamageMulFloor = 2.5f;
 	const FString SkillIdString = Skill.SkillId.ToString();
 	const bool bAggroUtilitySkill = SkillIdString.Contains(TEXT("Aggro"));
-	const float EffectiveThreatBase = bAggroUtilitySkill ? FMath::Min(Skill.ThreatBase, 95.f) : Skill.ThreatBase;
-	const float EffectiveThreatFromDamageMul = bAggroUtilitySkill ? 0.f : Skill.ThreatFromDamageMul;
-	const float EffectiveThreatFromHealMul = bAggroUtilitySkill ? 0.f : Skill.ThreatFromHealMul;
+	EJRPGPartyRole OwnerRole = EJRPGPartyRole::Attacker;
 	float HealThreatScalar = 1.0f;
 	if (const UCombatCharacterComponent* CharacterComp = GetOwner() ? GetOwner()->FindComponentByClass<UCombatCharacterComponent>() : nullptr)
 	{
-		const EJRPGPartyRole OwnerRole = CharacterComp->GetRole();
+		OwnerRole = CharacterComp->GetRole();
 		if (OwnerRole == EJRPGPartyRole::Supporter || OwnerRole == EJRPGPartyRole::Healer)
 		{
 			HealThreatScalar = HealerRoleHealThreatScalar;
 		}
 	}
+	const float AggroRoleScalar = OwnerRole == EJRPGPartyRole::Defender ? DefenderAggroSkillThreatScalar : 1.0f;
+	const float EffectiveThreatBase = bAggroUtilitySkill
+		? FMath::Max(Skill.ThreatBase * AggroSkillThreatBaseScalar, AggroSkillThreatBaseFloor) * AggroRoleScalar
+		: Skill.ThreatBase;
+	const float EffectiveThreatFromDamageMul = bAggroUtilitySkill
+		? FMath::Max(Skill.ThreatFromDamageMul, AggroSkillThreatFromDamageMulFloor) * AggroRoleScalar
+		: Skill.ThreatFromDamageMul;
+	const float EffectiveThreatFromHealMul = bAggroUtilitySkill ? 0.f : Skill.ThreatFromHealMul;
 
 	auto AddThreatToOpponents = [this](AActor* Source, float Amount, FName ReasonTag)
 	{
@@ -298,6 +308,15 @@ void USkillComponent::ApplySkillEffects(const USkillDataAsset &Skill, const TArr
 					if (Threat > 0.f)
 						TThreat->AddThreat(GetOwner(),Threat, Skill.SkillId);
 				}
+			}
+		}
+
+		if (bAggroUtilitySkill && IsHostileTarget(T) && TThreat)
+		{
+			const float AggroUtilityThreat = EffectiveThreatBase;
+			if (AggroUtilityThreat > 0.f)
+			{
+				TThreat->AddThreat(GetOwner(), AggroUtilityThreat, Skill.SkillId);
 			}
 		}
 		
