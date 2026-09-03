@@ -21,6 +21,12 @@ void UHPComponent::InitializeHP(float InMaxHP, bool bFillToMax)
 	CurrentHP = FMath::Clamp(CurrentHP, 0.f, MaxHP);
 }
 
+void UHPComponent::ImportRuntimeState(float InMaxHP, float InCurrentHP)
+{
+	MaxHP = FMath::Max(1.f, InMaxHP);
+	CurrentHP = FMath::Clamp(InCurrentHP, 0.f, MaxHP);
+}
+
 void UHPComponent::SetMaxHP(float InMaxHP, bool bKeepRatio)
 {
 	const float OldMax = MaxHP;

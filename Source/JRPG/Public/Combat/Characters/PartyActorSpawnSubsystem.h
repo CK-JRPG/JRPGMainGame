@@ -56,14 +56,15 @@ public:
 
 	// CombatCharacterActor 스폰/파괴 
 
-	//필드 폰 위치/회전 기반 비동기 스폰 
+	// 필드 폰 위치/회전 기반 비동기 스폰.
+	// OnComplete는 Session/Transition 준비가 끝나 Actor 소유권을 확정할 때만 true를 반환한다.
 	void AsyncSpawnCombatActorsAtFieldPositions(
 		const TArray<FName>& PartyIds,
 		const TMap<FName, FTransform>& FieldTransforms,
-		TFunction<void(TArray<ACombatCharacterActor*>)> OnComplete
+		TFunction<bool(TArray<ACombatCharacterActor*>)> OnComplete
 	);
 
-	//전투 종료 시 CombatCharacterActor 스냅샷 저장 후 파괴
+	// 전투 종료 시 Runtime State batch commit 후 CombatCharacterActor 파괴
 	void DespawnCombatActors(const TArray<ACombatCharacterActor*>& Actors);
 
 	// 조회
@@ -76,6 +77,10 @@ public:
 private:
 	ACombatCharacterActor* SpawnSingleActor(TSubclassOf<ACombatCharacterActor> ActorClass, const FTransform& SpawnTransform);
 	TArray<FSoftObjectPath> CollectSoftPaths(const TArray<FName>& PartyIds) const;
+	void DespawnCombatActorsInternal(const TArray<ACombatCharacterActor*>& Actors, bool bCommitRuntimeState);
+	void DiscardCombatActors(const TArray<ACombatCharacterActor*>& Actors);
+	void InvalidateSpawnRequest();
+	bool HasOwnedCombatActors() const;
 
 private:
 	UPROPERTY()
@@ -87,4 +92,8 @@ private:
 	TSet<FName> PendingSpawnIds;
 
 	TSharedPtr<FStreamableHandle> PreloadHandle;
+	TSharedPtr<FStreamableHandle> SpawnLoadHandle;
+	uint64 SpawnRequestSerial = 0;
+	uint64 ActiveSpawnRequestId = 0;
+	bool bSpawnRequestInFlight = false;
 };

@@ -25,6 +25,8 @@ public:
 	FOnDeath OnDeath;
 
 	void InitializeHP(float InMaxHP, bool bFillToMax = true);
+	// Snapshot/SaveGame import only: gameplay change/death delegates are intentionally not emitted.
+	void ImportRuntimeState(float InMaxHP, float InCurrentHP);
 	void SetMaxHP(float InMaxHP,bool bKeepRatio);
 	void RestoreFull(FName ReasonTag);
 

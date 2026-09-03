@@ -2,7 +2,7 @@
 
 #include "Combat/Battle/BattleSessionSubsystem.h"
 #include "Combat/Characters/CombatParticipantInterface.h"
-#include "Combat/Infrastructure/CombatTimeSubsystem.h"
+#include "Combat/Time/CombatTimeSubsystem.h"
 
 UBattleSessionSubsystem* UTacticalModeSubsystem::GetBattle()const
 {
@@ -60,10 +60,11 @@ void UTacticalModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UTacticalModeSubsystem::Deinitialize()
 {
-	if (IsActive())
+	if (IsActive() || Snapshot.State == ETacticalModeState::Entering)
 	{
 		ExitTacticalMode(TEXT("SubsystemDeinitialized"));
 	}
+	ClearAllReservations();
 
 	if (UWorld* World = GetWorld())
 	{
@@ -107,6 +108,11 @@ bool UTacticalModeSubsystem::TryEnterTacticalMode(AActor* Requester, FName Reaso
 	if (!P || P->GetCombatTeam() != ECombatTeam::Player) 
 	{
 		UE_LOG(LogTemp, Error, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : if (!P || P->GetCombatTeam() != ECombatTeam::Player) "));
+		return false;
+	}
+	if (!IsSessionParticipant(Requester))
+	{
+		UE_LOG(LogTemp, Error, TEXT("UTacticalModeSubsystem::TryEnterTacticalMode : Requester is not an active session participant."));
 		return false;
 	}
 
@@ -192,7 +198,14 @@ void UTacticalModeSubsystem::ExitTacticalMode(FName ReasonTag)
 bool UTacticalModeSubsystem::SetReservation(AActor* Actor, FName SkillId, const TArray<AActor*>& Targets)
 {
 	if (!Actor || SkillId.IsNone())    return false;
+	if (!IsActive())                    return false;
 	if (!IsSessionParticipant(Actor))  return false;
+
+	const UBattleSessionSubsystem* Battle = GetBattle();
+	if (!Battle || Snapshot.BattleSessionId != Battle->GetSnapshot().SessionId)
+	{
+		return false;
+	}
 
 	FJRPGTacticalReservation R;
 	R.ReservedActor = Actor;
@@ -234,6 +247,21 @@ bool UTacticalModeSubsystem::ClearReservation(AActor* Actor)
 	return bRemoved;
 }
 
+void UTacticalModeSubsystem::ClearAllReservations()
+{
+	TArray<TWeakObjectPtr<AActor>> ReservedActors;
+	Reservations.GetKeys(ReservedActors);
+	Reservations.Reset();
+
+	for (const TWeakObjectPtr<AActor>& ReservedActor : ReservedActors)
+	{
+		if (AActor* Actor = ReservedActor.Get())
+		{
+			OnTacticalReservationChanged.Broadcast(Actor, false, NAME_None);
+		}
+	}
+}
+
 bool UTacticalModeSubsystem::GetReservation(AActor* Actor, FJRPGTacticalReservation& OutReservation)const
 {
 	if (!Actor)
@@ -259,10 +287,14 @@ void UTacticalModeSubsystem::OnBattlePhaseChanged(EBattlePhase NewPhase)
 {
 	if (NewPhase == EBattlePhase::Ending || NewPhase == EBattlePhase::Cleanup)
 	{
-		if (IsActive())
+		if (IsActive() || Snapshot.State == ETacticalModeState::Entering)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("UTacticalModeSubsystem::OnBattlePhaseChanged : TacticalMode: Session Ending detected. Forced Exit."));
 			ExitTacticalMode(TEXT("SessionEnded"));
 		}
+
+		// 수동 Tactical 종료에서는 실행 대기중인 예약을 유지하지만,
+		// Battle 경계를 넘어갈 때는 이전 Actor/Session 예약을 반드시 폐기한다.
+		ClearAllReservations();
 	}
 }

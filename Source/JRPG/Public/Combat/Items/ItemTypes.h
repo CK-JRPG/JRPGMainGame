@@ -1,4 +1,4 @@
-﻿// Source/JRPGCombat/Public/Combat/Items/ItemTypes.h
+﻿// Source/JRPG/Public/Combat/Items/ItemTypes.h
 #pragma once
 
 #include "CoreMinimal.h"

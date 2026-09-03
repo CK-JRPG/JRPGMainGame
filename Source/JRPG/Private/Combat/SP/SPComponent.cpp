@@ -11,6 +11,12 @@ void USPComponent::InitializeSP(int32 InMaxSP, int32 InStartSP)
 	CurrentSP = FMath::Clamp(InStartSP, 0, MaxSP);
 }
 
+void USPComponent::ImportRuntimeState(int32 InMaxSP, int32 InCurrentSP)
+{
+	MaxSP = FMath::Max(0, InMaxSP);
+	CurrentSP = FMath::Clamp(InCurrentSP, 0, MaxSP);
+}
+
 void USPComponent::AddSP(int32 Amount, FName ReasonTag)
 {
 	if (Amount <= 0) return;

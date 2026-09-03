@@ -1,4 +1,4 @@
-// Source/JRPGCombat/Public/Combat/Core/RoleTypes.h
+// Source/JRPG/Public/Combat/Core/RoleTypes.h
 #pragma once
 
 #include "CoreMinimal.h"

@@ -212,9 +212,9 @@ bool UBattleSessionSubsystem::BuildParticipants(const FBattleSessionConfig &Conf
 
 bool UBattleSessionSubsystem::StartBattle(const FBattleSessionConfig& Config, const FEncounterContext& InEncounterCtx, FGuid& OutSessionId)
 {
-	if (bBattleActive)
+	if (bBattleActive || bEndingBattle)
 	{
-		UE_LOG(LogTemp, Error, TEXT("BattleSessionSubsystem : 배틀 세션이 이미 시작 되었음"));
+		UE_LOG(LogTemp, Error, TEXT("BattleSessionSubsystem : 배틀 세션이 이미 시작 되었거나 종료 처리 중임"));
 		return false;
 	}
 
@@ -791,7 +791,11 @@ void UBattleSessionSubsystem::GrantVictoryRewards()
 
 void UBattleSessionSubsystem::EndBattle(EBattleEndReason Reason)
 {
-	if (!bBattleActive)return;
+	if (!bBattleActive || bEndingBattle)return;
+
+	// OnBattleEnded listener가 동기적으로 새 세션을 시작해
+	// 이전 세션의 Reset/Zone cleanup에 덮어쓰이지 않도록 보호한다.
+	bEndingBattle = true;
 
 	SetPhase(EBattlePhase::Ending);
 
@@ -804,6 +808,8 @@ void UBattleSessionSubsystem::EndBattle(EBattleEndReason Reason)
 
 	const FBattleSessionSnapshot FinalSnapshot = Snapshot;
 
+	// Legacy EncounterTriggerActor does not own rematch recovery, so keep the
+	// session-level fallback until that path is removed.
 	if (Reason == EBattleEndReason::Defeat || Reason == EBattleEndReason::Aborted)
 	{
 		for (const FBattleParticipantSlot& Slot : Participants)
@@ -836,6 +842,8 @@ void UBattleSessionSubsystem::EndBattle(EBattleEndReason Reason)
 		SpawnedCombatNavBounds->Destroy();
 		SpawnedCombatNavBounds = nullptr;
 	}
+
+	bEndingBattle = false;
 }
 
 void UBattleSessionSubsystem::HandleCombatantDefeated(AActor* Victim, AActor*)

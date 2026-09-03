@@ -9,11 +9,7 @@ public class JRPGCore : ModuleRules
         PublicDependencyModuleNames.AddRange(new string[]
         {
             "Core",
-            "CoreUObject",
-            "Engine",
-            "GameplayTags" 
+            "CoreUObject"
         });
-
-        PrivateDependencyModuleNames.AddRange(new string[] { });
     }
 }

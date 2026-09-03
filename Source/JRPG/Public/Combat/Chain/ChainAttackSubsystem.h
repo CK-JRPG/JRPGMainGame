@@ -8,6 +8,7 @@
 
 class UBattleSessionSubsystem;
 class UBasicCombatSubsystem;
+enum class EBattlePhase : uint8;
 
 UCLASS()
 class JRPG_API UChainAttackSubsystem : public UWorldSubsystem
@@ -15,6 +16,9 @@ class JRPG_API UChainAttackSubsystem : public UWorldSubsystem
 	GENERATED_BODY()
 
 public:
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+
 	FOnChainAttackStarted OnChainAttackStarted;
 	FOnChainAttackStepResolved OnChainAttackStepResolved;
 	FOnChainAttackEnded OnChainAttackEnded;
@@ -39,4 +43,6 @@ private:
 	void AdvanceChainActor();
 	bool IsValidMember(AActor* Actor)const;
 	bool IsPlayerActor(AActor* Actor)const;
+	void HandleBattlePhaseChanged(EBattlePhase NewPhase);
+	void ResetChainState();
 };

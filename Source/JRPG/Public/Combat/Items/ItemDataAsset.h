@@ -1,4 +1,4 @@
-﻿// Source/JRPGCombat/Public/Combat/Items/ItemDataAsset.h
+﻿// Source/JRPG/Public/Combat/Items/ItemDataAsset.h
 #pragma once
 
 #include "CoreMinimal.h"
@@ -46,11 +46,11 @@ public:
 	int32 MaxStack = 1;
 
 	// ---- Augment ----
-	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/JRPGCombat.EAugmentSlotMask"))
+	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/JRPG.EAugmentSlotMask"))
 	int32 EquipSlotMask = (int32)EAugmentSlotMask::All;
 
-	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/JRPGCombat.EPartyRoleMask"))
-	int32 RoleRestrictionMask = (int32) EPartyRoleMask::None; 	//에러 : EPartyRoleMask Enum 타입 없음. 
+	UPROPERTY(EditAnywhere, meta = (Bitmask, BitmaskEnum = "/Script/JRPG.EPartyRoleMask"))
+	int32 RoleRestrictionMask = (int32)EPartyRoleMask::None;
 
 
 	UPROPERTY(EditAnywhere)
@@ -91,7 +91,6 @@ public:
 
 	bool IsRoleAllowed(EJRPGPartyRole Role) const
 	{
-		//에러 : EPartyRoleMask Enum 타입 없음. 
 		const EPartyRoleMask Mask = (EPartyRoleMask)RoleRestrictionMask;
 		if (Mask == EPartyRoleMask::None) return true;
 		return EnumHasAnyFlags(Mask, RoleToMask(Role));

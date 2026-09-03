@@ -10,6 +10,28 @@
 #include"Combat/SP/SynergyPointSubsystem.h"
 #include "Combat/Stats/HPComponent.h"
 
+void UChainAttackSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+
+	Collection.InitializeDependency<UBattleSessionSubsystem>();
+	if (UBattleSessionSubsystem* Battle = GetBattle())
+	{
+		Battle->OnBattlePhaseChanged.AddUObject(this, &UChainAttackSubsystem::HandleBattlePhaseChanged);
+	}
+}
+
+void UChainAttackSubsystem::Deinitialize()
+{
+	if (UBattleSessionSubsystem* Battle = GetBattle())
+	{
+		Battle->OnBattlePhaseChanged.RemoveAll(this);
+	}
+
+	ResetChainState();
+	Super::Deinitialize();
+}
+
 UBattleSessionSubsystem* UChainAttackSubsystem::GetBattle() const
 {
 	return GetWorld() ? GetWorld()->GetSubsystem<UBattleSessionSubsystem>() : nullptr;
@@ -105,7 +127,10 @@ bool UChainAttackSubsystem::TryStartChain(AActor* Starter, const FChainAttackCon
 	if (!BuildMemberList(Config, Starter)) return false;
 
 	if (!Battle->EnterExclusiveMode("ChainAttack"))
+	{
+		ResetChainState();
 		return false;
+	}
 
 	ActiveConfig = Config;
 
@@ -179,8 +204,16 @@ FCombatActionResult UChainAttackSubsystem::ExecuteChainBasicAttack(AActor* User,
 	Req.ThreatMultiplier = 0.f;
 	Req.ReasonTag = "Chain.BasicAttack";
 
+	const FGuid ExecutingChainId = Snapshot.ChainId;
 	FCombatActionResult R = Basic->ExecuteBasicAttack(Req);
 	if (!R.bOk) return R;
+
+	// A lethal hit can synchronously end the battle and reset this chain from
+	// HandleBattlePhaseChanged before ExecuteBasicAttack returns.
+	if (!IsActive() || Snapshot.ChainId != ExecutingChainId)
+	{
+		return R;
+	}
 
 	Snapshot.RemainingChainPoints--;
 	Snapshot.CurrentDamageMultiplier += ActiveConfig.BonusDamagePerStep;
@@ -220,9 +253,31 @@ void UChainAttackSubsystem::EndChain(FName)
 		}
 	}
 
+	ResetChainState();
+
+	OnChainAttackEnded.Broadcast(Final);
+}
+
+void UChainAttackSubsystem::HandleBattlePhaseChanged(EBattlePhase NewPhase)
+{
+	if (NewPhase != EBattlePhase::Ending && NewPhase != EBattlePhase::Cleanup)
+	{
+		return;
+	}
+
+	if (IsActive())
+	{
+		EndChain(TEXT("Chain.BattleEnded"));
+	}
+	else
+	{
+		ResetChainState();
+	}
+}
+
+void UChainAttackSubsystem::ResetChainState()
+{
 	Snapshot = FChainAttackSnapshot();
 	ActiveMembers.Reset();
 	ActiveConfig = FChainAttackConfig();
-
-	OnChainAttackEnded.Broadcast(Final);
 }

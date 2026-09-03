@@ -1,163 +1,117 @@
 ﻿#include "Combat/Characters/CharacterRuntimeSubsystem.h"
-#include "Combat/Characters/CombatCharacterActor.h"
-#include "Combat/Stats/HPComponent.h"
-#include "Combat/Stats/APComponent.h"
-#include "Combat/SP/SPComponent.h"
 
-void UCharacterRuntimeSubsystem::SaveSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor)
+bool UCharacterRuntimeSubsystem::CommitState(const FName& CharacterID, const FCharacterRuntimeState& State)
 {
-	if (!Actor) return;
-
-	FCharacterResourceSnapshot Snap;
-
-	if (Actor->HPComp)
+	if (CharacterID.IsNone() || !State.IsValid())
 	{
-		Snap.HP    = Actor->HPComp->GetHP();
-		Snap.MaxHP = Actor->HPComp->GetMaxHP();
-	}
-	if (Actor->APComp)
-	{
-		Snap.AP    = Actor->APComp->GetAP();
-		Snap.MaxAP = Actor->APComp->GetMaxAP();
-	}
-	if (Actor->SPComp)
-	{
-		Snap.SP    = Actor->SPComp->GetSP();
-		Snap.MaxSP = Actor->SPComp->GetMaxSP();
+		return false;
 	}
 
-	Snap.WorldLocation = Actor->GetActorLocation();
-	Snap.WorldRotation = Actor->GetActorRotation();
-	Snap.bHasTransformSnapshot = true;
-	
-	SnapshotMap.Add(CharacterID, Snap);
+	RuntimeStateMap.Add(CharacterID, State);
 
 	UE_LOG(LogTemp, Log,
-		TEXT("CharacterRuntimeSubsystem : 스냅샷 저장 [%s] HP=%.1f/%.1f AP=%d/%d SP=%d/%d"),
-		*CharacterID.ToString(), Snap.HP, Snap.MaxHP, Snap.AP, Snap.MaxAP, Snap.SP, Snap.MaxSP);
+		TEXT("CharacterRuntimeSubsystem : 런타임 상태 저장 [%s] HP=%.1f/%.1f AP=%d/%d SP=%d/%d"),
+		*CharacterID.ToString(), State.HP, State.MaxHP, State.AP, State.MaxAP, State.SP, State.MaxSP);
+	return true;
 }
 
-void UCharacterRuntimeSubsystem::RestoreSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor, bool bRestoreTransform)
+bool UCharacterRuntimeSubsystem::CommitStates(const TMap<FName, FCharacterRuntimeState>& States)
 {
-	if (!Actor) return;
-
-	const FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
-	if (!Snap || !Snap->IsValid())
+	// Validate the whole batch first so a malformed state cannot cause a partial commit.
+	for (const TPair<FName, FCharacterRuntimeState>& Pair : States)
 	{
-		// 첫 인카운터 — 스냅샷 없음, DataAsset 기준값 그대로 사용
-		return;
-	}
-	
-	if (bRestoreTransform && Snap->bHasTransformSnapshot)
-	{
-		Actor->SetActorLocationAndRotation(Snap->WorldLocation, Snap->WorldRotation);
+		if (Pair.Key.IsNone() || !Pair.Value.IsValid())
+		{
+			return false;
+		}
 	}
 
-	// HP: 풀 초기화 후 차이만큼 데미지 적용 (SetHP 직접 노출 없음)
-	if (Actor->HPComp)
+	for (const TPair<FName, FCharacterRuntimeState>& Pair : States)
 	{
-		Actor->HPComp->InitializeHP(Snap->MaxHP, true);
-		const float Damage = Snap->MaxHP - Snap->HP;
-		if (Damage > 0.f)
-			Actor->HPComp->ApplyDamage(Damage,nullptr, FName("Snapshot.Restore"));
+		RuntimeStateMap.Add(Pair.Key, Pair.Value);
 	}
-
-	// AP: 풀 초기화 후 차이만큼 소비 처리
-	if (Actor->APComp)
-	{
-		Actor->APComp->InitializeAP(Snap->MaxAP, true);
-		const int32 Consumed = Snap->MaxAP - Snap->AP;
-		if (Consumed > 0)
-			Actor->APComp->Consume(Consumed, FName("Snapshot.Restore"));
-	}
-
-	// SP: InitializeSP 두 번째 인자가 시작값을 직접 받음
-	if (Actor->SPComp)
-	{
-		Actor->SPComp->InitializeSP(Snap->MaxSP, Snap->SP);
-	}
-
-	UE_LOG(LogTemp, Log,
-		TEXT("CharacterRuntimeSubsystem : 스냅샷 복구 [%s] HP=%.1f/%.1f AP=%d/%d SP=%d/%d"),
-		*CharacterID.ToString(), Snap->HP, Snap->MaxHP, Snap->AP, Snap->MaxAP, Snap->SP, Snap->MaxSP);
+	return true;
 }
 
 void UCharacterRuntimeSubsystem::InitializeSnapshotIfAbsent(const FName& CharacterID, float MaxHP, int32 MaxAP,
 	int32 MaxSP)
 {
-	
-	//이미 해당 캐릭터의 스냅샷이 있으면 생성 안함.
-	if (SnapshotMap.Contains(CharacterID)) 
+	if (CharacterID.IsNone() || RuntimeStateMap.Contains(CharacterID))
+	{
 		return;
+	}
 
-	FCharacterResourceSnapshot Snap;
-	Snap.HP    = MaxHP;
-	Snap.MaxHP = MaxHP;
-	Snap.AP    = MaxAP;
-	Snap.MaxAP = MaxAP;
-	Snap.SP    = 0; 
-	Snap.MaxSP = MaxSP;
+	FCharacterRuntimeState State;
+	State.HP = MaxHP;
+	State.MaxHP = MaxHP;
+	State.AP = MaxAP;
+	State.MaxAP = MaxAP;
+	State.SP = 0;
+	State.MaxSP = MaxSP;
+	State.Normalize();
 
-	SnapshotMap.Add(CharacterID, Snap);
+	if (!CommitState(CharacterID, State))
+	{
+		UE_LOG(LogTemp, Error, TEXT("CharacterRuntimeSubsystem : 초기 런타임 상태 생성 실패 [%s]"), *CharacterID.ToString());
+		return;
+	}
 
 	UE_LOG(LogTemp, Log,
-		TEXT("CharacterRuntimeSubsystem : 초기 스냅샷 생성 [%s] HP=%.1f AP=%d SP=%d"),
-		*CharacterID.ToString(), MaxHP, MaxAP, MaxSP);
+		TEXT("CharacterRuntimeSubsystem : 초기 런타임 상태 생성 [%s] HP=%.1f AP=%d SP=%d"),
+		*CharacterID.ToString(), State.MaxHP, State.MaxAP, State.SP);
 }
 
 void UCharacterRuntimeSubsystem::RecoverPartyFromWipe(const TArray<FName>& ActivePartyIds, float HPRecoverRatio, float APRecoverRatio)
 {
-	if (SnapshotMap.IsEmpty() || ActivePartyIds.IsEmpty())
+	if (RuntimeStateMap.IsEmpty() || ActivePartyIds.IsEmpty())
 	{
 		return;
 	}
-	
+
 	bool bHasAliveMember = false;
-	bool bHasValidSnapshot = false;
+	bool bHasValidState = false;
 	for (const FName& CharacterID : ActivePartyIds)
 	{
-		const FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
-		if (!Snap || !Snap->IsValid())
+		const FCharacterRuntimeState* State = RuntimeStateMap.Find(CharacterID);
+		if (!State || !State->IsValid())
 		{
 			continue;
 		}
 
-		bHasValidSnapshot = true;
-		if (Snap->HP > 0.f)
+		bHasValidState = true;
+		if (State->HP > 0.f)
 		{
 			bHasAliveMember = true;
 			break;
 		}
 	}
-	
-	if (!bHasValidSnapshot || bHasAliveMember)
+
+	if (!bHasValidState || bHasAliveMember)
 	{
 		return;
 	}
-	
+
 	const float ClampedHPRatio = FMath::Clamp(HPRecoverRatio, 0.f, 1.f);
 	const float ClampedAPRatio = FMath::Clamp(APRecoverRatio, 0.f, 1.f);
-	
+
 	int32 RecoveredCount = 0;
 	for (const FName& CharacterID : ActivePartyIds)
 	{
-		FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
-		if (!Snap || !Snap->IsValid())
+		FCharacterRuntimeState* State = RuntimeStateMap.Find(CharacterID);
+		if (!State || !State->IsValid())
 		{
 			continue;
 		}
-			
-		const float RecoveredHP = FMath::Max(1.f, Snap->MaxHP * ClampedHPRatio);
-		Snap->HP = FMath::Clamp(RecoveredHP, 1.f, Snap->MaxHP);
 
-		//반올림
-		Snap->AP = FMath::Clamp(FMath::RoundToInt((float)Snap->MaxAP * ClampedAPRatio), 0, Snap->MaxAP);
+		const float RecoveredHP = FMath::Max(1.f, State->MaxHP * ClampedHPRatio);
+		State->HP = FMath::Clamp(RecoveredHP, 1.f, State->MaxHP);
+		State->AP = FMath::Clamp(FMath::RoundToInt(static_cast<float>(State->MaxAP) * ClampedAPRatio), 0, State->MaxAP);
 
-		OnHPChanged.Broadcast(CharacterID, Snap->HP, Snap->MaxHP);
-		OnAPChanged.Broadcast(CharacterID, Snap->AP, Snap->MaxAP);
+		OnHPChanged.Broadcast(CharacterID, State->HP, State->MaxHP);
+		OnAPChanged.Broadcast(CharacterID, State->AP, State->MaxAP);
 		++RecoveredCount;
 	}
-	
+
 	UE_LOG(LogTemp, Warning,
 		TEXT("CharacterRuntimeSubsystem : 현재 파티 전멸 감지. 필드 복귀용 리커버리 적용 Count=%d (HP %.0f%% / AP %.0f%%)"),
 		RecoveredCount, ClampedHPRatio * 100.f, ClampedAPRatio * 100.f);
@@ -165,77 +119,87 @@ void UCharacterRuntimeSubsystem::RecoverPartyFromWipe(const TArray<FName>& Activ
 
 bool UCharacterRuntimeSubsystem::RecoverPartyAfterVictory(const TArray<FName>& ActivePartyIds, float HPRecoverRatio)
 {
-	if (SnapshotMap.IsEmpty() || ActivePartyIds.IsEmpty())
+	if (RuntimeStateMap.IsEmpty() || ActivePartyIds.IsEmpty())
 	{
 		return false;
 	}
-	
+
 	const float ClampedRatio = FMath::Clamp(HPRecoverRatio, 0.f, 1.f);
 	bool bStillRecovering = false;
-	
+
 	for (const FName& CharacterID : ActivePartyIds)
 	{
-		FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
-		if (!Snap || !Snap->IsValid()) continue;
-
-		if (Snap->HP < Snap->MaxHP)
+		FCharacterRuntimeState* State = RuntimeStateMap.Find(CharacterID);
+		if (!State || !State->IsValid())
 		{
-			const float RecoveryAmount = Snap->MaxHP * ClampedRatio;
-			Snap->HP = FMath::Min(Snap->HP + RecoveryAmount, Snap->MaxHP);
-			
-			OnHPChanged.Broadcast(CharacterID, Snap->HP, Snap->MaxHP);
+			continue;
+		}
 
-			if (Snap->HP < Snap->MaxHP)
+		if (State->HP < State->MaxHP)
+		{
+			const float RecoveryAmount = State->MaxHP * ClampedRatio;
+			State->HP = FMath::Min(State->HP + RecoveryAmount, State->MaxHP);
+			OnHPChanged.Broadcast(CharacterID, State->HP, State->MaxHP);
+
+			if (State->HP < State->MaxHP)
 			{
 				bStillRecovering = true;
 			}
 		}
 	}
-	UE_LOG(LogTemp, Log, TEXT("CharacterRuntimeSubsystem : 승리 후 HP 회복 (비율 %.0f%%, 잔여 회복 필요: %s)"), ClampedRatio * 100.f, bStillRecovering ? TEXT("Yes") : TEXT("No"));
-	
+
+	UE_LOG(LogTemp, Log, TEXT("CharacterRuntimeSubsystem : 승리 후 HP 회복 (비율 %.0f%%, 잔여 회복 필요: %s)"),
+		ClampedRatio * 100.f, bStillRecovering ? TEXT("Yes") : TEXT("No"));
 	return bStillRecovering;
 }
 
 bool UCharacterRuntimeSubsystem::HasSnapshot(const FName& CharacterID) const
 {
-	const FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
-	return Snap && Snap->IsValid();
+	const FCharacterRuntimeState* State = RuntimeStateMap.Find(CharacterID);
+	return State && State->IsValid();
 }
 
 void UCharacterRuntimeSubsystem::ModifyHP(const FName& CharacterID, float Delta)
 {
-	FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
-	if (!Snap) return;
+	FCharacterRuntimeState* State = RuntimeStateMap.Find(CharacterID);
+	if (!State)
+	{
+		return;
+	}
 
-	Snap->HP = FMath::Clamp(Snap->HP + Delta, 0.f, Snap->MaxHP);
+	const float OldHP = State->HP;
+	State->HP = FMath::Clamp(State->HP + Delta, 0.f, State->MaxHP);
 
 	UE_LOG(LogTemp, Log, TEXT("CharacterRuntimeSubsystem : HP 수정 [%s] %.1f → %.1f"),
-		*CharacterID.ToString(), Snap->HP - Delta, Snap->HP);
-
-	OnHPChanged.Broadcast(CharacterID, Snap->HP, Snap->MaxHP);
+		*CharacterID.ToString(), OldHP, State->HP);
+	OnHPChanged.Broadcast(CharacterID, State->HP, State->MaxHP);
 }
 
 void UCharacterRuntimeSubsystem::ModifyAP(const FName& CharacterID, int32 Delta)
 {
-	FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
-	if (!Snap) return;
+	FCharacterRuntimeState* State = RuntimeStateMap.Find(CharacterID);
+	if (!State)
+	{
+		return;
+	}
 
-	Snap->AP = FMath::Clamp(Snap->AP + Delta, 0, Snap->MaxAP);
-
-	OnAPChanged.Broadcast(CharacterID, Snap->AP, Snap->MaxAP);
+	State->AP = FMath::Clamp(State->AP + Delta, 0, State->MaxAP);
+	OnAPChanged.Broadcast(CharacterID, State->AP, State->MaxAP);
 }
 
 void UCharacterRuntimeSubsystem::ModifySP(const FName& CharacterID, int32 Delta)
 {
-	FCharacterResourceSnapshot* Snap = SnapshotMap.Find(CharacterID);
-	if (!Snap) return;
+	FCharacterRuntimeState* State = RuntimeStateMap.Find(CharacterID);
+	if (!State)
+	{
+		return;
+	}
 
-	Snap->SP = FMath::Clamp(Snap->SP + Delta, 0, Snap->MaxSP);
-
-	OnSPChanged.Broadcast(CharacterID, Snap->SP, Snap->MaxSP);
+	State->SP = FMath::Clamp(State->SP + Delta, 0, State->MaxSP);
+	OnSPChanged.Broadcast(CharacterID, State->SP, State->MaxSP);
 }
 
-const FCharacterResourceSnapshot* UCharacterRuntimeSubsystem::GetSnapshot(const FName& CharacterID) const
+const FCharacterRuntimeState* UCharacterRuntimeSubsystem::GetState(const FName& CharacterID) const
 {
-	return SnapshotMap.Find(CharacterID);
+	return RuntimeStateMap.Find(CharacterID);
 }

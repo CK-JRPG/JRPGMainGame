@@ -20,6 +20,8 @@ public:
 	FOnAPChanged OnAPChanged;
 
 	void InitializeAP(int32 InMaxAP, bool bFillToMax = true);
+	// Snapshot/SaveGame import only: gameplay change delegates are intentionally not emitted.
+	void ImportRuntimeState(int32 InMaxAP, int32 InCurrentAP);
 
 	int32 GetMaxAP() const { return MaxAP; }
 	int32 GetAP() const { return CurrentAP; }

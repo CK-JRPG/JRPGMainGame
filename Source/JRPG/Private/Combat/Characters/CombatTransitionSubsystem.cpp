@@ -8,7 +8,7 @@
 #include "Combat/Characters/CombatPlayerController.h"
 #include "Combat/Characters/PartyActorSpawnSubsystem.h"
 #include "Combat/Characters/PartySubsystem.h"
-#include "Combat/Infrastructure/CombatTimeSubsystem.h"
+#include "Combat/Time/CombatTimeSubsystem.h"
 #include "Combat/Movement/LocomotionComponent.h"
 #include "Combat/Stats/HPComponent.h"
 #include "Game/Companion/FieldCompanionSubsystem.h"
@@ -379,6 +379,7 @@ void UCombatTransitionSubsystem::OnBattleEnded(EBattleEndReason Reason)
 	if (OriginalPlayerCharacterID.IsNone())
 	{
 		UE_LOG(LogTemp, Error, TEXT("CombatTransitionSubsystem::OnBattleEnded : OriginalPlayerCharacterID 미설정."));
+		bIsTransitioning = false;
 		return;
 	}
 
@@ -1129,8 +1130,22 @@ void UCombatTransitionSubsystem::PostBattleStartAIInit()
 
 void UCombatTransitionSubsystem::HandleBattleEnded(const FBattleSessionSnapshot& /*Snapshot*/, EBattleEndReason Reason)
 {
-	bIsTransitioning = true;
+	if (UWorld* World = GetWorld())
+	{
+		World->GetTimerManager().ClearTimer(PostBattleStartAIInitHandle);
+	}
+
 	CancelEncounterIntroSequence(TEXT("Encounter.Intro.BattleEnded"));
+
+	// BattleSession은 CombatTransition 진입 전에도 실패/Abort 될 수 있다.
+	// 이 경우는 복원할 전환 상태가 없으므로 재진입 차단 flag를 남기지 않는다.
+	if (OriginalPlayerCharacterID.IsNone())
+	{
+		bIsTransitioning = false;
+		return;
+	}
+
+	bIsTransitioning = true;
 
 	if (UWorld* World = GetWorld())
 	{

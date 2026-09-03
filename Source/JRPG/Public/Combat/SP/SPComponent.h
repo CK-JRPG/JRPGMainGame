@@ -20,6 +20,8 @@ public:
 	FOnSPChanged OnSPChanged;
 
 	void InitializeSP(int32 InMaxSP, int32 InStartSP = 0);
+	// Snapshot/SaveGame import only: gameplay change delegates are intentionally not emitted.
+	void ImportRuntimeState(int32 InMaxSP, int32 InCurrentSP);
 
 	int32 GetSP() const { return CurrentSP; }
 	int32 GetMaxSP() const { return MaxSP; }

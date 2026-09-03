@@ -319,11 +319,9 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 	SpawnSub->AsyncSpawnCombatActorsAtFieldPositions(PartyIds, FieldTransforms,
 		[WeakThis, BattleConfig, WeakPC, LeaderCharID, EncounterCtx](TArray<ACombatCharacterActor*> SpawnedActors) mutable
 		{
-			//스폰은 PartyActorSpawnSubsystem이 하고, 결과만 람다로 받아서 EncounterTriggerActor가 처리
-			//PartyActorSpawnSubsystem에서 OnComplete(SpawnedActors)가 호출되어야(실제 스폰이 완료되어야) 아래 등록이 실행됨. 
-			// 즉, SpawnedActors가 만들어지는 곳이 PartyActorSpawnSubsystem의 DoSpawn() 안쪽임 (람다 구현하다가 나도 헷갈려서 적어둠...)
+			// Session과 Transition까지 성공해야 Spawn subsystem이 Actor 소유권을 확정한다.
 			UEnemyEncounterComponent* Self = WeakThis.Get();
-			if (!Self) return;
+			if (!Self) return false;
 
 			for (ACombatCharacterActor* Actor : SpawnedActors)
 			{
@@ -335,13 +333,13 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 			{
 				UE_LOG(LogTemp, Warning, TEXT("EncounterComponent : 플레이어 전투 캐릭터 스폰 실패"));
 				Self->bHasTriggered = false;
-				return;
+				return false;
 			}
 
 
 			if (!Self->ReadyForBattleSession(BattleConfig, EncounterCtx))
 			{
-				return;
+				return false;
 			}
 
 			// 배틀세션 시작 성공 후 후처리 -> 필드 폰 숨기고 CombatCharacterActor로 빙의
@@ -363,16 +361,11 @@ void UEnemyEncounterComponent::SearchCombatEnemyCharactersInRadius(const AActor*
 					BattleSession->ExitExclusiveMode(TEXT("Encounter.Intro"));
 					BattleSession->AbortBattle("Encounter.EnterCombatFailed");
 				}
-				if (UPartyActorSpawnSubsystem* SpawnSub = Self->GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
-				{
-					TArray<ACombatCharacterActor*> Actors = SpawnSub->GetSpawnedActors();
-					if (Actors.Num() > 0)
-					{
-						SpawnSub->DespawnCombatActors(Actors);
-					}
-				}
 				Self->bHasTriggered = false;
+				return false;
 			}
+
+			return true;
 		});
 }
 
@@ -412,15 +405,6 @@ bool UEnemyEncounterComponent::ReadyForBattleSession(const FBattleSessionConfig&
 		UE_LOG(LogTemp, Log, TEXT("EncounterComponent : BattleSession 시작 실패, 기능 점검 다시 "));
 		bHasTriggered = false;
 
-		// 배틀 시작 실패 시 이미 스폰된 플레이어 CombatCharacterActor 정리
-		if (UPartyActorSpawnSubsystem* SpawnSub = GetWorld()->GetSubsystem<UPartyActorSpawnSubsystem>())
-		{
-			TArray<ACombatCharacterActor*> Actors = SpawnSub->GetSpawnedActors();
-			if (Actors.Num() > 0)
-			{
-				SpawnSub->DespawnCombatActors(Actors);
-			}
-		}
 		return false;
 	}
 }
@@ -478,4 +462,3 @@ void UEnemyEncounterComponent::ResetEncounterForRematch()
 		TriggerSphere->UpdateOverlaps();
 	}
 }
-

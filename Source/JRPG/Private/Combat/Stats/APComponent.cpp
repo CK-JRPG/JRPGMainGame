@@ -12,6 +12,12 @@ void UAPComponent::InitializeAP(int32 InMaxAP, bool bFillToMax)
 	CurrentAP = FMath::Clamp(CurrentAP, 0, MaxAP);
 }
 
+void UAPComponent::ImportRuntimeState(int32 InMaxAP, int32 InCurrentAP)
+{
+	MaxAP = FMath::Max(0, InMaxAP);
+	CurrentAP = FMath::Clamp(InCurrentAP, 0, MaxAP);
+}
+
 bool UAPComponent::Consume(int32 Amount, FName ReasonTag)
 {
 	if (Amount <= 0) return true;

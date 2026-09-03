@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Subsystems/WorldSubsystem.h"
+#include "Combat/Battle/BattleSessionTypes.h"
 #include "Combat/Tactical/TacticalModeTypes.h"
 #include "Combat/Time/CombatTimeTypes.h"
 #include "TacticalModeSubsystem.generated.h"
@@ -45,6 +46,7 @@ private:
 
 	UBattleSessionSubsystem* GetBattle() const;
 	UCombatTimeSubsystem* GetTimeSubsystem() const;
+	void ClearAllReservations();
 
 	bool IsPlayerTurnActor(AActor* Actor) const;
 	bool IsSessionParticipant(AActor* Actor) const;

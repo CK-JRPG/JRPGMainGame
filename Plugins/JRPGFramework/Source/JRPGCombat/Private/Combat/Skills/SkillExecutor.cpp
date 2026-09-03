@@ -11,7 +11,6 @@
 #include "Combat/Threat/CombatThreatComponent.h"
 #include "Combat/Movement/JRPGCombatMotionComponent.h"
 #include "Combat/SP/SPEventRouterSubsystem.h"
-#include "Combat/SP/SPTypes.h"
 
 static AActor* ResolveCaster(UJRPGSkillComponent& SkillComp, const FJRPGSkillRequest& Req)
 {

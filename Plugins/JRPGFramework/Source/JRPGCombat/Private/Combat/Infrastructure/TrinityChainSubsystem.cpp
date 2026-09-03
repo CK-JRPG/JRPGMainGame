@@ -1,7 +1,7 @@
 ﻿#include "Combat/Infrastructure/TrinityChainSubsystem.h"
 
 #include "Combat/Chain/ChainSettingsDataAsset.h"
-#include "Combat/Infrastructure/CombatTimeSubsystem.h"
+#include "Combat/Time/CombatTimeSubsystem.h"
 #include "Combat/Infrastructure/CombatBattleSessionSubsystem.h"
 #include "Combat/Infrastructure/CombatSynergyPointSubsystem.h"
 #include "Combat/Infrastructure/CombatTacticalModeSubsystem.h"

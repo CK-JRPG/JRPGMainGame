@@ -80,6 +80,7 @@ protected:
 
 private:
 	bool bBattleActive = false;
+	bool bEndingBattle = false;
 
 	UPROPERTY() FBattleSessionConfig ActiveConfig;
 	UPROPERTY() FBattleSessionSnapshot Snapshot;

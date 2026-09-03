@@ -28,23 +28,7 @@ public class JRPG : ModuleRules
 		// JRPG Framework 플러그인 : Public
 		PublicDependencyModuleNames.AddRange(new string[] {
 			"JRPGCore",
-			"JRPGGameFlow"
+			"JRPGCombat"
 		});
-
-		// JRPG Framework 플러그인 : Private
-		PrivateDependencyModuleNames.AddRange(new string[] {
-			"JRPGCombat",
-			"JRPGAI",
-			"JRPGEconomy",
-			"JRPGExploration",
-			"JRPGProgression",
-			"JRPGUI", "EnhancedInput"
-		});
-
-		// Devtools 전용모듈 -> Shipping 빌드에서는 제외
-		if (Target.Configuration != UnrealTargetConfiguration.Shipping)
-		{
-			PrivateDependencyModuleNames.Add("JRPGDevtools");
-		}
 	}
 }

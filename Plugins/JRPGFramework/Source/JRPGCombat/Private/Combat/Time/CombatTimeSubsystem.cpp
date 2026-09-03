@@ -1,4 +1,4 @@
-﻿#include "Combat/Infrastructure/CombatTimeSubsystem.h"
+﻿#include "Combat/Time/CombatTimeSubsystem.h"
 
 #include "Kismet/GameplayStatics.h"
 

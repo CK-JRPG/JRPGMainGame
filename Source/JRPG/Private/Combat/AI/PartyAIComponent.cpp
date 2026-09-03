@@ -12,7 +12,6 @@
 #include "Combat/AI/CombatAIPresetAsset.h"
 
 #include "Combat/Skills/SkillComponent.h"
-#include "JRPGCombat/Public/Combat/Infrastructure/CombatBattleSessionSubsystem.h"
 
 UPartyAIComponent::UPartyAIComponent()
 {

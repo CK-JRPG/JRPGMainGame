@@ -1,32 +1,13 @@
 ﻿#pragma once
 #include "CoreMinimal.h"
+#include "Combat/Characters/CharacterRuntimeStateTypes.h"
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "CharacterRuntimeSubsystem.generated.h"
-
-class ACombatCharacterActor;
 
 // UI 업데이트용 델리게이트 선언
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCharacterHPChanged, FName /*CharacterID*/, float /*NewHP*/, float /*MaxHP*/);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCharacterAPChanged, FName /*CharacterID*/, int32 /*NewAP*/, int32 /*MaxAP*/);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnCharacterSPChanged, FName /*CharacterID*/, int32 /*NewSP*/, int32 /*MaxSP*/);
-
-USTRUCT()
-struct FCharacterResourceSnapshot
-{
-	GENERATED_BODY()
-
-	UPROPERTY() float HP    = -1.f;  // -1 = 스냅샷 없음 (첫 인카운터)
-	UPROPERTY() float MaxHP = 100.f;
-	UPROPERTY() int32 AP    = 0;
-	UPROPERTY() int32 MaxAP = 10;
-	UPROPERTY() int32 SP    = 0;
-	UPROPERTY() int32 MaxSP = 100;
-	UPROPERTY() FVector WorldLocation = FVector::ZeroVector;
-	UPROPERTY() FRotator WorldRotation = FRotator::ZeroRotator;
-	UPROPERTY() bool bHasTransformSnapshot = false;
-
-	bool IsValid() const { return HP >= 0.f; }
-};
 
 UCLASS()
 class JRPG_API UCharacterRuntimeSubsystem : public UGameInstanceSubsystem
@@ -36,10 +17,10 @@ class JRPG_API UCharacterRuntimeSubsystem : public UGameInstanceSubsystem
 public:
 	FOnCharacterHPChanged OnHPChanged;
 	FOnCharacterAPChanged OnAPChanged;
-	FOnCharacterAPChanged OnSPChanged;
+	FOnCharacterSPChanged OnSPChanged;
 
-	void SaveSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor);
-	void RestoreSnapshot(const FName& CharacterID, ACombatCharacterActor* Actor, bool bRestoreTransform = true);
+	bool CommitState(const FName& CharacterID, const FCharacterRuntimeState& State);
+	bool CommitStates(const TMap<FName, FCharacterRuntimeState>& States);
 	void InitializeSnapshotIfAbsent(const FName& CharacterID, float MaxHP, int32 MaxAP, int32 MaxSP);
 	void RecoverPartyFromWipe(const TArray<FName>& ActivePartyIds, float HPRecoverRatio = 0.2f, float APRecoverRatio = 0.3f);
 	bool RecoverPartyAfterVictory(const TArray<FName>& ActivePartyIds, float HPRecoverRatio = 0.05f);
@@ -48,10 +29,11 @@ public:
 	void ModifyAP(const FName& CharacterID, int32 Delta);
 	void ModifySP(const FName& CharacterID, int32 Delta);
 	
-	const FCharacterResourceSnapshot* GetSnapshot(const FName& CharacterID) const;
+	const FCharacterRuntimeState* GetState(const FName& CharacterID) const;
+	const FCharacterResourceSnapshot* GetSnapshot(const FName& CharacterID) const { return GetState(CharacterID); }
 	bool HasSnapshot(const FName& CharacterID) const;
 	
 private:
 	UPROPERTY()
-	TMap<FName, FCharacterResourceSnapshot> SnapshotMap;
+	TMap<FName, FCharacterRuntimeState> RuntimeStateMap;
 };

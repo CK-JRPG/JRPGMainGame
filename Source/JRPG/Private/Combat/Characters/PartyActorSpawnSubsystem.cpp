@@ -1,14 +1,17 @@
 ﻿#include "Combat/Characters/PartyActorSpawnSubsystem.h"
 
-#include "Combat/Characters/CombatCharacterActor.h"
+#include "Combat/Characters/CharacterRuntimeStateAdapter.h"
 #include "Combat/Characters/CharacterRuntimeSubsystem.h"
+#include "Combat/Characters/CombatCharacterActor.h"
 #include "Engine/AssetManager.h"
-#include "EngineUtils.h"
+#include "Engine/GameInstance.h"
+#include "Engine/World.h"
+#include "GameFramework/Controller.h"
 #include "TimerManager.h"
 
 void UPartyActorSpawnSubsystem::Deinitialize()
 {
-	Super::Deinitialize();
+	InvalidateSpawnRequest();
 
 	if (PreloadHandle.IsValid())
 	{
@@ -17,9 +20,44 @@ void UPartyActorSpawnSubsystem::Deinitialize()
 	}
 
 	TArray<ACombatCharacterActor*> Remaining;
-	for (auto& Pair : SpawnedActorMap)
-		if (Pair.Value.Get()) Remaining.Add(Pair.Value.Get());
-	DespawnCombatActors(Remaining);
+	for (const TPair<FName, TObjectPtr<ACombatCharacterActor>>& Pair : SpawnedActorMap)
+	{
+		if (IsValid(Pair.Value.Get()))
+		{
+			Remaining.Add(Pair.Value.Get());
+		}
+	}
+
+	// World teardown is not a successful battle boundary. Preserve the last committed state.
+	DiscardCombatActors(Remaining);
+	SpawnedActorMap.Reset();
+	Super::Deinitialize();
+}
+
+void UPartyActorSpawnSubsystem::InvalidateSpawnRequest()
+{
+	++SpawnRequestSerial;
+	ActiveSpawnRequestId = 0;
+	bSpawnRequestInFlight = false;
+	PendingSpawnIds.Reset();
+
+	if (SpawnLoadHandle.IsValid())
+	{
+		SpawnLoadHandle->CancelHandle();
+		SpawnLoadHandle.Reset();
+	}
+}
+
+bool UPartyActorSpawnSubsystem::HasOwnedCombatActors() const
+{
+	for (const TPair<FName, TObjectPtr<ACombatCharacterActor>>& Pair : SpawnedActorMap)
+	{
+		if (IsValid(Pair.Value.Get()))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 // ========= SpawnEntry 레지스트리 =========
@@ -39,7 +77,9 @@ void UPartyActorSpawnSubsystem::RegisterSpawnEntry(const FCharacterSpawnEntry& E
 void UPartyActorSpawnSubsystem::RegisterSpawnEntries(const TArray<FCharacterSpawnEntry>& Entries)
 {
 	for (const FCharacterSpawnEntry& Entry : Entries)
+	{
 		RegisterSpawnEntry(Entry);
+	}
 }
 
 // ========= 에셋 프리로드 ===========
@@ -54,8 +94,10 @@ void UPartyActorSpawnSubsystem::PreloadAssets(const TArray<FName>& PartyIds)
 	}
 
 	if (PreloadHandle.IsValid())
+	{
 		PreloadHandle->ReleaseHandle();
-	
+	}
+
 	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
 	PreloadHandle = StreamableManager.RequestAsyncLoad(Paths, []()
 	{
@@ -68,21 +110,74 @@ void UPartyActorSpawnSubsystem::PreloadAssets(const TArray<FName>& PartyIds)
 void UPartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions(
 	const TArray<FName>& PartyIds,
 	const TMap<FName, FTransform>& FieldTransforms,
-	TFunction<void(TArray<ACombatCharacterActor*>)> OnComplete)
+	TFunction<bool(TArray<ACombatCharacterActor*>)> OnComplete)
 {
 	if (PartyIds.IsEmpty())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions : 실패 - PartyIds가 비어 있음."));
-		if (OnComplete) OnComplete({});
+		if (OnComplete)
+		{
+			OnComplete({});
+		}
 		return;
 	}
 
-	auto AreRequestedActorClassesLoaded = [this, &PartyIds]() -> bool
+	if (bSpawnRequestInFlight || HasOwnedCombatActors())
 	{
-		for (const FName& ID : PartyIds)
+		UE_LOG(LogTemp, Warning,
+			TEXT("PartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions : 이미 스폰 요청 또는 소유 Actor가 있어 중복 요청을 거부합니다."));
+		if (OnComplete)
 		{
-			const FCharacterSpawnEntry* Entry = SpawnEntryMap.Find(ID);
-			if (!Entry || Entry->ActorClass.IsNull() || !Entry->ActorClass.Get())
+			OnComplete({});
+		}
+		return;
+	}
+
+	TSet<FName> UniquePartyIds;
+	TMap<FName, FCharacterSpawnEntry> RequestedEntries;
+	for (const FName& ID : PartyIds)
+	{
+		if (ID.IsNone() || UniquePartyIds.Contains(ID))
+		{
+			UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem : 유효하지 않거나 중복된 Party ID - %s"), *ID.ToString());
+			if (OnComplete)
+			{
+				OnComplete({});
+			}
+			return;
+		}
+
+		const FCharacterSpawnEntry* Entry = SpawnEntryMap.Find(ID);
+		if (!Entry || Entry->ActorClass.IsNull())
+		{
+			UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem : SpawnEntry 또는 ActorClass 없음 - %s"), *ID.ToString());
+			if (OnComplete)
+			{
+				OnComplete({});
+			}
+			return;
+		}
+
+		UniquePartyIds.Add(ID);
+		RequestedEntries.Add(ID, *Entry);
+	}
+
+	if (SpawnLoadHandle.IsValid())
+	{
+		SpawnLoadHandle->ReleaseHandle();
+		SpawnLoadHandle.Reset();
+	}
+
+	const uint64 RequestId = ++SpawnRequestSerial;
+	ActiveSpawnRequestId = RequestId;
+	bSpawnRequestInFlight = true;
+	PendingSpawnIds = UniquePartyIds;
+
+	auto AreRequestedActorClassesLoaded = [RequestedEntries]() -> bool
+	{
+		for (const TPair<FName, FCharacterSpawnEntry>& Pair : RequestedEntries)
+		{
+			if (!Pair.Value.ActorClass.Get())
 			{
 				return false;
 			}
@@ -91,32 +186,55 @@ void UPartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions(
 	};
 
 	TWeakObjectPtr<UPartyActorSpawnSubsystem> WeakThis(this);
-
-	//TArray<ACombatCharacterActor*> SpawnedActors가 만들어지는 곳이 여기임.(람다)
-	auto DoSpawn = [WeakThis, PartyIds, FieldTransforms, OnComplete]()
+	auto DoSpawn = [WeakThis, RequestId, PartyIds, FieldTransforms, RequestedEntries, OnComplete]()
 	{
 		UPartyActorSpawnSubsystem* Self = WeakThis.Get();
-		if (!Self)
+		if (!Self || !Self->bSpawnRequestInFlight || Self->ActiveSpawnRequestId != RequestId)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem : 에러 - 스폰 완료 전 Subsystem 소멸."));
 			return;
 		}
 
 		UWorld* World = Self->GetWorld();
 		if (!World)
 		{
-			UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem : 에러 - 스폰 완료 시 World 없음."));
+			Self->InvalidateSpawnRequest();
+			if (OnComplete)
+			{
+				OnComplete({});
+			}
 			return;
 		}
 
 		UCharacterRuntimeSubsystem* CharacterRuntime = nullptr;
-		if (UGameInstance* GI = World->GetGameInstance())
-			CharacterRuntime = GI->GetSubsystem<UCharacterRuntimeSubsystem>();
+		if (UGameInstance* GameInstance = World->GetGameInstance())
+		{
+			CharacterRuntime = GameInstance->GetSubsystem<UCharacterRuntimeSubsystem>();
+		}
 
 		TArray<ACombatCharacterActor*> SpawnedActors;
 		SpawnedActors.Reserve(PartyIds.Num());
+		const FTransform* LeaderTransform = FieldTransforms.Find(PartyIds[0]);
+		auto DestroyUnownedActor = [World](ACombatCharacterActor* Actor)
+		{
+			if (!IsValid(Actor))
+			{
+				return;
+			}
 
-		const FTransform* LeaderTransform = PartyIds.Num() > 0 ? FieldTransforms.Find(PartyIds[0]) : nullptr;
+			World->GetTimerManager().ClearAllTimersForObject(Actor);
+			if (AController* Controller = Actor->GetController())
+			{
+				Controller->UnPossess();
+				if (!Controller->IsPlayerController())
+				{
+					Controller->Destroy();
+				}
+			}
+			Actor->SetActorHiddenInGame(true);
+			Actor->SetActorEnableCollision(false);
+			Actor->SetActorTickEnabled(false);
+			Actor->Destroy();
+		};
 
 		auto MakeFallbackTransformNearLeader = [LeaderTransform](int32 PartyIndex) -> FTransform
 		{
@@ -131,28 +249,24 @@ void UPartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions(
 
 			const FVector LeaderLocation = LeaderTransform->GetLocation();
 			const FVector Direction = LeaderTransform->GetUnitAxis(EAxis::X).RotateAngleAxis(AngleOffset, FVector::UpVector);
-			const FVector SpawnLocation = LeaderLocation - (Direction * 200.0f);
-			return FTransform(LeaderTransform->GetRotation(), SpawnLocation);
+			return FTransform(LeaderTransform->GetRotation(), LeaderLocation - (Direction * 200.0f));
 		};
 
 		for (const FName& ID : PartyIds)
 		{
-			const FCharacterSpawnEntry* Entry = Self->SpawnEntryMap.Find(ID);
+			const FCharacterSpawnEntry* Entry = RequestedEntries.Find(ID);
 			if (!Entry)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem : 에러 - SpawnEntry 없음. ID: %s"), *ID.ToString());
 				continue;
 			}
 
-			TSubclassOf<ACombatCharacterActor> LoadedClass =
-				TSoftClassPtr<ACombatCharacterActor>(Entry->ActorClass.ToSoftObjectPath()).Get();
+			TSubclassOf<ACombatCharacterActor> LoadedClass = Entry->ActorClass.Get();
 			if (!LoadedClass)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem : 에러 - 클래스 로드 실패. ID: %s"), *ID.ToString());
+				UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem : 클래스 로드 실패 - %s"), *ID.ToString());
 				continue;
 			}
 
-			// 필드 폰 위치가 있으면 그 위치에, 없으면 폴백
 			FTransform ActorTransform;
 			if (const FTransform* FieldTransform = FieldTransforms.Find(ID))
 			{
@@ -173,19 +287,61 @@ void UPartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions(
 				continue;
 			}
 
-			Self->SpawnedActorMap.Add(ID, SpawnedActor);
-			SpawnedActors.Add(SpawnedActor);
+			if (SpawnedActor->GetCombatantId() != ID)
+			{
+				UE_LOG(LogTemp, Error,
+					TEXT("PartyActorSpawnSubsystem : 요청 ID와 Actor CombatantId 불일치 - Requested=%s Actor=%s"),
+					*ID.ToString(), *SpawnedActor->GetCombatantId().ToString());
+				DestroyUnownedActor(SpawnedActor);
+				continue;
+			}
 
 			if (CharacterRuntime)
 			{
-				// 새 인카운터의 스폰 위치는 FieldTransforms를 우선한다.
-				CharacterRuntime->RestoreSnapshot(ID, SpawnedActor, false);
+				if (const FCharacterRuntimeState* State = CharacterRuntime->GetState(ID))
+				{
+					if (!FCharacterRuntimeStateAdapter::Restore(SpawnedActor, *State))
+					{
+						UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem : 런타임 상태 복원 실패 - %s"), *ID.ToString());
+						DestroyUnownedActor(SpawnedActor);
+						continue;
+					}
+				}
 			}
 
+			Self->SpawnedActorMap.Add(ID, SpawnedActor);
+			SpawnedActors.Add(SpawnedActor);
 			UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem : 필드 위치 기반 스폰 성공 - %s"), *ID.ToString());
 		}
 
-		if (OnComplete) OnComplete(SpawnedActors); // 여기서 람다 호출함.
+		const bool bAcceptedByEncounter = OnComplete && OnComplete(SpawnedActors);
+
+		Self = WeakThis.Get();
+		if (!Self || !Self->bSpawnRequestInFlight || Self->ActiveSpawnRequestId != RequestId)
+		{
+			return;
+		}
+
+		if (bAcceptedByEncounter)
+		{
+			for (const FName& ID : PartyIds)
+			{
+				Self->PendingSpawnIds.Remove(ID);
+			}
+		}
+		else
+		{
+			Self->DiscardCombatActors(SpawnedActors);
+		}
+
+		Self->PendingSpawnIds.Reset();
+		Self->bSpawnRequestInFlight = false;
+		Self->ActiveSpawnRequestId = 0;
+		if (Self->SpawnLoadHandle.IsValid())
+		{
+			Self->SpawnLoadHandle->ReleaseHandle();
+			Self->SpawnLoadHandle.Reset();
+		}
 	};
 
 	if (AreRequestedActorClassesLoaded())
@@ -194,129 +350,215 @@ void UPartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions(
 		return;
 	}
 
-	TArray<FSoftObjectPath> Paths = CollectSoftPaths(PartyIds);
+	TArray<FSoftObjectPath> Paths;
+	Paths.Reserve(RequestedEntries.Num());
+	for (const TPair<FName, FCharacterSpawnEntry>& Pair : RequestedEntries)
+	{
+		Paths.AddUnique(Pair.Value.ActorClass.ToSoftObjectPath());
+	}
+
 	if (Paths.IsEmpty())
 	{
-		UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem::AsyncSpawnCombatActorsAtFieldPositions : 로드할 경로가 없어 스폰을 시도합니다."));
-		DoSpawn();
+		UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem : 스폰용 로드 경로가 없습니다."));
+		InvalidateSpawnRequest();
+		if (OnComplete)
+		{
+			OnComplete({});
+		}
 		return;
 	}
 
 	FStreamableManager& StreamableManager = UAssetManager::GetStreamableManager();
-
-	if (PreloadHandle.IsValid())
-		PreloadHandle->ReleaseHandle();
-
-	PreloadHandle = StreamableManager.RequestAsyncLoad(
+	SpawnLoadHandle = StreamableManager.RequestAsyncLoad(
 		Paths,
 		[DoSpawn]() { DoSpawn(); },
-		FStreamableManager::AsyncLoadHighPriority
-	);
+		FStreamableManager::AsyncLoadHighPriority);
+
+	if (!SpawnLoadHandle.IsValid())
+	{
+		UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem : 비동기 로드 요청 생성 실패."));
+		InvalidateSpawnRequest();
+		if (OnComplete)
+		{
+			OnComplete({});
+		}
+	}
 }
 
 // ============= CombatCharacterActor 파괴 ===============
 
 void UPartyActorSpawnSubsystem::DespawnCombatActors(const TArray<ACombatCharacterActor*>& Actors)
 {
-	UCharacterRuntimeSubsystem* CharacterRuntime = nullptr;
-	UWorld* World = GetWorld();
-	if (World)
-		if (UGameInstance* GI = World->GetGameInstance())
-			CharacterRuntime = GI->GetSubsystem<UCharacterRuntimeSubsystem>();
+	DespawnCombatActorsInternal(Actors, true);
+}
 
-	TSet<ACombatCharacterActor*> ActorsToDespawn;
+void UPartyActorSpawnSubsystem::DiscardCombatActors(const TArray<ACombatCharacterActor*>& Actors)
+{
+	DespawnCombatActorsInternal(Actors, false);
+}
+
+void UPartyActorSpawnSubsystem::DespawnCombatActorsInternal(
+	const TArray<ACombatCharacterActor*>& Actors,
+	bool bCommitRuntimeState)
+{
+	TSet<ACombatCharacterActor*> RequestedActors;
 	for (ACombatCharacterActor* Actor : Actors)
 	{
 		if (IsValid(Actor))
 		{
-			ActorsToDespawn.Add(Actor);
+			RequestedActors.Add(Actor);
 		}
 	}
 
+	TArray<FName> OwnedIds;
+	TArray<ACombatCharacterActor*> OwnedActors;
+	TSet<ACombatCharacterActor*> MatchedActors;
 	for (auto It = SpawnedActorMap.CreateIterator(); It; ++It)
 	{
-		if (ACombatCharacterActor* Actor = It.Value().Get())
+		ACombatCharacterActor* Actor = It.Value().Get();
+		if (!IsValid(Actor))
 		{
-			ActorsToDespawn.Add(Actor);
-		}
-		else
-		{
+			PendingSpawnIds.Remove(It.Key());
 			It.RemoveCurrent();
+			continue;
+		}
+
+		if (RequestedActors.Contains(Actor))
+		{
+			OwnedIds.Add(It.Key());
+			OwnedActors.Add(Actor);
+			MatchedActors.Add(Actor);
 		}
 	}
 
+	for (ACombatCharacterActor* RequestedActor : RequestedActors)
+	{
+		if (!MatchedActors.Contains(RequestedActor))
+		{
+			UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem : 소유하지 않은 Actor despawn 요청 무시 - %s"),
+				*GetNameSafe(RequestedActor));
+		}
+	}
+
+	UCharacterRuntimeSubsystem* CharacterRuntime = nullptr;
+	UWorld* World = GetWorld();
 	if (World)
 	{
-		for (TActorIterator<ACombatCharacterActor> It(World); It; ++It)
+		if (UGameInstance* GameInstance = World->GetGameInstance())
 		{
-			ACombatCharacterActor* Actor = *It;
-			if (IsValid(Actor) && Actor->GetCombatTeam() == ECombatTeam::Player)
-			{
-				ActorsToDespawn.Add(Actor);
-			}
+			CharacterRuntime = GameInstance->GetSubsystem<UCharacterRuntimeSubsystem>();
 		}
 	}
 
-	int32 DespawnedCount = 0;
-	for (ACombatCharacterActor* Actor : ActorsToDespawn)
+	// Phase 1: capture every owned, non-provisional actor before any lifecycle mutation.
+	TMap<FName, FCharacterRuntimeState> CapturedStates;
+	bool bCanDestroyCommittedActors = true;
+	int32 CommittedActorCount = 0;
+	if (bCommitRuntimeState)
 	{
-		if (!IsValid(Actor)) continue;
+		if (!CharacterRuntime)
+		{
+			bCanDestroyCommittedActors = false;
+			UE_LOG(LogTemp, Error,
+				TEXT("PartyActorSpawnSubsystem : Runtime State Store가 없어 정상 despawn을 중단합니다."));
+		}
+
+		for (int32 Index = 0; Index < OwnedActors.Num(); ++Index)
+		{
+			ACombatCharacterActor* Actor = OwnedActors[Index];
+			const FName CharacterID = OwnedIds[Index];
+			if (PendingSpawnIds.Contains(CharacterID))
+			{
+				continue;
+			}
+			++CommittedActorCount;
+
+			if (Actor->GetCombatantId() != CharacterID)
+			{
+				bCanDestroyCommittedActors = false;
+				UE_LOG(LogTemp, Error,
+					TEXT("PartyActorSpawnSubsystem : despawn ID 불일치로 정상 despawn 중단 - Owned=%s Actor=%s"),
+					*CharacterID.ToString(), *Actor->GetCombatantId().ToString());
+				continue;
+			}
+
+			FCharacterRuntimeState CapturedState;
+			if (!FCharacterRuntimeStateAdapter::Capture(Actor, CapturedState))
+			{
+				bCanDestroyCommittedActors = false;
+				UE_LOG(LogTemp, Error, TEXT("PartyActorSpawnSubsystem : 런타임 상태 capture 실패, 정상 despawn 중단 - %s"),
+					*CharacterID.ToString());
+				continue;
+			}
+
+			CapturedStates.Add(CharacterID, CapturedState);
+		}
+
+		if (CommittedActorCount > 0
+			&& (CapturedStates.Num() != CommittedActorCount
+				|| !CharacterRuntime
+				|| !CharacterRuntime->CommitStates(CapturedStates)))
+		{
+			bCanDestroyCommittedActors = false;
+			UE_LOG(LogTemp, Error,
+				TEXT("PartyActorSpawnSubsystem : 전체 Runtime State batch commit 실패. 해당 Actor를 파괴하지 않습니다."));
+		}
+	}
+
+	// Phase 2: only after capture/commit, release runtime ownership and destroy exact owned actors.
+	int32 DespawnedCount = 0;
+	for (int32 Index = 0; Index < OwnedActors.Num(); ++Index)
+	{
+		ACombatCharacterActor* Actor = OwnedActors[Index];
+		const FName CharacterID = OwnedIds[Index];
+		if (!IsValid(Actor))
+		{
+			continue;
+		}
+		const bool bIsProvisionalActor = PendingSpawnIds.Contains(CharacterID);
+		if (bCommitRuntimeState && !bIsProvisionalActor && !bCanDestroyCommittedActors)
+		{
+			continue;
+		}
 
 		if (World)
 		{
 			World->GetTimerManager().ClearAllTimersForObject(Actor);
 		}
 
+		if (AController* Controller = Actor->GetController())
+		{
+			if (Controller->IsPlayerController())
+			{
+				UE_LOG(LogTemp, Warning, TEXT("DespawnCombatActors : PlayerController 빙의 해제 - %s"), *Actor->GetName());
+				Controller->UnPossess();
+			}
+			else
+			{
+				Controller->UnPossess();
+				Controller->Destroy();
+			}
+		}
+
 		Actor->SetActorHiddenInGame(true);
 		Actor->SetActorEnableCollision(false);
 		Actor->SetActorTickEnabled(false);
 
-		// AI 컨트롤러가 있으면 먼저 제거
-		if (AController* C = Actor->GetController())
+		if (const TObjectPtr<ACombatCharacterActor>* OwnedActor = SpawnedActorMap.Find(CharacterID))
 		{
-			if (!C->IsPlayerController())
+			if (OwnedActor->Get() == Actor)
 			{
-				C->UnPossess();
-				C->Destroy();
-			}
-			else
-			{
-				UE_LOG(LogTemp, Warning, TEXT("DespawnCombatActors : PlayerController 빙의 중 Destroy 시도 - %s"), *Actor->GetName());
-				C->UnPossess();
+				SpawnedActorMap.Remove(CharacterID);
 			}
 		}
-		
-		// SpawnedActorMap에서 제거
-		for (auto It = SpawnedActorMap.CreateIterator(); It; ++It)
-		{
-			if (It.Value() == Actor)
-			{
-				It.RemoveCurrent();
-				break;
-			}
-		}
-
-		// CombatCharacterActor 파괴 직전에 HP/AP/SP 저장
-		if (CharacterRuntime)
-		{
-			const FName CharID = Actor->GetCombatantId();
-			if (!CharID.IsNone())
-				CharacterRuntime->SaveSnapshot(CharID, Actor);
-		}
+		PendingSpawnIds.Remove(CharacterID);
 
 		Actor->Destroy();
 		++DespawnedCount;
 	}
 
-	for (auto It = SpawnedActorMap.CreateIterator(); It; ++It)
-	{
-		if (!It.Value().Get())
-		{
-			It.RemoveCurrent();
-		}
-	}
-
-	UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem : %d개 액터 디스폰 완료."), DespawnedCount);
+	UE_LOG(LogTemp, Log, TEXT("PartyActorSpawnSubsystem : %d개 소유 액터 디스폰 완료 (StateCommit=%s)."),
+		DespawnedCount, bCommitRuntimeState ? TEXT("true") : TEXT("false"));
 }
 
 // ========== 액터 및 캐릭터 ID 조회 ============
@@ -324,19 +566,24 @@ void UPartyActorSpawnSubsystem::DespawnCombatActors(const TArray<ACombatCharacte
 TArray<ACombatCharacterActor*> UPartyActorSpawnSubsystem::GetSpawnedActors() const
 {
 	TArray<ACombatCharacterActor*> Result;
-	for (auto& Pair : SpawnedActorMap)
-		if (Pair.Value.Get()) Result.Add(Pair.Value.Get());
+	for (const TPair<FName, TObjectPtr<ACombatCharacterActor>>& Pair : SpawnedActorMap)
+	{
+		if (IsValid(Pair.Value.Get()))
+		{
+			Result.Add(Pair.Value.Get());
+		}
+	}
 	return Result;
 }
 
 ACombatCharacterActor* UPartyActorSpawnSubsystem::FindActorByCharacterID(const FName& CharacterID) const
 {
 	if (const TObjectPtr<ACombatCharacterActor>* Found = SpawnedActorMap.Find(CharacterID))
+	{
 		return Found->Get();
+	}
 	return nullptr;
 }
-
-
 
 // ====== 유틸 ========
 
@@ -344,14 +591,13 @@ ACombatCharacterActor* UPartyActorSpawnSubsystem::SpawnSingleActor(
 	TSubclassOf<ACombatCharacterActor> ActorClass, const FTransform& SpawnTransform)
 {
 	UWorld* World = GetWorld();
-	
 	if (!World || !ActorClass)
+	{
 		return nullptr;
+	}
 
 	FActorSpawnParameters SpawnParams;
-	SpawnParams.SpawnCollisionHandlingOverride =
-		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
-
+	SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButAlwaysSpawn;
 	return World->SpawnActor<ACombatCharacterActor>(ActorClass, SpawnTransform, SpawnParams);
 }
 
@@ -365,9 +611,13 @@ TArray<FSoftObjectPath> UPartyActorSpawnSubsystem::CollectSoftPaths(const TArray
 		if (const FCharacterSpawnEntry* Entry = SpawnEntryMap.Find(ID))
 		{
 			if (!Entry->ActorClass.IsNull())
+			{
 				Paths.AddUnique(Entry->ActorClass.ToSoftObjectPath());
+			}
 			else
+			{
 				UE_LOG(LogTemp, Warning, TEXT("PartyActorSpawnSubsystem::CollectSoftPaths : %s의 ActorClass가 null."), *ID.ToString());
+			}
 		}
 		else
 		{

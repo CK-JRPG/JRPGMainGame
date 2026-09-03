@@ -1,7 +1,7 @@
 ﻿#include "Combat/Infrastructure/CombatTacticalModeSubsystem.h"
 
 #include "Combat/Tactical/TacticalSettingsDataAsset.h"
-#include "Combat/Infrastructure/CombatTimeSubsystem.h"
+#include "Combat/Time/CombatTimeSubsystem.h"
 #include "Combat/Skills/JRPGSkillComponent.h"
 #include "Combat/Stats/CombatHPComponent.h"
 #include "Combat/Infrastructure/CombatBattleSessionSubsystem.h"

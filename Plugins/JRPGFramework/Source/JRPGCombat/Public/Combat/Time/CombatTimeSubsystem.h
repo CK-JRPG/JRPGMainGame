@@ -13,7 +13,7 @@
  * - BlendIn/Out RealTime 기반
  */
 UCLASS()
-class JRPGCOMBAT_API UCombatTimeSubsystem :public UTickableWorldSubsystem
+class JRPGCOMBAT_API UCombatTimeSubsystem : public UTickableWorldSubsystem
 {
 	GENERATED_BODY()
 
